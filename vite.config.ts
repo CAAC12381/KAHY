@@ -1,4 +1,4 @@
-import { defineConfig, type HtmlTagDescriptor, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type HtmlTagDescriptor, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
@@ -10,6 +10,11 @@ import siteConfiguration from './.figma/make/site.json'
 export default defineConfig(({ mode }) => {
   // .figma/make/deploy-preview passes `--mode development` for cached-preview builds.
   const emitSourcemaps = mode === 'development'
+
+  // Vite only auto-exposes VITE_-prefixed vars to client code; server-side
+  // plugins (like kahyAiApi below) read process.env directly, so .env files
+  // must be merged in here explicitly or OPENAI_API_KEY never reaches them.
+  Object.assign(process.env, loadEnv(mode, process.cwd(), ''))
 
   return {
     base: process.env.FIGMA_PUBLIC_URL ? `${process.env.FIGMA_PUBLIC_URL}/` : '/',
