@@ -165,7 +165,7 @@ export function Onboarding({
       {companionType === "mascota" ? (
         <div className="mascot-grid">{mascots.map((item) => <button className={mascot === item.id ? "mascot-choice active" : "mascot-choice"} key={item.id} onClick={() => setMascot(item.id)}><Mascot id={item.id} size="medium" /><strong>{item.name}</strong><small>{item.description}</small>{mascot === item.id && <span className="selected-check"><Check size={17} /></span>}</button>)}</div>
       ) : (
-        <div className="mascot-grid">{flowers.map((item) => <button className={flower === item.id ? "mascot-choice active" : "mascot-choice"} key={item.id} onClick={() => setFlower(item.id)}><Flower id={item.id} phase={3} size="medium" /><strong>{item.name}</strong><small>{item.description}</small>{flower === item.id && <span className="selected-check"><Check size={17} /></span>}</button>)}</div>
+        <div className="mascot-grid">{flowers.map((item) => <button className={flower === item.id ? "mascot-choice active" : "mascot-choice"} key={item.id} onClick={() => setFlower(item.id)}><Flower id={item.id} stage={3} size="medium" /><strong>{item.name}</strong><small>{item.description}</small>{flower === item.id && <span className="selected-check"><Check size={17} /></span>}</button>)}</div>
       )}
     </div>,
   ];

@@ -238,11 +238,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .pet-garden-heading h2 { margin: 4px 0 6px; }
 .pet-garden-heading p { max-width: 520px; margin: 0; font-size: .88rem; }
 .pet-alert { flex: 0 0 auto; padding: 6px 11px; border-radius: 999px; background: var(--yellow-soft); color: var(--yellow-deep); font-size: .72rem; font-weight: 800; white-space: nowrap; }
-.pet-garden-single { display: flex; justify-content: center; }
+.pet-garden-single { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .pet-slot-frame { position: relative; display: grid; place-items: center; width: min(320px, 100%); padding: 18px; border-radius: 26px; background: rgba(255,255,255,.7); box-shadow: var(--shadow-sm); }
 .pet-slot-frame--plant { background: rgba(255,255,255,.55); }
 .pet-slot-image { width: min(180px, 60%); height: min(180px, 60%); box-shadow: 0 14px 30px rgba(63,65,57,.12); }
 .flower-pot.pet-slot-image { box-shadow: none; background: transparent; }
+.pet-stage-tag { padding: 5px 13px; border-radius: 999px; background: var(--purple-soft); color: var(--purple-deep); font-size: .72rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 .pet-bubble { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); max-width: min(240px, 90%); padding: 9px 13px; border-radius: 14px 14px 14px 3px; background: white; box-shadow: var(--shadow-sm); color: var(--ink); font-size: .74rem; line-height: 1.4; text-align: center; animation: fade-up .2s ease both; }
 .pet-meters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 22px 0 16px; }
 .pet-meter { display: grid; gap: 6px; }
@@ -495,6 +496,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .toggle-row input:checked + .toggle-visual { background: var(--purple-deep); }.toggle-row input:checked + .toggle-visual i { transform: translateX(20px); }.toggle-row input:focus-visible + .toggle-visual { outline: 3px solid rgba(147,112,158,.38); outline-offset: 3px; }
 .text-scale-row { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-top: 1px solid var(--line); }.text-scale-row > span { display: flex; align-items: center; gap: 10px; }.text-scale-row > span > span { display: grid; gap: 4px; }.text-scale-row small { color: var(--muted); }.text-scale-row > div { display: flex; gap: 5px; padding: 4px; border-radius: 12px; background: var(--cream); }.text-scale-row button { min-height: 38px; padding: 6px 10px; border: 0; border-radius: 9px; background: transparent; }.text-scale-row button.active { background: white; color: var(--purple-deep); font-weight: 780; box-shadow: var(--shadow-sm); }
 .mini-mascot-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }.mini-mascot-grid button { min-height: 124px; display: grid; justify-items: center; align-content: center; gap: 5px; padding: 6px; border: 2px solid transparent; border-radius: 16px; background: var(--cream); }.mini-mascot-grid button.active { border-color: var(--purple); background: var(--purple-soft); }.mini-mascot-grid .mascot { width: 76px; height: 76px; }.mini-mascot-grid span { font-size: .75rem; font-weight: 760; }
+.companion-type-row { display: flex; gap: 8px; margin-bottom: 16px; }.companion-type-row button { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border: 1px solid var(--line); border-radius: 999px; background: white; color: var(--muted); font-weight: 760; font-size: .84rem; }.companion-type-row button.active { border-color: transparent; background: var(--purple-deep); color: white; }
 .about-links { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }.about-links button { min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 12px; background: white; color: var(--purple-deep); font-weight: 740; }
 
 /* Modal, toast, help */

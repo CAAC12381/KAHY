@@ -15,45 +15,42 @@ export const mascots: Array<{
   name: string;
   animal: string;
   description: string;
-  image: string;
+  /** Growth stages in order, from newly-arrived baby to grown-up. */
+  stages: string[];
+  /** Shown instead of the current stage when the companion has been neglected. */
   sadImage: string;
-  gallery: string[];
 }> = [
   {
     id: "vaca",
     name: "Moka",
     animal: "vaquita",
     description: "Tierna y juguetona",
-    image: petAsset("animales/vaca/vaca.jpg"),
+    stages: [petAsset("animales/vaca/vaca.jpg"), petAsset("animales/vaca/vaca-2.jpg"), petAsset("animales/vaca/vaca-3.jpg")],
     sadImage: petAsset("animales/tristes/vaca-triste.png"),
-    gallery: [petAsset("animales/vaca/vaca-2.jpg"), petAsset("animales/vaca/vaca-3.jpg")],
   },
   {
     id: "pollito",
     name: "Pío",
     animal: "pollito",
     description: "Curioso y alegre",
-    image: petAsset("animales/pollito/pollito.jpg"),
+    stages: [petAsset("animales/pollito/pollito.jpg"), petAsset("animales/pollito/pollito-2.jpg"), petAsset("animales/pollito/pollito-3.jpg"), petAsset("animales/pollito/pollito-4.jpg")],
     sadImage: petAsset("animales/tristes/pollito-triste.png"),
-    gallery: [petAsset("animales/pollito/pollito-2.jpg"), petAsset("animales/pollito/pollito-3.jpg"), petAsset("animales/pollito/pollito-4.jpg")],
   },
   {
     id: "camaleon",
     name: "Lima",
     animal: "camaleón",
     description: "Sereno y creativo",
-    image: petAsset("animales/camaleon/camaleon.jpg"),
+    stages: [petAsset("animales/camaleon/camaleon.jpg"), petAsset("animales/camaleon/camaleon-1.jpg"), petAsset("animales/camaleon/camaleon-2.jpg"), petAsset("animales/camaleon/camaleon-3.jpg"), petAsset("animales/camaleon/camaleon-4.jpg")],
     sadImage: petAsset("animales/tristes/camaleon-triste.png"),
-    gallery: [petAsset("animales/camaleon/camaleon-1.jpg"), petAsset("animales/camaleon/camaleon-2.jpg"), petAsset("animales/camaleon/camaleon-3.jpg"), petAsset("animales/camaleon/camaleon-4.jpg")],
   },
   {
     id: "tortuga",
     name: "Tita",
     animal: "tortuguita",
     description: "Tranquila y dulce",
-    image: petAsset("animales/tortuga/tortuga.png"),
+    stages: [petAsset("animales/tortuga/tortuga.png"), petAsset("animales/tortuga/tortuga-1.jpg"), petAsset("animales/tortuga/tortuga-2.jpg"), petAsset("animales/tortuga/tortuga-3.jpg")],
     sadImage: petAsset("animales/tristes/tortuga-triste.png"),
-    gallery: [petAsset("animales/tortuga/tortuga-1.jpg"), petAsset("animales/tortuga/tortuga-2.jpg"), petAsset("animales/tortuga/tortuga-3.jpg")],
   },
 ];
 
@@ -61,12 +58,15 @@ export const flowers: Array<{
   id: FlowerId;
   name: string;
   description: string;
-  phases: string[];
+  /** Healthy growth stages in order, from seed to full bloom. */
+  stages: string[];
+  /** Shown instead of the current stage when the companion has been neglected. */
+  wiltedImage: string;
 }> = [
-  { id: "Clavel", name: "Clavel", description: "Resistente y colorido", phases: [1, 2, 3, 4].map((phase) => petAsset(`plantas/Clavel/Fase${phase}.jpg`)) },
-  { id: "Gerbera", name: "Gerbera", description: "Alegre y luminosa", phases: [1, 2, 3, 4].map((phase) => petAsset(`plantas/Gerbera/Fase${phase}.jpg`)) },
-  { id: "Orquidea", name: "Orquídea", description: "Delicada y serena", phases: [1, 2, 3, 4].map((phase) => petAsset(`plantas/Orquidea/Fase${phase}.jpg`)) },
-  { id: "Tulipan", name: "Tulipán", description: "Sencillo y constante", phases: [1, 2, 3, 4].map((phase) => petAsset(`plantas/Tulipan/Fase${phase}.jpg`)) },
+  { id: "Clavel", name: "Clavel", description: "Resistente y colorido", stages: [1, 2, 3].map((phase) => petAsset(`plantas/Clavel/Fase${phase}.jpg`)), wiltedImage: petAsset("plantas/Clavel/Fase4.jpg") },
+  { id: "Gerbera", name: "Gerbera", description: "Alegre y luminosa", stages: [1, 2, 3].map((phase) => petAsset(`plantas/Gerbera/Fase${phase}.jpg`)), wiltedImage: petAsset("plantas/Gerbera/Fase4.jpg") },
+  { id: "Orquidea", name: "Orquídea", description: "Delicada y serena", stages: [1, 2, 3].map((phase) => petAsset(`plantas/Orquidea/Fase${phase}.jpg`)), wiltedImage: petAsset("plantas/Orquidea/Fase4.jpg") },
+  { id: "Tulipan", name: "Tulipán", description: "Sencillo y constante", stages: [1, 2, 3].map((phase) => petAsset(`plantas/Tulipan/Fase${phase}.jpg`)), wiltedImage: petAsset("plantas/Tulipan/Fase4.jpg") },
 ];
 
 export const locations = ["Morelia", "Uruapan", "Zamora", "Otra zona de Michoacán"];
