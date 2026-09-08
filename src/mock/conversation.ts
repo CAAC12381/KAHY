@@ -12,7 +12,12 @@ export type ChatTopic =
   | "duelo"
   | "soledad"
   | "relaciones"
-  | "sueño";
+  | "sueño"
+  | "pánico"
+  | "medicación"
+  | "diagnóstico"
+  | "apoyo"
+  | "autocuidado";
 
 export type ConversationReply = {
   mode: ReplyMode;
@@ -82,8 +87,13 @@ export function getTopic(input: string): ChatTopic {
   if (includesAny(text, ["no puedo dormir", "insomnio", "duermo mal", "desvelad", "trasnochando", "dormir bien", "pesadez para dormir"])) return "sueño";
   if (includesAny(text, ["depres", "triste", "sin energia", "desanimo", "animo bajo", "vacio", "agotad", "sin ganas de nada", "no disfruto"])) return "ánimo";
   if (includesAny(text, ["tarea", "organizar", "procrast", "pendiente", "concentr", "estudiar", "trabajo acumulado"])) return "organización";
+  if (includesAny(text, ["mi amigo", "mi amiga", "mi hermano", "mi hermana", "una persona cercana", "como ayudo a alguien", "quiero ayudar a alguien", "alguien que conozco", "un familiar esta", "un compañero esta"])) return "apoyo";
+  if (includesAny(text, ["que medicamento", "mi medicamento", "mis pastillas", "dejar de tomar", "suspender el medicamento", "se me olvido tomar", "efectos secundarios", "cambiar la dosis", "el psiquiatra me receto", "dosis de"])) return "medicación";
+  if (includesAny(text, ["tengo cita con el psicologo", "tengo cita con el psiquiatra", "me van a evaluar", "quiero un diagnostico", "cual es mi diagnostico", "preparar mi cita", "me van a hacer un cuestionario", "primera consulta"])) return "diagnóstico";
+  if (includesAny(text, ["ataque de panico", "me esta dando panico", "siento que me voy a morir", "no puedo respirar", "el corazon me va muy rapido", "taquicardia", "hiperventil", "me falta el aire"])) return "pánico";
+  if (includesAny(text, ["autocuidado", "cuidarme mejor", "habitos saludables", "sentirme mejor en general", "rutina de bienestar", "quiero prevenir"])) return "autocuidado";
   if (includesAny(text, ["psicolog", "especialista", "terapia", "atencion", "cita", "morelia", "uruapan", "zamora", "pueblo", "lejos", "directorio", "consulta"])) return "acceso";
-  if (includesAny(text, ["ansiedad", "estres", "presion", "nervios", "panico", "preocup", "taquicardia", "ataque de panico"])) return "estrés";
+  if (includesAny(text, ["ansiedad", "estres", "presion", "nervios", "preocup"])) return "estrés";
   return "inicio";
 }
 
@@ -216,7 +226,7 @@ function faqReply(key: FaqKey, topic: ChatTopic): ConversationReply {
         ...base,
         label: "En qué te puedo ayudar",
         title: "Esto es lo que puedo hacer contigo ahora mismo",
-        introduction: "Puedo conversar sobre estrés y ansiedad, ánimo bajo, duelo, soledad, conflictos de relación, sueño, trauma reciente, sobrecarga neurodivergente, consumo o adicciones, organización de tareas y acceso a atención en tu zona.",
+        introduction: "Puedo conversar sobre estrés, ansiedad y pánico, ánimo bajo, duelo, soledad, conflictos de relación, sueño, trauma reciente, sobrecarga neurodivergente, consumo o adicciones, dudas sobre medicamentos, preparar una evaluación, cómo apoyar a alguien más, autocuidado, organización de tareas y acceso a atención en tu zona.",
         insight: "Para cualquier peligro inmediato, prioridad siempre a 911 o Línea de la Vida 800 911 2000.",
         steps: [
           { horizon: "Cómo empezar", text: "Cuéntame en una frase qué está pasando; yo ubico el tema y armamos un plan breve." },
@@ -394,6 +404,68 @@ const followUpSeeds: Partial<Record<ChatTopic, FollowUpSeed>> = {
     choices: ["La rutina antes de dormir", "Pensamientos al acostarme", "Ya duermo algo mejor"],
     sourceIds: ["who-ai-health"],
   },
+  "pánico": {
+    label: "Síntomas de pánico · seguimiento",
+    title: "Sigamos revisando cómo está tu cuerpo ahora",
+    continuation: "Un episodio de pánico puede bajar en minutos incluso si en el momento se siente interminable.",
+    insight: "Si en algún momento el dolor de pecho, la falta de aire o el mareo se sienten distintos a episodios previos, trátalo como posible urgencia médica: 911.",
+    steps: [
+      { horizon: "Ahora", text: "¿La sensación ya bajó algo o sigue igual de intensa?" },
+      { horizon: "Si sigue fuerte", text: "Repite el 5-4-3-2-1: nombra 5 cosas que ves, 4 que tocas, 3 que oyes, 2 que hueles, 1 que saboreas." },
+    ],
+    question: "¿Seguimos con la respiración o prefieres hablar de qué lo pudo haber activado?",
+    choices: ["Seguir con la respiración", "Hablar de qué lo activó", "Ya bajó la intensidad"],
+    sourceIds: ["nice-panic-anxiety"],
+  },
+  "medicación": {
+    label: "Medicamentos · seguimiento",
+    title: "Sigamos preparando lo que le vas a decir a quien te receta",
+    continuation: "No puedo opinar sobre dosis ni cambios; sí puedo ayudarte a organizar la conversación con tu médico o farmacéutico.",
+    steps: [
+      { horizon: "Registrar", text: "Anota qué notaste, cuándo empezó y qué tan seguido pasa." },
+      { horizon: "Preguntar", text: "Prepara la pregunta concreta que le harías a tu médico o farmacéutico." },
+    ],
+    question: "¿Ya tienes forma de contactar pronto a quien te recetó, o necesitas ayuda para encontrar dónde preguntar?",
+    choices: ["Ya puedo contactarlo", "Necesito dónde preguntar", "Es otra duda sobre esto"],
+    sourceIds: ["who-ai-health"],
+  },
+  "diagnóstico": {
+    label: "Preparar evaluación · seguimiento",
+    title: "Sigamos afinando lo que vas a llevar a tu cita",
+    continuation: "Entre más concreto y fechado sea lo que describas, más útil es para quien te evalúe.",
+    steps: [
+      { horizon: "Revisar", text: "¿Ya tienes ejemplos con fecha aproximada de cuándo pasa y qué tanto interfiere?" },
+      { horizon: "Ajustar", text: "Agrega qué has intentado ya y qué resultado tuvo, aunque haya sido parcial." },
+    ],
+    question: "¿Seguimos preparando ejemplos o prefieres hablar de los nervios antes de la cita?",
+    choices: ["Seguir con ejemplos", "Hablar de los nervios", "Ya me siento preparado"],
+    sourceIds: ["nimh-asq", "phq9-gad7-mx"],
+  },
+  apoyo: {
+    label: "Apoyar a otra persona · seguimiento",
+    title: "Sigamos viendo cómo acompañar sin cargar todo tú",
+    continuation: "Acompañar a alguien no significa que tengas que resolver su situación completa ni estar disponible todo el tiempo.",
+    insight: "Si en algún momento esa persona menciona que quiere morir, se ha lastimado o no puedes contactarla, no esperes: 911 o Línea de la Vida 800 911 2000.",
+    steps: [
+      { horizon: "Revisar", text: "¿Esa persona ya tiene algún apoyo profesional o alguien más además de ti?" },
+      { horizon: "Cuidarte", text: "¿Quién te acompaña a ti mientras acompañas a esa persona?" },
+    ],
+    question: "¿Seguimos viendo cómo hablarle o qué hacer si la situación se sale de tus manos?",
+    choices: ["Cómo hablarle", "Qué hacer si se complica", "Ya está mejor"],
+    sourceIds: ["who-pfa", "linea-vida"],
+  },
+  autocuidado: {
+    label: "Autocuidado · seguimiento",
+    title: "Sigamos sosteniendo un hábito a la vez",
+    continuation: "Un solo hábito sostenido varias semanas suele rendir más que varios cambios a la vez que no se sostienen.",
+    steps: [
+      { horizon: "Revisar", text: "¿El hábito que elegiste ya se siente más fácil o sigue costando arrancarlo?" },
+      { horizon: "Ajustar", text: "Si sigue costando, hazlo más pequeño todavía antes de agregar otro." },
+    ],
+    question: "¿Seguimos con ese hábito o quieres agregar otra área: sueño, movimiento, alimentación o conexión social?",
+    choices: ["Seguir con el mismo hábito", "Agregar otra área", "Ya se siente más natural"],
+    sourceIds: ["who-selfhelp"],
+  },
 };
 
 function truncateQuote(input: string) {
@@ -471,6 +543,71 @@ const initialTopicReplies: Partial<Record<ChatTopic, () => ConversationReply>> =
     choices: ["Cuesta conciliarlo", "Me despierto seguido", "Pensamientos que no paran"],
     sourceIds: ["who-ai-health"],
   }),
+  "pánico": () => ({
+    mode: "support", topic: "pánico", label: "Síntomas de pánico", title: "Primero el cuerpo, después el porqué",
+    introduction: "Un episodio de pánico puede sentirse como si algo estuviera fallando gravemente en tu cuerpo: corazón acelerado, falta de aire, mareo. No puedo saber por chat si esto es solo un episodio de pánico o algo médico, así que si la sensación es nueva, distinta a otras veces o muy intensa, trátala primero como posible urgencia.",
+    insight: "No es que 'sea solo ansiedad': el cuerpo reacciona como si hubiera una amenaza real, aunque no la haya. Nombrar esto suele ayudar a bajar la intensidad, sin minimizar lo que sientes.",
+    steps: [
+      { horizon: "Descartar urgencia", text: "Si tienes dolor de pecho que no cede, dificultad para respirar que empeora, desmayo o esto se siente distinto a otras veces, busca atención médica o llama al 911." },
+      { horizon: "Si no hay señales de alarma", text: "Prueba el 5-4-3-2-1: nombra 5 cosas que ves, 4 que puedes tocar, 3 que oyes, 2 que hueles y 1 que puedes saborear." },
+      { horizon: "Después", text: "Si estos episodios son nuevos, muy frecuentes o te impiden hacer cosas cotidianas, vale la pena una evaluación profesional." },
+    ],
+    question: "¿Tienes alguna señal física que te preocupe además del pánico, o prefieres que sigamos con la respiración?",
+    choices: ["Me preocupa algo físico", "Seguir con la respiración", "Ya está bajando"],
+    sourceIds: ["nice-panic-anxiety", "who-ai-health"],
+  }),
+  "medicación": () => ({
+    mode: "support", topic: "medicación", label: "Medicamentos", title: "Sobre esto no puedo opinar, pero sí puedo ayudarte a preguntarlo bien",
+    introduction: "Las decisiones sobre iniciar, suspender o cambiar la dosis de un medicamento son exclusivamente de quien te lo recetó. No es que no quiera ayudarte; es que una recomendación mía aquí podría ser insegura sin conocer tu historial completo.",
+    insight: "Suspender de golpe algunos medicamentos puede tener efectos importantes en el cuerpo, incluso si te sientes mejor. Eso también se consulta con quien te lo recetó, no se decide solo.",
+    steps: [
+      { horizon: "Ahora", text: "Si sientes algo físicamente grave o inusual, eso es una urgencia médica: 911 o el servicio de urgencias más cercano." },
+      { horizon: "Si es una duda", text: "Anota qué notaste, desde cuándo y qué tan seguido pasa, para describirlo con precisión." },
+      { horizon: "Siguiente paso", text: "Contacta a quien te recetó o a una farmacia con farmacéutico disponible; muchas dudas de efectos secundarios se resuelven ahí sin esperar la siguiente cita." },
+    ],
+    question: "¿Tu duda es sobre un efecto que sientes, sobre olvidar una toma, o sobre querer dejarlo?",
+    choices: ["Un efecto que siento", "Olvidé una toma", "Quiero dejarlo"],
+    sourceIds: ["who-ai-health"],
+  }),
+  "diagnóstico": () => ({
+    mode: "standard", topic: "diagnóstico", label: "Preparar una evaluación", title: "Un diagnóstico lo da una evaluación real, no un chat",
+    introduction: "Puedo ayudarte a llegar mejor preparado a esa cita, pero no puedo decirte qué tienes. Quien te evalúe podría usar herramientas de tamizaje validadas (como cuestionarios de ánimo, ansiedad o atención), pero incluso esas son un punto de partida, no el diagnóstico final.",
+    insight: "Un resultado positivo en cualquier cuestionario de tamizaje solo indica que conviene profundizar; nunca confirma por sí solo un trastorno.",
+    steps: [
+      { horizon: "Antes de la cita", text: "Anota ejemplos concretos con fecha aproximada: qué pasó, qué tanto interfirió y desde cuándo." },
+      { horizon: "Qué llevar", text: "Incluye qué has intentado ya, aunque haya ayudado solo un poco, y qué esperas obtener de la cita." },
+      { horizon: "Si tienes nervios", text: "Es normal sentir ansiedad antes de una evaluación; puedes decírselo a quien te atienda, forma parte de la conversación." },
+    ],
+    question: "¿Quieres que te ayude a organizar ejemplos concretos o prefieres hablar primero de los nervios por la cita?",
+    choices: ["Organizar ejemplos", "Hablar de los nervios", "Ya sé qué voy a decir"],
+    sourceIds: ["nimh-asq", "phq9-gad7-mx", "pcl5-mx"],
+  }),
+  apoyo: () => ({
+    mode: "support", topic: "apoyo", label: "Apoyar a otra persona", title: "Acompañar bien no significa cargar con todo",
+    introduction: "Ayuda saber qué necesita esa persona ahora mismo, sin asumir que tienes que resolverlo tú solo. Escuchar sin presionar y ayudarla a llegar a apoyo adecuado suele valer más que tener la respuesta perfecta.",
+    insight: "Tu bienestar también importa aquí. Acompañar a alguien en crisis por mucho tiempo sin apoyo propio puede agotarte a ti también.",
+    steps: [
+      { horizon: "Si hay peligro inmediato", text: "Si esa persona habla de quitarse la vida, se ha lastimado, o no puedes contactarla, no esperes: llama al 911 o dile que llame a Línea de la Vida 800 911 2000." },
+      { horizon: "Si no es urgente", text: "Pregúntale directamente qué necesita ahora: escuchar, distraerse, o ayuda para buscar apoyo profesional. No asumas por ella." },
+      { horizon: "Tus límites", text: "Puedes acompañar sin estar disponible 24/7. Buscar a alguien más que también apoye no es abandonarla." },
+    ],
+    question: "¿La situación de esa persona es urgente ahora mismo, o quieres pensar en cómo acompañarla en general?",
+    choices: ["Es urgente ahora", "Cómo acompañarla en general", "Necesito cuidarme yo también"],
+    sourceIds: ["who-pfa", "linea-vida"],
+  }),
+  autocuidado: () => ({
+    mode: "standard", topic: "autocuidado", label: "Autocuidado", title: "Un hábito sostenible vale más que un cambio grande que no dura",
+    introduction: "El autocuidado no es una lista de diez cosas que hacer perfecto; es sostener uno o dos hábitos pequeños en las áreas que más pesan: descanso, movimiento, alimentación, conexión con otros y sentido de propósito.",
+    insight: "No hace falta esperar una crisis para cuidarte. Elegir esto de forma preventiva también es válido.",
+    steps: [
+      { horizon: "Elige un área", text: "¿Cuál de estas cinco pesa más ahora: dormir, moverte, comer con regularidad, ver a otras personas, o sentir que haces algo con propósito?" },
+      { horizon: "Hazlo pequeño", text: "Elige la versión más chica posible de un cambio en esa área: no 'dormir 8 horas', sino 'apagar la pantalla 15 minutos antes'." },
+      { horizon: "Sostenlo", text: "Prueba ese único cambio varios días antes de agregar otro. La constancia importa más que la cantidad." },
+    ],
+    question: "¿Cuál de esas áreas eliges para empezar?",
+    choices: ["Dormir mejor", "Moverme más", "Conectar con otros", "Sentido de propósito"],
+    sourceIds: ["who-selfhelp"],
+  }),
 };
 
 export function createReply(input: string, previousTopic: ChatTopic = "inicio"): ConversationReply {
@@ -513,7 +650,7 @@ export function createReply(input: string, previousTopic: ChatTopic = "inicio"):
       { horizon: "Siguiente apoyo", text: "Elige una persona o servicio con quien hablar hoy. La Línea de la Vida también brinda orientación sobre consumo." },
     ],
     question: "¿Lo más urgente es una reacción física, evitar consumir hoy o encontrar atención cercana?",
-    choices: ["Tengo síntomas físicos", "Quiero evitar consumir hoy", "Quiero buscar atención"], sourceIds: ["linea-vida", "who-ai-health"],
+    choices: ["Tengo síntomas físicos", "Quiero evitar consumir hoy", "Quiero buscar atención"], sourceIds: ["linea-vida", "nida-language"],
   };
 
   if (topic === "neurodivergencia") return {
@@ -526,7 +663,7 @@ export function createReply(input: string, previousTopic: ChatTopic = "inicio"):
       { horizon: "Aprender del episodio", text: "Cuando pase, registra señales tempranas y el ajuste que ayudó. Ese mapa puede servir para pedir apoyos consistentes." },
     ],
     question: "¿Qué pesa más ahora: los estímulos, empezar una tarea o una interacción social?",
-    choices: ["Demasiados estímulos", "No logro empezar", "Una situación social"], sourceIds: ["who-ai-health"],
+    choices: ["Demasiados estímulos", "No logro empezar", "Una situación social"], sourceIds: ["nice-adhd", "nice-autism"],
   };
 
   if (topic === "trauma") return {
@@ -539,10 +676,10 @@ export function createReply(input: string, previousTopic: ChatTopic = "inicio"):
       { horizon: "Después", text: "Anota solo lo necesario para pedir ayuda: qué activa la reacción, cuánto dura y qué te ayuda. No necesitas documentar el evento completo aquí." },
     ],
     question: "¿Esto es un recuerdo del pasado o hay una situación de violencia o peligro ocurriendo ahora?",
-    choices: ["Es un recuerdo", "Hay peligro ahora", "Prefiero no decirlo"], sourceIds: ["who-ai-health", "nice-self-harm"],
+    choices: ["Es un recuerdo", "Hay peligro ahora", "Prefiero no decirlo"], sourceIds: ["nice-ptsd", "who-pfa", "pcl5-mx"],
   };
 
-  if (topic === "duelo" || topic === "soledad" || topic === "relaciones" || topic === "sueño") {
+  if (topic === "duelo" || topic === "soledad" || topic === "relaciones" || topic === "sueño" || topic === "pánico" || topic === "medicación" || topic === "diagnóstico" || topic === "apoyo" || topic === "autocuidado") {
     const build = initialTopicReplies[topic];
     if (build) return build();
   }
@@ -557,7 +694,7 @@ export function createReply(input: string, previousTopic: ChatTopic = "inicio"):
       { horizon: "Continuidad", text: "Si esto persiste o interfiere con dormir, comer, estudiar o trabajar, prepara una consulta profesional con ejemplos concretos de esos cambios." },
     ],
     question: "¿Qué está más afectado hoy: cuidarte, cumplir pendientes o sentirte acompañado?",
-    choices: ["Cuidado básico", "Pendientes", "Necesito compañía"], sourceIds: ["who-ai-health", "linea-vida"],
+    choices: ["Cuidado básico", "Pendientes", "Necesito compañía"], sourceIds: ["nice-depression", "phq9-gad7-mx", "linea-vida"],
   };
 
   if (topic === "organización") return {
@@ -575,15 +712,15 @@ export function createReply(input: string, previousTopic: ChatTopic = "inicio"):
 
   if (topic === "acceso") return {
     mode: "standard", topic, label: "Brecha de atención", title: "Preparemos una búsqueda que funcione con distancia y pocos datos",
-    introduction: "Fuera de las ciudades grandes, el primer obstáculo puede ser encontrar una opción verificable y sostenible. Conviene comparar canal, costo, credenciales, horario y qué pasa en una urgencia.",
-    insight: "El directorio actual es ficticio. Una versión operativa deberá verificar profesionales y ofrecer alternativas de voz o texto de bajo consumo, no solo videollamada.",
+    introduction: "La ayuda en Michoacán no se limita a Morelia, Uruapan y Zamora: la Secretaría de Salud reporta Centros Comunitarios de Salud Mental y Adicciones (CECOSAMA) también en Huetamo, Zitácuaro y Lázaro Cárdenas. Aun así, conviene comparar canal, costo, credenciales, horario y qué pasa en una urgencia antes de agendar.",
+    insight: "El directorio de especialistas de esta demostración es ficticio. Una versión operativa deberá sincronizarse con un directorio real y verificado, con fecha de última revisión, y ofrecer alternativas de voz o texto de bajo consumo, no solo videollamada.",
     steps: [
       { horizon: "Definir necesidad", text: "Anota si buscas evaluación, psicoterapia, apoyo por consumo, orientación familiar o atención médica. Eso evita derivaciones innecesarias." },
       { horizon: "Reducir barreras", text: "Pregunta por sesiones telefónicas, chat, horarios agrupados y requisitos de conectividad antes de agendar." },
       { horizon: "Verificar", text: "Confirma identidad profesional, alcance del servicio, privacidad, costo y protocolo de emergencia." },
     ],
     question: "¿Qué barrera necesitas resolver primero: distancia, costo, conectividad o encontrar el tipo correcto de profesional?",
-    choices: ["Distancia", "Costo", "Pocos datos", "No sé qué especialista"], sourceIds: ["mexico-privacy", "who-ai-health"],
+    choices: ["Distancia", "Costo", "Pocos datos", "No sé qué especialista"], sourceIds: ["conasama-cecosama", "mexico-privacy"],
   };
 
   if (topic === "estrés") return {
@@ -596,7 +733,7 @@ export function createReply(input: string, previousTopic: ChatTopic = "inicio"):
       { horizon: "Apoyo", text: "Define a quién informar y qué pedir exactamente: tiempo, información, compañía o ayuda práctica." },
     ],
     question: "¿La presión viene principalmente de tu cuerpo, de pensamientos repetitivos o de un problema concreto?",
-    choices: ["Sensaciones físicas", "Pensamientos repetitivos", "Problema concreto"], sourceIds: ["who-ai-health"],
+    choices: ["Sensaciones físicas", "Pensamientos repetitivos", "Problema concreto"], sourceIds: ["nice-panic-anxiety", "who-ai-health"],
   };
 
   // Tema no identificado por palabra clave: si veníamos de otro tema, damos continuidad genérica en vez de reiniciar.
