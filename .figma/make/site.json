@@ -1,0 +1,10 @@
+{
+  "description": "Offers a calming, user-friendly platform for emotional support and mental wellness with guided chats, relaxation exercises, and helpful resources.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
