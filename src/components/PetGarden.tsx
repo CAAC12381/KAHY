@@ -1,4 +1,4 @@
-import { Apple, Gamepad2, Heart, MessageCircle, Sparkles } from "lucide-react";
+import { Apple, Droplets, Flower2, Gamepad2, Heart, MessageCircle, PawPrint, Sparkles, Sprout, Sun } from "lucide-react";
 import { useState } from "react";
 import { flowers, mascots } from "../mock/data";
 import type { CareAction } from "../hooks/usePetGarden";
@@ -7,10 +7,18 @@ import type { MascotId } from "../types";
 import Mascot, { Flower } from "./Mascot";
 import { Card } from "./ui";
 
-const careLabels: Array<{ action: CareAction; label: string; icon: typeof Apple }> = [
+type CareButton = { action: CareAction; label: string; icon: typeof Apple };
+
+const animalCareLabels: CareButton[] = [
   { action: "food", label: "Alimentar", icon: Apple },
   { action: "play", label: "Jugar", icon: Gamepad2 },
   { action: "love", label: "Mimar", icon: Heart },
+];
+
+const plantCareLabels: CareButton[] = [
+  { action: "water", label: "Regar", icon: Droplets },
+  { action: "sun", label: "Dar sol", icon: Sun },
+  { action: "prune", label: "Nutrir / Podar", icon: Sprout },
 ];
 
 export default function PetGarden({
@@ -24,8 +32,10 @@ export default function PetGarden({
 }) {
   const garden = usePetGarden();
   const [speaking, setSpeaking] = useState(false);
+  const [selected, setSelected] = useState<"mascota" | "planta">("mascota");
   const animal = mascots.find((item) => item.id === animalId) ?? mascots[0];
   const flower = flowers.find((item) => item.id === garden.flowerId) ?? flowers[0];
+  const activeCareLabels = selected === "mascota" ? animalCareLabels : plantCareLabels;
 
   function talk() {
     setSpeaking(true);
@@ -43,9 +53,25 @@ export default function PetGarden({
         {garden.isNeglected && <span className="pet-alert">Te han extrañado un poco</span>}
       </div>
 
+      <div className="pet-target-toggle" role="tablist" aria-label="Elegir a quién cuidar">
+        <button type="button" role="tab" aria-selected={selected === "mascota"} className={selected === "mascota" ? "active" : ""} onClick={() => setSelected("mascota")}>
+          <PawPrint size={16} /> Mascota
+        </button>
+        <button type="button" role="tab" aria-selected={selected === "planta"} className={selected === "planta" ? "active" : ""} onClick={() => setSelected("planta")}>
+          <Flower2 size={16} /> Planta
+        </button>
+      </div>
+
       <div className="pet-garden-grid">
         <div className="pet-slot">
-          <div className="pet-slot-frame">
+          <div
+            className={`pet-slot-frame ${selected === "mascota" ? "pet-slot-frame--selected" : ""}`}
+            role="button"
+            tabIndex={0}
+            aria-pressed={selected === "mascota"}
+            onClick={() => setSelected("mascota")}
+            onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelected("mascota"); } }}
+          >
             <Mascot id={animalId} size="large" mood={garden.mood} className="pet-slot-image" />
             {speaking && <span className="pet-bubble">{garden.message}</span>}
           </div>
@@ -59,7 +85,14 @@ export default function PetGarden({
         </div>
 
         <div className="pet-slot">
-          <div className="pet-slot-frame pet-slot-frame--plant">
+          <div
+            className={`pet-slot-frame pet-slot-frame--plant ${selected === "planta" ? "pet-slot-frame--selected" : ""}`}
+            role="button"
+            tabIndex={0}
+            aria-pressed={selected === "planta"}
+            onClick={() => setSelected("planta")}
+            onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelected("planta"); } }}
+          >
             <Flower id={garden.flowerId} phase={garden.growthPhase as 1 | 2 | 3 | 4} size="large" className="pet-slot-image" />
           </div>
           <div className="pet-species-row" role="group" aria-label="Elegir planta acompañante">
@@ -79,7 +112,7 @@ export default function PetGarden({
       </div>
 
       <div className="pet-actions">
-        {careLabels.map(({ action, label, icon: Icon }) => (
+        {activeCareLabels.map(({ action, label, icon: Icon }) => (
           <button key={action} onClick={() => { garden.care(action); talk(); }}>
             <Icon size={18} /> {label}
           </button>

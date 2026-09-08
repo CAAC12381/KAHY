@@ -238,10 +238,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .pet-garden-heading h2 { margin: 4px 0 6px; }
 .pet-garden-heading p { max-width: 520px; margin: 0; font-size: .88rem; }
 .pet-alert { flex: 0 0 auto; padding: 6px 11px; border-radius: 999px; background: var(--yellow-soft); color: var(--yellow-deep); font-size: .72rem; font-weight: 800; white-space: nowrap; }
+.pet-target-toggle { display: flex; gap: 8px; margin-bottom: 18px; }
+.pet-target-toggle button { display: inline-flex; align-items: center; gap: 6px; padding: 8px 15px; border: 1px solid rgba(147,112,158,.25); border-radius: 999px; background: white; color: var(--muted); font-weight: 760; font-size: .8rem; }
+.pet-target-toggle button.active { background: var(--purple-deep); color: white; border-color: transparent; }
 .pet-garden-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
 .pet-slot { min-width: 0; display: grid; justify-items: center; gap: 12px; }
-.pet-slot-frame { position: relative; display: grid; place-items: center; width: 100%; padding: 18px; border-radius: 26px; background: rgba(255,255,255,.7); box-shadow: var(--shadow-sm); }
+.pet-slot-frame { position: relative; display: grid; place-items: center; width: 100%; padding: 18px; border-radius: 26px; background: rgba(255,255,255,.7); box-shadow: var(--shadow-sm); cursor: pointer; transition: box-shadow .2s ease; }
 .pet-slot-frame--plant { background: rgba(255,255,255,.55); }
+.pet-slot-frame--selected { box-shadow: 0 0 0 3px var(--purple), var(--shadow-sm); }
 .pet-slot-image { width: min(180px, 60%); height: min(180px, 60%); box-shadow: 0 14px 30px rgba(63,65,57,.12); }
 .flower-pot.pet-slot-image { box-shadow: none; background: transparent; }
 .pet-bubble { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); max-width: min(240px, 90%); padding: 9px 13px; border-radius: 14px 14px 14px 3px; background: white; box-shadow: var(--shadow-sm); color: var(--ink); font-size: .74rem; line-height: 1.4; text-align: center; animation: fade-up .2s ease both; }
