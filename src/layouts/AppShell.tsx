@@ -2,6 +2,7 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   Home,
   Leaf,
   MessageCircle,
@@ -18,6 +19,7 @@ const icons = {
   home: Home,
   chat: MessageCircle,
   activities: Leaf,
+  screening: ClipboardList,
   specialists: Users,
   profile: User,
 };
