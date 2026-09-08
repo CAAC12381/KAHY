@@ -33,6 +33,9 @@ export type ConversationReply = {
   openHelp?: boolean;
 };
 
+// NOTE: duplicated in api/_lib/kahyAi.ts (Vercel's function bundler failed
+// to trace an import reaching from api/ into this src/ file — see that
+// file's header comment). Update both if you change this list.
 const safetyPatterns = [
   /me quiero morir/i,
   /quiero morir/i,
