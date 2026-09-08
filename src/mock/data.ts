@@ -8,7 +8,7 @@ export const navItems: Array<{ id: MainView; label: string }> = [
   { id: "profile", label: "Perfil" },
 ];
 
-const petAsset = (path: string) => `/assets/pets/${path}`;
+const petAsset = (path: string) => `${import.meta.env.BASE_URL}assets/pets/${path}`;
 
 export const mascots: Array<{
   id: MascotId;

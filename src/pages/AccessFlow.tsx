@@ -3,7 +3,7 @@ import { useState } from "react";
 import Mascot, { Flower } from "../components/Mascot";
 import { Button, Card, DemoBadge, Progress } from "../components/ui";
 import { flowers, goals, informationStyles, locations, mascots } from "../mock/data";
-import type { DemoProfile, FlowerId, MascotId, Preferences } from "../types";
+import type { CompanionType, DemoProfile, FlowerId, MascotId, Preferences } from "../types";
 import BrandMark from "../components/BrandMark";
 
 type AccessMode = "welcome" | "login" | "register";
@@ -139,6 +139,7 @@ export function Onboarding({
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   const [style, setStyle] = useState("guided");
   const [localPreferences, setLocalPreferences] = useState(preferences);
+  const [companionType, setCompanionType] = useState<CompanionType>("mascota");
   const [mascot, setMascot] = useState<MascotId>("vaca");
   const [flower, setFlower] = useState<FlowerId>("Clavel");
 
@@ -147,21 +148,39 @@ export function Onboarding({
     <div className="onboarding-question" key="goals"><span className="step-kicker">Tu recorrido</span><h1>¿Qué te gustaría encontrar primero?</h1><p>Elige hasta tres opciones. No se usan para diagnosticar.</p><div className="choice-grid">{goals.map((item) => <button className={selectedGoals.includes(item) ? "choice active" : "choice"} onClick={() => setSelectedGoals(selectedGoals.includes(item) ? selectedGoals.filter((goal) => goal !== item) : selectedGoals.length < 3 ? [...selectedGoals, item] : selectedGoals)} key={item}><span>{item}</span>{selectedGoals.includes(item) && <Check size={18} />}</button>)}</div></div>,
     <div className="onboarding-question" key="style"><span className="step-kicker">Forma de explicar</span><h1>¿Cómo prefieres recibir información?</h1><div className="choice-grid">{informationStyles.map((item) => <button className={style === item.id ? "choice active" : "choice"} onClick={() => setStyle(item.id)} key={item.id}><span><strong>{item.label}</strong><small>{item.description}</small></span>{style === item.id && <Check size={18} />}</button>)}</div></div>,
     <div className="onboarding-question" key="access"><span className="step-kicker">Comodidad visual</span><h1>¿Qué ajustes te harían sentir más cómodo?</h1><div className="choice-grid"><button className={localPreferences.lowStimuli ? "choice active" : "choice"} onClick={() => setLocalPreferences({ ...localPreferences, lowStimuli: !localPreferences.lowStimuli })}><span><strong>Menos estímulos</strong><small>Reduce adornos y color de fondo.</small></span>{localPreferences.lowStimuli && <Check size={18} />}</button><button className={localPreferences.reducedMotion ? "choice active" : "choice"} onClick={() => setLocalPreferences({ ...localPreferences, reducedMotion: !localPreferences.reducedMotion })}><span><strong>Movimiento reducido</strong><small>Evita transiciones y respiración animada.</small></span>{localPreferences.reducedMotion && <Check size={18} />}</button><button className={localPreferences.textScale === "large" ? "choice active" : "choice"} onClick={() => setLocalPreferences({ ...localPreferences, textScale: localPreferences.textScale === "large" ? "normal" : "large" })}><span><strong>Texto grande</strong><small>Aumenta el tamaño base de lectura.</small></span>{localPreferences.textScale === "large" && <Check size={18} />}</button></div></div>,
-    <div className="onboarding-question" key="mascot"><span className="step-kicker">Acompañante visual</span><h1>Elige una mascota</h1><p>Es opcional y puedes cambiarla u ocultarla después.</p><div className="mascot-grid">{mascots.map((item) => <button className={mascot === item.id ? "mascot-choice active" : "mascot-choice"} key={item.id} onClick={() => setMascot(item.id)}><Mascot id={item.id} size="medium" /><strong>{item.name}</strong><small>{item.description}</small>{mascot === item.id && <span className="selected-check"><Check size={17} /></span>}</button>)}</div></div>,
-    <div className="onboarding-question" key="flower"><span className="step-kicker">Compañía vegetal</span><h1>Elige una plantita para cuidar</h1><p>Crecerá poco a poco junto con tu {mascots.find((item) => item.id === mascot)?.name || "mascota"}. También puedes cambiarla después.</p><div className="mascot-grid">{flowers.map((item) => <button className={flower === item.id ? "mascot-choice active" : "mascot-choice"} key={item.id} onClick={() => setFlower(item.id)}><Flower id={item.id} phase={3} size="medium" /><strong>{item.name}</strong><small>{item.description}</small>{flower === item.id && <span className="selected-check"><Check size={17} /></span>}</button>)}</div></div>,
+    <div className="onboarding-question" key="companion">
+      <span className="step-kicker">Acompañante</span>
+      <h1>Elige tu acompañante</h1>
+      <p>Puedes cuidar una mascota o una plantita, pero solo una a la vez. Podrás verla en tu rincón de compañía.</p>
+      <div className="choice-grid">
+        <button className={companionType === "mascota" ? "choice active" : "choice"} onClick={() => setCompanionType("mascota")}>
+          <span><strong>Una mascota</strong><small>Un animalito para alimentar, jugar y mimar.</small></span>
+          {companionType === "mascota" && <Check size={18} />}
+        </button>
+        <button className={companionType === "planta" ? "choice active" : "choice"} onClick={() => setCompanionType("planta")}>
+          <span><strong>Una planta</strong><small>Una plantita para regar, dar sol y nutrir.</small></span>
+          {companionType === "planta" && <Check size={18} />}
+        </button>
+      </div>
+      {companionType === "mascota" ? (
+        <div className="mascot-grid">{mascots.map((item) => <button className={mascot === item.id ? "mascot-choice active" : "mascot-choice"} key={item.id} onClick={() => setMascot(item.id)}><Mascot id={item.id} size="medium" /><strong>{item.name}</strong><small>{item.description}</small>{mascot === item.id && <span className="selected-check"><Check size={17} /></span>}</button>)}</div>
+      ) : (
+        <div className="mascot-grid">{flowers.map((item) => <button className={flower === item.id ? "mascot-choice active" : "mascot-choice"} key={item.id} onClick={() => setFlower(item.id)}><Flower id={item.id} phase={3} size="medium" /><strong>{item.name}</strong><small>{item.description}</small>{flower === item.id && <span className="selected-check"><Check size={17} /></span>}</button>)}</div>
+      )}
+    </div>,
   ];
 
   function finish() {
-    onFinish({ name: initialName || "Invitado", mascot, flower, city, goals: selectedGoals }, localPreferences);
+    onFinish({ name: initialName || "Invitado", companionType, mascot, flower, city, goals: selectedGoals }, localPreferences);
   }
 
   return (
     <main className="onboarding-page">
       <div className="onboarding-shell">
-        <div className="onboarding-top"><div className="access-brand"><BrandMark size="small" />KAHY</div><span>Paso {step + 1} de 6</span></div>
-        <Progress value={step + 1} max={6} label="Progreso de personalización" />
+        <div className="onboarding-top"><div className="access-brand"><BrandMark size="small" />KAHY</div><span>Paso {step + 1} de {steps.length}</span></div>
+        <Progress value={step + 1} max={steps.length} label="Progreso de personalización" />
         {steps[step]}
-        <div className="onboarding-actions"><Button variant="ghost" onClick={() => step ? setStep(step - 1) : finish()}>{step ? <><ArrowLeft size={18} /> Atrás</> : "Omitir"}</Button><Button onClick={() => step === 5 ? finish() : setStep(step + 1)}>{step === 5 ? "Entrar a KAHY" : "Continuar"}<ArrowRight size={18} /></Button></div>
+        <div className="onboarding-actions"><Button variant="ghost" onClick={() => step ? setStep(step - 1) : finish()}>{step ? <><ArrowLeft size={18} /> Atrás</> : "Omitir"}</Button><Button onClick={() => step === steps.length - 1 ? finish() : setStep(step + 1)}>{step === steps.length - 1 ? "Entrar a KAHY" : "Continuar"}<ArrowRight size={18} /></Button></div>
       </div>
     </main>
   );

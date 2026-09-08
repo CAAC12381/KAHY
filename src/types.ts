@@ -20,8 +20,11 @@ export interface Preferences {
   textScale: TextScale;
 }
 
+export type CompanionType = "mascota" | "planta";
+
 export interface DemoProfile {
   name: string;
+  companionType: CompanionType;
   mascot: MascotId;
   flower: FlowerId;
   city: string;

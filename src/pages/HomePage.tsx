@@ -3,7 +3,7 @@ import { useState } from "react";
 import Mascot from "../components/Mascot";
 import PetGarden from "../components/PetGarden";
 import { Button, Card, DemoBadge } from "../components/ui";
-import type { DemoProfile, MainView, MascotId, Preferences } from "../types";
+import type { DemoProfile, MainView, Preferences } from "../types";
 
 const moods = [
   { value: "difícil", symbol: "●", label: "Día difícil" },
@@ -18,13 +18,11 @@ export default function HomePage({
   preferences,
   navigate,
   notify,
-  onChangeMascot,
 }: {
   profile: DemoProfile;
   preferences: Preferences;
   navigate: (view: MainView) => void;
   notify: (message: string) => void;
-  onChangeMascot: (id: MascotId) => void;
 }) {
   const [mood, setMood] = useState("");
   const displayName = profile.name === "Invitado" ? "" : `, ${profile.name}`;
@@ -55,7 +53,7 @@ export default function HomePage({
       {preferences.showMascot && (
         <>
           <div className="section-heading"><div><span className="eyebrow">Compañía simbólica</span><h2>Tu jardín de bienestar</h2></div><small>Se guarda solo en este dispositivo</small></div>
-          <PetGarden animalId={profile.mascot} onChangeAnimal={onChangeMascot} moodHint={mood} />
+          <PetGarden companionType={profile.companionType} mascotId={profile.mascot} flowerId={profile.flower} moodHint={mood} />
         </>
       )}
 

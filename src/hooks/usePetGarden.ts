@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FlowerId, PetMood } from "../types";
 
-export type CareAction = "food" | "play" | "love";
+export type CareAction = "food" | "play" | "love" | "water" | "sun" | "prune";
 
 type PetGardenState = {
   version: 1;
@@ -20,19 +20,20 @@ const defaultState: PetGardenState = {
   flowerId: "Clavel",
   happiness: 70,
   bond: 12,
-  careCounts: { food: 0, play: 0, love: 0 },
+  careCounts: { food: 0, play: 0, love: 0, water: 0, sun: 0, prune: 0 },
   lastCare: Date.now(),
 };
 
-function readState(): PetGardenState {
+function readState(initialFlowerId?: FlowerId): PetGardenState {
+  const seededDefault = initialFlowerId ? { ...defaultState, flowerId: initialFlowerId } : defaultState;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultState;
+    if (!raw) return seededDefault;
     const data = JSON.parse(raw) as Partial<PetGardenState>;
-    if (data.version !== 1 || !data.careCounts) return defaultState;
-    return { ...defaultState, ...data };
+    if (data.version !== 1 || !data.careCounts) return seededDefault;
+    return { ...seededDefault, ...data, careCounts: { ...defaultState.careCounts, ...data.careCounts } };
   } catch {
-    return defaultState;
+    return seededDefault;
   }
 }
 
@@ -48,6 +49,18 @@ const careMessages: Record<CareAction, string> = {
   food: "Gracias por alimentarme, me da energía para seguir creciendo contigo.",
   play: "¡Qué divertido! Jugar juntos también es una forma de cuidarnos.",
   love: "Me encanta cuando me dedicas un momento. Me siento acompañado.",
+  water: "Gracias por regarme, el agua me ayuda a crecer fuerte.",
+  sun: "¡Qué rico el sol! Me llena de energía para seguir floreciendo.",
+  prune: "Gracias por cuidarme con atención, así puedo crecer mejor.",
+};
+
+const happinessGain: Record<CareAction, number> = {
+  food: 8,
+  play: 12,
+  love: 8,
+  water: 10,
+  sun: 8,
+  prune: 10,
 };
 
 const moodMessages: Record<string, string> = {
@@ -58,24 +71,23 @@ const moodMessages: Record<string, string> = {
   "bien": "Me alegra mucho verte así. ¡Gracias por compartirlo conmigo!",
 };
 
-export function usePetGarden() {
-  const [state, setState] = useState<PetGardenState>(readState);
+export function usePetGarden(initialFlowerId?: FlowerId) {
+  const [state, setState] = useState<PetGardenState>(() => readState(initialFlowerId));
   const [message, setMessage] = useState("Aquí estoy para acompañarte un ratito.");
 
   useEffect(() => persist(state), [state]);
 
-  const totalCare = state.careCounts.food + state.careCounts.play + state.careCounts.love;
+  const totalCare = Object.values(state.careCounts).reduce((sum, count) => sum + count, 0);
   const isNeglected = Date.now() - state.lastCare > NEGLECT_WINDOW;
   const mood: PetMood = isNeglected ? "triste" : "feliz";
-  const growth = Math.min(3, 1 + Math.floor(totalCare / 3));
-  const growthPhase = isNeglected ? 4 : growth;
+  const growth = Math.min(4, 1 + Math.floor(totalCare / 3));
 
   function care(action: CareAction) {
     setState((current) => {
       const nextCounts = { ...current.careCounts, [action]: current.careCounts[action] + 1 };
       return {
         ...current,
-        happiness: Math.min(100, current.happiness + (action === "play" ? 12 : 8)),
+        happiness: Math.min(100, current.happiness + happinessGain[action]),
         bond: Math.min(100, current.bond + 5),
         careCounts: nextCounts,
         lastCare: Date.now(),
@@ -99,7 +111,6 @@ export function usePetGarden() {
     happiness: state.happiness,
     bond: state.bond,
     growth,
-    growthPhase,
     mood,
     isNeglected,
     message,
