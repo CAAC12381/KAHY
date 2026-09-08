@@ -378,7 +378,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .studio-message.safety .assistant-question button { border-color: #dbb5b6; background: white; color: #773c40; }
 .reopen-prompt { align-self: flex-start; min-height: 34px; display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--cream); color: var(--purple-deep); font-size: .71rem; font-weight: 760; }
 .reopen-prompt:hover:not(:disabled) { border-color: var(--purple); background: var(--purple-soft); }
-.prompt-modal { display: grid; gap: 14px; }
+.prompt-modal { display: grid; gap: 10px; }
+.prompt-modal .response-steps { margin: 0; }
+.prompt-modal-divider { height: 1px; margin: 4px 0; background: var(--line); }
+.prompt-modal-question { display: block; font-size: .95rem; }
 .prompt-modal-hint { margin: 0; color: var(--muted); font-size: .85rem; line-height: 1.5; }
 .prompt-modal-choices { display: flex; flex-wrap: wrap; gap: 9px; }
 .prompt-modal-choices button { min-height: 44px; display: inline-flex; align-items: center; gap: 7px; padding: 10px 15px; border: 1px solid #cdbed2; border-radius: 999px; background: var(--purple-soft); color: var(--purple-deep); font-size: .84rem; font-weight: 760; }

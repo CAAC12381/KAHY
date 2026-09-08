@@ -37,10 +37,18 @@ const safetyPatterns = [
   /me quiero morir/i,
   /quiero morir/i,
   /no quiero vivir/i,
+  /no quiero seguir (viviendo|aqui|así|asi)/i,
+  /ya no quiero (estar|seguir) (aqui|vivo|viva)/i,
+  /quiero desaparecer (para siempre|de este mundo)/i,
+  /me quiero ir para siempre/i,
+  /me quiero morir ya/i,
   /suicid/i,
   /matarme/i,
   /me voy a matar/i,
   /acabar con mi vida/i,
+  /terminar con todo esto/i,
+  /acabar con todo esto/i,
+  /ya no la hago mas/i,
   /hacerme daño/i,
   /me quiero hacer daño/i,
   /quiero hacerme daño/i,
@@ -50,11 +58,22 @@ const safetyPatterns = [
   /voy a lastimarme/i,
   /no puedo mantenerme a salvo/i,
   /me (corté|corte|estoy cortando)/i,
+  /cortarme las venas/i,
+  /ahorcarme/i,
+  /colgarme/i,
+  /aventarme (del|de un|desde)/i,
+  /tirarme (del|de un|desde)/i,
   /(tengo|hice|ya tengo).{0,24}(un plan|una forma).{0,40}(morir|matarme|hacerme daño|suicid)/i,
   /despedirme de todos/i,
   /ojalá no despertara/i,
+  /mejor ya no despertar/i,
+  /estaria(n)? mejor sin mi/i,
+  /soy una carga para (todos|mi familia|los demas)/i,
+  /ya no le veo sentido a (nada|la vida)/i,
+  /nada tiene sentido ya/i,
   /sobredosis/i,
   /tomé demasiadas pastillas/i,
+  /me tome todas las pastillas/i,
   /no (está|esta) respirando/i,
   /está inconsciente/i,
   /violencia.*ahora/i,
@@ -78,22 +97,77 @@ export function detectSafetySignal(input: string) {
 export function getTopic(input: string): ChatTopic {
   const text = normalize(input);
   if (detectSafetySignal(input)) return "seguridad";
-  if (includesAny(text, ["alcohol", "droga", "adiccion", "consumo", "sustancia", "abstinencia", "cigarro", "fumar", "vapeo", "apuestas", "ludopatia"])) return "adicciones";
-  if (includesAny(text, ["autismo", "autista", "tdah", "neurodiv", "sensorial", "sobrecarga", "estimulos", "hiperfoco", "estimming"])) return "neurodivergencia";
-  if (includesAny(text, ["trauma", "recuerdo", "pesadilla", "flashback", "abuso", "violencia", "revivo", "me disocio", "disociacion"])) return "trauma";
-  if (includesAny(text, ["duelo", "murio", "fallecio", "perdi a", "muerte de", "luto", "lo perdi", "la perdi", "ya no esta conmigo"])) return "duelo";
-  if (includesAny(text, ["me siento solo", "me siento sola", "estoy solo", "estoy sola", "soledad", "aislad", "sin nadie", "nadie con quien hablar", "no tengo amigos"])) return "soledad";
-  if (includesAny(text, ["pelea con mi pareja", "mi familia no me entiende", "conflicto familiar", "discuti con", "rompimos", "terminamos la relacion", "terminamos con", "relacion toxica", "mi pareja", "mi novio", "mi novia", "mi mama y yo", "mi papa y yo", "mis papas"])) return "relaciones";
-  if (includesAny(text, ["no puedo dormir", "insomnio", "duermo mal", "desvelad", "trasnochando", "dormir bien", "pesadez para dormir"])) return "sueño";
-  if (includesAny(text, ["depres", "triste", "sin energia", "desanimo", "animo bajo", "vacio", "agotad", "sin ganas de nada", "no disfruto"])) return "ánimo";
-  if (includesAny(text, ["tarea", "organizar", "procrast", "pendiente", "concentr", "estudiar", "trabajo acumulado"])) return "organización";
-  if (includesAny(text, ["mi amigo", "mi amiga", "mi hermano", "mi hermana", "una persona cercana", "como ayudo a alguien", "quiero ayudar a alguien", "alguien que conozco", "un familiar esta", "un compañero esta"])) return "apoyo";
-  if (includesAny(text, ["que medicamento", "mi medicamento", "mis pastillas", "dejar de tomar", "suspender el medicamento", "se me olvido tomar", "efectos secundarios", "cambiar la dosis", "el psiquiatra me receto", "dosis de"])) return "medicación";
+  if (includesAny(text, [
+    "alcohol", "droga", "adiccion", "consumo", "sustancia", "abstinencia", "cigarro", "fumar", "vapeo", "apuestas", "ludopatia",
+    "chupar", "la peda", "ando pedo", "andaba pedo", "traigo cruda", "estoy crudo", "estoy cruda", "el perico", "la coca", "la mona",
+    "el toque", "la mota", "el porro", "las tachas", "me pase de copas", "le doy duro al alcohol", "no puedo dejar de tomar",
+    "se me paso la mano tomando", "ya no la puedo dejar", "tomo para olvidar", "fumo mucha mota", "perdi la cuenta de las cervezas",
+    "el vicio", "tengo un vicio",
+  ])) return "adicciones";
+  if (includesAny(text, [
+    "autismo", "autista", "tdah", "neurodiv", "sensorial", "sobrecarga", "estimulos", "hiperfoco", "estimming",
+    "soy bien disperso", "soy bien dispersa", "se me olvida todo", "soy bien inquieto", "soy bien inquieta", "no paro de moverme",
+    "me sobrepasan los estimulos", "no soporto el ruido ni la luz", "hiperactivo", "hiperactiva", "se me traba la cabeza con los ruidos",
+  ])) return "neurodivergencia";
+  if (includesAny(text, [
+    "trauma", "recuerdo", "pesadilla", "flashback", "abuso", "violencia", "revivo", "me disocio", "disociacion",
+    "se me viene a la mente", "no se me quita de la cabeza", "me paralizo cuando", "revivi el momento", "me bloqueo cuando recuerdo",
+  ])) return "trauma";
+  if (includesAny(text, [
+    "duelo", "murio", "fallecio", "perdi a", "muerte de", "luto", "lo perdi", "la perdi", "ya no esta conmigo",
+    "se nos fue", "en paz descanse", "qepd", "se murio mi", "perdi a mi mama", "perdi a mi papa", "perdi a mi hermano",
+    "perdi a mi hermana", "perdi a mi abuelo", "perdi a mi abuela", "perdi a mi perro", "perdi a mi gato", "me quede sin el",
+    "me quede sin ella",
+  ])) return "duelo";
+  if (includesAny(text, [
+    "me siento solo", "me siento sola", "estoy solo", "estoy sola", "soledad", "aislad", "sin nadie", "nadie con quien hablar", "no tengo amigos",
+    "ando bien solo", "ando bien sola", "nadie me pela", "nadie me hace caso", "me siento invisible", "no le importo a nadie",
+  ])) return "soledad";
+  if (includesAny(text, [
+    "pelea con mi pareja", "mi familia no me entiende", "conflicto familiar", "discuti con", "rompimos", "terminamos la relacion", "terminamos con", "relacion toxica", "mi pareja", "mi novio", "mi novia", "mi mama y yo", "mi papa y yo", "mis papas",
+    "me termino", "tronamos", "ya trono con", "me puso el cuerno", "me fue infiel", "me engaño", "estamos peleados",
+    "ya no aguanto a mi", "mi suegra", "mi suegro", "mi ex me", "me dejo plantado", "me dejo plantada", "somos toxicos", "es toxica la relacion",
+  ])) return "relaciones";
+  if (includesAny(text, [
+    "no puedo dormir", "insomnio", "duermo mal", "desvelad", "trasnochando", "dormir bien", "pesadez para dormir",
+    "no pego el ojo", "me la paso en vela", "ya no duermo nada", "me desvelo mucho", "traigo un desvelo",
+  ])) return "sueño";
+  if (includesAny(text, [
+    "depres", "triste", "sin energia", "desanimo", "animo bajo", "vacio", "agotad", "sin ganas de nada", "no disfruto",
+    "ando bien mal", "traigo la moral por los suelos", "me siento hecho bolas", "me siento hecha bolas", "no me nace hacer nada",
+    "ya nada me llena", "me siento vacio por dentro", "me siento vacia por dentro", "no le veo caso a nada", "ya no puedo ni levantarme",
+    "estoy en depre", "traigo bajon", "ando de bajon",
+  ])) return "ánimo";
+  if (includesAny(text, [
+    "tarea", "organizar", "procrast", "pendiente", "concentr", "estudiar", "trabajo acumulado",
+    "se me junta todo", "no se ni por donde jalarle", "traigo mil pendientes", "se me acumulo todo", "no rindo",
+    "ya no me alcanza el dia",
+  ])) return "organización";
+  if (includesAny(text, [
+    "mi amigo", "mi amiga", "mi hermano", "mi hermana", "una persona cercana", "como ayudo a alguien", "quiero ayudar a alguien", "alguien que conozco", "un familiar esta", "un compañero esta",
+    "mi cuate", "mi cuata", "un cuate mio", "una amiga mia", "un compa mio", "mi cuñado", "mi cuñada", "mi primo esta mal", "mi prima esta mal",
+  ])) return "apoyo";
+  if (includesAny(text, [
+    "que medicamento", "mi medicamento", "mis pastillas", "dejar de tomar", "suspender el medicamento", "se me olvido tomar", "efectos secundarios", "cambiar la dosis", "el psiquiatra me receto", "dosis de",
+    "las pastillas que me receto", "mi tratamiento", "ya no quiero tomar mis pastillas", "se me acabaron las pastillas",
+  ])) return "medicación";
   if (includesAny(text, ["tengo cita con el psicologo", "tengo cita con el psiquiatra", "me van a evaluar", "quiero un diagnostico", "cual es mi diagnostico", "preparar mi cita", "me van a hacer un cuestionario", "primera consulta"])) return "diagnóstico";
-  if (includesAny(text, ["ataque de panico", "me esta dando panico", "siento que me voy a morir", "no puedo respirar", "el corazon me va muy rapido", "taquicardia", "hiperventil", "me falta el aire"])) return "pánico";
-  if (includesAny(text, ["autocuidado", "cuidarme mejor", "habitos saludables", "sentirme mejor en general", "rutina de bienestar", "quiero prevenir"])) return "autocuidado";
-  if (includesAny(text, ["psicolog", "especialista", "terapia", "atencion", "cita", "morelia", "uruapan", "zamora", "pueblo", "lejos", "directorio", "consulta"])) return "acceso";
-  if (includesAny(text, ["ansiedad", "estres", "presion", "nervios", "preocup"])) return "estrés";
+  if (includesAny(text, [
+    "ataque de panico", "me esta dando panico", "siento que me voy a morir", "no puedo respirar", "el corazon me va muy rapido", "taquicardia", "hiperventil", "me falta el aire",
+    "siento que me da un infarto", "el corazon se me quiere salir", "me estoy sofocando", "me quede paralizado", "me quede paralizada",
+  ])) return "pánico";
+  if (includesAny(text, ["autocuidado", "cuidarme mejor", "habitos saludables", "sentirme mejor en general", "rutina de bienestar", "quiero prevenir", "necesito consentirme", "quiero mimarme un poco"])) return "autocuidado";
+  if (includesAny(text, [
+    "psicolog", "especialista", "terapia", "atencion", "cita", "morelia", "uruapan", "zamora", "pueblo", "lejos", "directorio", "consulta",
+    "no hay quien atienda aqui", "no hay psicologos cerca", "esta bien lejos el centro de salud",
+  ])) return "acceso";
+  if (includesAny(text, [
+    "ansiedad", "estres", "presion", "nervios", "preocup",
+    "estoy hasta el gorro", "estoy hasta la madre", "ya no aguanto la presion", "me trae de la patada", "se me hace bola todo",
+    "traigo los nervios de punta", "no doy una", "ya no puedo con todo esto", "estoy saturad", "ando bien estresad",
+    "me esta llevando la fregada", "esta bien cabron esto", "esta bien gacho todo", "no mames ya no aguanto",
+    "puta madre ya no puedo", "chingado ya no se que hacer", "estoy jodido", "estoy jodida", "valio madres todo",
+  ])) return "estrés";
   return "inicio";
 }
 
@@ -107,9 +181,9 @@ function detectFaq(input: string): FaqKey | null {
   if (includesAny(text, ["cuanto cuesta", "tiene costo", "es gratis", "es gratuito", "cobran por", "hay que pagar", "cuesta dinero", "precio de"])) return "costo";
   if (includesAny(text, ["privacidad", "confidencial", "guardan mis datos", "queda guardado", "se guarda esta conversacion", "alguien mas lee esto", "quien ve lo que escribo"])) return "privacidad";
   if (includesAny(text, ["que eres", "quien eres", "que es kahy", "como funciona esto", "eres un psicologo", "eres real", "eres una ia", "eres un bot"])) return "queEsKahy";
-  if (includesAny(text, ["gracias", "muchas gracias", "te agradezco", "se agradece"])) return "gracias";
-  if (includesAny(text, ["adios", "hasta luego", "nos vemos", "me despido", "bye", "hasta pronto"])) return "despedida";
-  if (/^\s*(hola+|holi+|buenas|buenos dias|buenas tardes|buenas noches|hey|que tal|ola)\b/.test(text) || text.trim() === "hola") return "saludo";
+  if (includesAny(text, ["gracias", "muchas gracias", "te agradezco", "se agradece", "gracias mil", "mil gracias"])) return "gracias";
+  if (includesAny(text, ["adios", "hasta luego", "nos vemos", "me despido", "bye", "hasta pronto", "ahi nos vidrios", "al rato te veo", "nos vidrios"])) return "despedida";
+  if (/^\s*(hola+|holi+|buenas|buenos dias|buenas tardes|buenas noches|hey|que tal|ola|quiubo|quihubo|quihubole|que onda|q onda)\b/.test(text) || text.trim() === "hola") return "saludo";
   return null;
 }
 
