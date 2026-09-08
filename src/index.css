@@ -143,6 +143,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .notice-box p, .scope-note p { margin: 0; color: var(--ink); font-size: .9rem; }
 .check-row { min-height: 48px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
 .check-row input { width: 21px; height: 21px; accent-color: var(--purple-deep); }
+.remember-consent { display: grid; gap: 10px; margin-top: 6px; padding: 16px; border-radius: 16px; background: var(--purple-soft); }
+.remember-consent strong { font-size: .92rem; }
+.remember-consent p { margin: 0; color: var(--ink); font-size: .82rem; line-height: 1.5; }
+.remember-consent-actions { display: flex; gap: 9px; }
+.remember-consent-actions .choice { min-height: 44px; justify-content: center; padding: 10px 16px; }
 .progress-wrap { margin: 18px 0 26px; }
 .progress-label { display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--muted); font-size: .76rem; font-weight: 720; }
 .progress-track { height: 7px; overflow: hidden; border-radius: 999px; background: #e7e5dc; }
@@ -334,6 +339,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .conversation-panel { min-width: 0; min-height: 690px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #d9d3c3; border-radius: 26px; background: linear-gradient(180deg, rgba(255,255,255,.93), rgba(250,248,241,.96)); box-shadow: 0 16px 50px rgba(63,65,57,.09); }
 .conversation-scroll { flex: 1; max-height: 720px; overflow-y: auto; padding: clamp(17px, 3vw, 27px); scrollbar-color: #c9c3ad transparent; }
 .conversation-scroll .conversation-day { display: flex; align-items: center; gap: 5px; background: var(--yellow-soft); color: var(--yellow-deep); }
+.memory-banner { display: flex; align-items: center; gap: 8px; width: fit-content; max-width: 100%; margin: 0 auto 18px; padding: 8px 14px; border-radius: 999px; background: var(--purple-soft); color: var(--purple-deep); font-size: .72rem; font-weight: 720; }
+.memory-banner svg { flex: 0 0 auto; }
 .studio-message { display: flex; align-items: flex-start; gap: 9px; margin: 15px 0; }
 .studio-message.user { justify-content: flex-end; }
 .studio-message > .kahy-guide { position: sticky; top: 0; border-radius: 14px; }
@@ -369,6 +376,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .assistant-question button { min-height: 38px; display: inline-flex; align-items: center; gap: 5px; padding: 7px 10px; border: 1px solid #cdbed2; border-radius: 999px; background: var(--purple-soft); color: var(--purple-deep); font-size: .69rem; font-weight: 760; }
 .assistant-question button:hover:not(:disabled) { border-color: var(--purple); background: #e6dbea; }
 .studio-message.safety .assistant-question button { border-color: #dbb5b6; background: white; color: #773c40; }
+.reopen-prompt { align-self: flex-start; min-height: 34px; display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--cream); color: var(--purple-deep); font-size: .71rem; font-weight: 760; }
+.reopen-prompt:hover:not(:disabled) { border-color: var(--purple); background: var(--purple-soft); }
+.prompt-modal { display: grid; gap: 14px; }
+.prompt-modal-hint { margin: 0; color: var(--muted); font-size: .85rem; line-height: 1.5; }
+.prompt-modal-choices { display: flex; flex-wrap: wrap; gap: 9px; }
+.prompt-modal-choices button { min-height: 44px; display: inline-flex; align-items: center; gap: 7px; padding: 10px 15px; border: 1px solid #cdbed2; border-radius: 999px; background: var(--purple-soft); color: var(--purple-deep); font-size: .84rem; font-weight: 760; }
+.prompt-modal-choices button:hover { border-color: var(--purple); background: #e6dbea; }
 .reply-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 4px; color: var(--muted); }
 .reply-footer button { min-height: 32px; display: flex; align-items: center; gap: 5px; padding: 4px 0; border: 0; background: transparent; color: var(--sage-deep); font-size: .66rem; font-weight: 800; }
 .reply-footer > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .61rem; }

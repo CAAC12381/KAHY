@@ -18,6 +18,7 @@ export interface Preferences {
   simplified: boolean;
   showMascot: boolean;
   textScale: TextScale;
+  rememberConversations: boolean;
 }
 
 export type CompanionType = "mascota" | "planta";

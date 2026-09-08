@@ -24,7 +24,7 @@ export function AccessFlow({
 }: {
   onExplore: () => void;
   onLogin: (name: string) => void;
-  onRegister: (name: string) => void;
+  onRegister: (name: string, rememberConversations: boolean) => void;
 }) {
   const [mode, setMode] = useState<AccessMode>("welcome");
 
@@ -91,13 +91,14 @@ function Login({ onBack, onContinue }: { onBack: () => void; onContinue: (name: 
   );
 }
 
-function Register({ onBack, onContinue }: { onBack: () => void; onContinue: (name: string) => void }) {
+function Register({ onBack, onContinue }: { onBack: () => void; onContinue: (name: string, rememberConversations: boolean) => void }) {
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [age, setAge] = useState("");
   const [region, setRegion] = useState(locations[0]);
   const [accepted, setAccepted] = useState(false);
+  const [rememberConversations, setRememberConversations] = useState(false);
   const [error, setError] = useState("");
 
   function next() {
@@ -105,7 +106,7 @@ function Register({ onBack, onContinue }: { onBack: () => void; onContinue: (nam
     if (step === 1 && Number(age) < 18) return setError("Este prototipo está diseñado para personas de 18 años o más.");
     if (step === 3 && !accepted) return setError("Confirma que entiendes los límites de esta demostración.");
     setError("");
-    if (step === 3) onContinue(name.trim()); else setStep(step + 1);
+    if (step === 3) onContinue(name.trim(), rememberConversations); else setStep(step + 1);
   }
 
   return (
@@ -117,7 +118,7 @@ function Register({ onBack, onContinue }: { onBack: () => void; onContinue: (nam
         {step === 0 && <div className="form-step"><h1>Empecemos por lo básico</h1><p>No se creará una cuenta real.</p><label className="field"><span>¿Cómo quieres que te llamemos?</span><div><UserRound size={18} /><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tu nombre o apodo" /></div></label><label className="field"><span>Correo de prueba</span><div><Mail size={18} /><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@ejemplo.mx" /></div></label></div>}
         {step === 1 && <div className="form-step"><h1>Confirma el alcance</h1><p>La fase actual está pensada para adultos.</p><label className="field"><span>Edad</span><div><UserRound size={18} /><input value={age} onChange={(e) => setAge(e.target.value)} inputMode="numeric" placeholder="18 o más" /></div></label></div>}
         {step === 2 && <div className="form-step"><h1>Elige una región de muestra</h1><p>Solo cambia el contenido visible; no accedemos a tu ubicación.</p><label className="field"><span>Ubicación demostrativa</span><div><MapPin size={18} /><select value={region} onChange={(e) => setRegion(e.target.value)}>{locations.map((item) => <option key={item}>{item}</option>)}</select></div></label></div>}
-        {step === 3 && <div className="form-step"><h1>Antes de continuar</h1><div className="notice-box"><Check size={20} /><p>KAHY no ofrece diagnóstico, terapia, monitoreo ni respuesta de emergencia. Al finalizar se guardarán localmente tu apodo, región, mascota y preferencias; no la edad exacta, correo, contraseña ni conversación.</p></div><label className="check-row"><input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} /><span>Entiendo y quiero continuar.</span></label></div>}
+        {step === 3 && <div className="form-step"><h1>Antes de continuar</h1><div className="notice-box"><Check size={20} /><p>KAHY no ofrece diagnóstico, terapia, monitoreo ni respuesta de emergencia. Al finalizar se guardarán localmente tu apodo, región, mascota y preferencias; no la edad exacta, correo ni contraseña.</p></div><label className="check-row"><input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} /><span>Entiendo y quiero continuar.</span></label><div className="remember-consent"><strong>¿Quieres que KAHY recuerde los temas de tus conversaciones en este dispositivo?</strong><p>Ayuda a dar continuidad entre sesiones. Solo se guardan los temas (por ejemplo "estrés" o "sueño"), nunca el texto exacto de lo que escribes, y solo en este dispositivo. Es opcional y puedes cambiarlo después en tu perfil.</p><div className="remember-consent-actions"><button type="button" className={!rememberConversations ? "choice active" : "choice"} onClick={() => setRememberConversations(false)}>Cancelar</button><button type="button" className={rememberConversations ? "choice active" : "choice"} onClick={() => setRememberConversations(true)}>Aceptar</button></div></div></div>}
         {error && <p className="form-error" role="alert">{error}</p>}
         <Button onClick={next} className="full-width">{step === 3 ? "Personalizar mi recorrido" : "Continuar"} <ArrowRight size={18} /></Button>
       </Card>
