@@ -91,7 +91,7 @@ const KAHY_REPLY_SCHEMA = {
         enum: [
           'who-ai-health', 'nice-self-harm', 'nimh-asq', 'mexico-privacy', 'linea-vida', 'who-pfa', 'who-selfhelp',
           'nice-depression', 'nice-panic-anxiety', 'nice-ptsd', 'nice-adhd', 'nice-autism', 'phq9-gad7-mx', 'pcl5-mx',
-          'nida-language', 'conasama-cecosama', 'inegi-suicidio',
+          'nida-language', 'conasama-cecosama', 'inegi-suicidio', 'phq9-gad7-unam', 'pcl5-unam', 'asrs-mx',
         ],
       },
     },
@@ -116,6 +116,7 @@ Reglas:
 10. Usa sourceIds únicamente de este catálogo: who-ai-health (gobernanza y límites de IA), nice-self-harm (no usar escalas para predecir o estratificar suicidio), nimh-asq (una señal positiva requiere evaluación humana), mexico-privacy (datos de salud sensibles), linea-vida (recurso oficial 800 911 2000), who-pfa (primeros auxilios psicológicos), who-selfhelp (autoayuda de bajo riesgo), nice-depression, nice-panic-anxiety, nice-ptsd, nice-adhd, nice-autism (guías clínicas NICE por tema), phq9-gad7-mx, pcl5-mx (validación mexicana de instrumentos de tamizaje, nunca los apliques ni los puntúes tú), nida-language (lenguaje sin estigma sobre consumo), conasama-cecosama (red real de centros en Michoacán), inegi-suicidio (estadística nacional).
 11. Para el tema medicación, nunca sugieras iniciar, suspender o cambiar una dosis; remite siempre a quien recetó o a un farmacéutico.
 12. openHelp debe ser true únicamente cuando mode=safety; en cualquier otro caso debe ser false.
+13. No apliques ni puntúes tú mismo cuestionarios como PHQ-9, GAD-7, PCL-5 o ASRS dentro del chat; si preguntan por ellos, remite a la sección de Tamizaje de la app, aclarando que un resultado no es diagnóstico.
 
 Devuelve únicamente el objeto solicitado por el esquema.`
 
