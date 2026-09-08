@@ -8,18 +8,28 @@ type PetGardenState = {
   bond: number;
   careCounts: Record<CareAction, number>;
   lastCare: number;
+  /** Unified growth progress, in points, shared by care actions, daily habits and chat. */
+  progress: number;
 };
 
 const STORAGE_KEY = "kahy.pet-garden.v1";
 const NEGLECT_WINDOW = 24 * 60 * 60 * 1000;
-/** Total care actions needed to go from newborn (0%) to fully grown (100%). */
-const GROWTH_TARGET_ACTIONS = 9;
+/** Total points needed to go from newborn (0%) to fully grown (100%). */
+const GROWTH_TARGET_POINTS = 30;
+
+/** How many growth points each kind of interaction contributes. */
+const PROGRESS_POINTS = {
+  care: 3,
+  habit: 4,
+  chat: 1,
+} as const;
 
 const defaultState: PetGardenState = {
   happiness: 70,
   bond: 12,
   careCounts: { food: 0, play: 0, love: 0, water: 0, sun: 0, prune: 0 },
   lastCare: Date.now(),
+  progress: 0,
 };
 
 function readState(): PetGardenState {
@@ -28,7 +38,11 @@ function readState(): PetGardenState {
     if (!raw) return defaultState;
     const data = JSON.parse(raw) as Partial<PetGardenState>;
     if (!data.careCounts) return defaultState;
-    return { ...defaultState, ...data, careCounts: { ...defaultState.careCounts, ...data.careCounts } };
+    const careCounts = { ...defaultState.careCounts, ...data.careCounts };
+    // Perfiles guardados antes de que existiera `progress`: lo reconstruimos desde el cuidado ya acumulado, para no reiniciar el crecimiento de nadie.
+    const totalCare = Object.values(careCounts).reduce((sum, count) => sum + count, 0);
+    const progress = typeof data.progress === "number" ? data.progress : totalCare * PROGRESS_POINTS.care;
+    return { ...defaultState, ...data, careCounts, progress: Math.min(GROWTH_TARGET_POINTS, progress) };
   } catch {
     return defaultState;
   }
@@ -77,13 +91,19 @@ export function stageForGrowth(growthPercent: number, stageCount: number): numbe
 export function usePetGarden() {
   const [state, setState] = useState<PetGardenState>(readState);
   const [message, setMessage] = useState("Aquí estoy para acompañarte un ratito.");
+  /** Bumped on every point gained, so any screen can trigger a one-off gain animation by watching it. */
+  const [pulse, setPulse] = useState(0);
 
   useEffect(() => persist(state), [state]);
 
-  const totalCare = Object.values(state.careCounts).reduce((sum, count) => sum + count, 0);
   const isNeglected = Date.now() - state.lastCare > NEGLECT_WINDOW;
   const mood: PetMood = isNeglected ? "triste" : "feliz";
-  const growth = Math.min(100, Math.round((totalCare / GROWTH_TARGET_ACTIONS) * 100));
+  const growth = Math.min(100, Math.round((state.progress / GROWTH_TARGET_POINTS) * 100));
+
+  function addProgress(points: number) {
+    setState((current) => ({ ...current, progress: Math.min(GROWTH_TARGET_POINTS, current.progress + points) }));
+    setPulse((current) => current + 1);
+  }
 
   function care(action: CareAction) {
     setState((current) => {
@@ -94,14 +114,28 @@ export function usePetGarden() {
         bond: Math.min(100, current.bond + 5),
         careCounts: nextCounts,
         lastCare: Date.now(),
+        progress: Math.min(GROWTH_TARGET_POINTS, current.progress + PROGRESS_POINTS.care),
       };
     });
+    setPulse((current) => current + 1);
     setMessage(careMessages[action]);
   }
 
   function reactToMood(moodValue: string) {
     setState((current) => ({ ...current, bond: Math.min(100, current.bond + 2) }));
     setMessage(moodMessages[moodValue] || "Gracias por contarme cómo te sientes hoy.");
+  }
+
+  /** Call when the user marks a daily habit as done. */
+  function gainFromHabit() {
+    setState((current) => ({ ...current, bond: Math.min(100, current.bond + 2) }));
+    addProgress(PROGRESS_POINTS.habit);
+    setMessage("¡Un hábito cumplido! Eso también me ayuda a crecer.");
+  }
+
+  /** Call when the user sends or receives a message in the chat de acompañamiento. */
+  function gainFromChat() {
+    addProgress(PROGRESS_POINTS.chat);
   }
 
   return {
@@ -111,7 +145,12 @@ export function usePetGarden() {
     mood,
     isNeglected,
     message,
+    pulse,
     care,
     reactToMood,
+    gainFromHabit,
+    gainFromChat,
   };
 }
+
+export type PetGardenApi = ReturnType<typeof usePetGarden>;

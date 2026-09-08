@@ -21,13 +21,15 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import BrandMark from "../components/BrandMark";
+import Mascot, { Flower } from "../components/Mascot";
 import SupportBanner from "../components/SupportBanner";
 import { Button, DemoBadge, Modal } from "../components/ui";
 import { useChatMemory } from "../hooks/useChatMemory";
+import { stageForGrowth, type PetGardenApi } from "../hooks/usePetGarden";
 import type { ScreeningsState } from "../hooks/useScreenings";
 import { createReply, detectSafetySignal, type ChatTopic, type ConversationReply } from "../mock/conversation";
-import { trustedSources } from "../mock/data";
-import type { MainView, Preferences } from "../types";
+import { flowers, mascots, trustedSources } from "../mock/data";
+import type { DemoProfile, MainView, Preferences } from "../types";
 import { getAiStatus, requestAiReply, type AiConnection, type ApiChatMessage } from "../services/chatApi";
 
 type ScreeningSuggestion = { label: string; prompt: string };
@@ -87,10 +89,12 @@ const topicNames: Record<ChatTopic, string> = {
   autocuidado: "Autocuidado",
 };
 
-export default function ChatPage({ onHelp, navigate, preferences, screenings }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences; screenings: ScreeningsState }) {
+export default function ChatPage({ onHelp, navigate, preferences, screenings, garden, profile }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences; screenings: ScreeningsState; garden: PetGardenApi; profile: DemoProfile }) {
   const memory = useChatMemory(preferences.rememberConversations);
   const screeningSuggestions = useMemo(() => buildScreeningSuggestions(screenings), [screenings.results]);
   const [messages, setMessages] = useState<ChatMessage[]>([{ id: 1, role: "assistant", reply: initialReply }]);
+  const [companionGaining, setCompanionGaining] = useState(false);
+  const mountedPulse = useRef(garden.pulse);
   const [value, setValue] = useState("");
   const [typing, setTyping] = useState(false);
   const [currentTopic, setCurrentTopic] = useState<ChatTopic>("inicio");
@@ -106,6 +110,14 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings }: 
   useEffect(() => {
     getAiStatus().then(setAiConnection);
   }, []);
+
+  useEffect(() => {
+    if (garden.pulse === mountedPulse.current) return;
+    mountedPulse.current = garden.pulse;
+    setCompanionGaining(true);
+    const timer = window.setTimeout(() => setCompanionGaining(false), 900);
+    return () => window.clearTimeout(timer);
+  }, [garden.pulse]);
 
   useEffect(() => {
     const scroll = scrollRef.current;
@@ -150,6 +162,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings }: 
     setTyping(false);
     sendingRef.current = false;
     memory.remember(reply.topic);
+    if (reply.mode !== "safety") garden.gainFromChat();
     if (reply.openHelp) window.setTimeout(onHelp, 350);
   }
 
@@ -185,6 +198,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings }: 
           <BrandMark size="medium" />
           <div><span className="eyebrow">Centro de orientación</span><h1>Conversación con KAHY</h1><p className={`ai-connection ${aiConnection}`}><span className="status-dot" /> {aiConnection === "live" ? "IA generativa conectada" : aiConnection === "checking" ? "Comprobando conexión…" : aiConnection === "error" ? "Respuesta local activa · conexión temporalmente no disponible" : "Motor local activo · IA generativa pendiente"}</p></div>
         </div>
+        {preferences.showMascot && <ChatCompanionChip profile={profile} garden={garden} gaining={companionGaining} />}
         <div className="chat-command-actions">
           <button className={lowData ? "data-mode active" : "data-mode"} onClick={() => setLowData(!lowData)} aria-pressed={lowData}><WifiOff size={17} /><span>{lowData ? "Pocos datos" : "Modo visual"}</span></button>
           <button className="chat-menu-button" onClick={() => setDetailsOpen(!detailsOpen)} aria-expanded={detailsOpen}><MoreHorizontal size={20} /><span>Cómo funciona</span></button>
@@ -279,6 +293,22 @@ function AssistantReply({ reply, onChoice, onHelp, navigate, disabled, onReopenP
       <div className="reply-footer"><button onClick={() => navigate("resources")}><BookOpenCheck size={15} /> {sources.length} {sources.length === 1 ? "fuente verificada" : "fuentes verificadas"}</button><span>{sources.map((source) => source?.organization).join(" · ")}</span></div>
     </div>
   </article>;
+}
+
+function ChatCompanionChip({ profile, garden, gaining }: { profile: DemoProfile; garden: PetGardenApi; gaining: boolean }) {
+  const isMascot = profile.companionType === "mascota";
+  const animal = mascots.find((item) => item.id === profile.mascot) ?? mascots[0];
+  const flower = flowers.find((item) => item.id === profile.flower) ?? flowers[0];
+  const stageCount = isMascot ? animal.stages.length : flower.stages.length;
+  const stage = stageForGrowth(garden.growth, stageCount);
+  return (
+    <div className={`chat-companion-chip ${gaining ? "chat-companion-chip--gain" : ""}`} title={`Crecimiento de tu compañero: ${garden.growth}%`}>
+      <span className="pet-idle pet-idle--breathe">
+        {isMascot ? <Mascot id={profile.mascot} size="tiny" mood={garden.mood} stage={stage} /> : <Flower id={profile.flower} stage={stage} neglected={garden.isNeglected} size="tiny" />}
+      </span>
+      <div className="chat-companion-progress"><span style={{ width: `${garden.growth}%` }} /></div>
+    </div>
+  );
 }
 
 function summarizeReply(reply: ConversationReply) {
