@@ -22,6 +22,7 @@ const defaultPreferences: Preferences = {
   simplified: false,
   showMascot: true,
   textScale: "normal",
+  rememberConversations: false,
 };
 
 const defaultProfile: DemoProfile = {
@@ -83,8 +84,9 @@ export default function App() {
     setToast({ id: Date.now(), text });
   }
 
-  function startRegistration(name: string) {
+  function startRegistration(name: string, rememberConversations: boolean) {
     setPendingName(name || "Invitado");
+    setPreferences((prev) => ({ ...prev, rememberConversations }));
     setStage("onboarding");
   }
 
@@ -125,6 +127,7 @@ export default function App() {
   function resetRegistration() {
     if (!window.confirm("¿Quieres borrar el perfil guardado en este dispositivo? La próxima vez podrás registrarte de nuevo.")) return;
     window.localStorage.removeItem(REGISTRATION_KEY);
+    window.localStorage.removeItem("kahy.chat-memory.v1");
     setProfile(defaultProfile);
     setPreferences(defaultPreferences);
     setIsRegistered(false);
@@ -141,7 +144,7 @@ export default function App() {
       <a className="skip-link" href="#main-content">Saltar al contenido</a>
       <AppShell currentView={view} onNavigate={setView} onHelp={() => setShowHelp(true)} mascot={profile.mascot} preferences={preferences}>
         {view === "home" && <HomePage profile={profile} preferences={preferences} navigate={setView} notify={notify} />}
-        {view === "chat" && <ChatPage onHelp={() => setShowHelp(true)} navigate={setView} />}
+        {view === "chat" && <ChatPage onHelp={() => setShowHelp(true)} navigate={setView} preferences={preferences} />}
         {view === "activities" && <ActivitiesPage preferences={preferences} notify={notify} />}
         {view === "specialists" && <SpecialistsPage notify={notify} />}
         {view === "resources" && <ResourcesPage />}

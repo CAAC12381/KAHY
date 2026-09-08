@@ -21,10 +21,11 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import BrandMark from "../components/BrandMark";
-import { Button, DemoBadge } from "../components/ui";
+import { Button, DemoBadge, Modal } from "../components/ui";
+import { useChatMemory } from "../hooks/useChatMemory";
 import { createReply, detectSafetySignal, type ChatTopic, type ConversationReply } from "../mock/conversation";
 import { trustedSources } from "../mock/data";
-import type { MainView } from "../types";
+import type { MainView, Preferences } from "../types";
 import { getAiStatus, requestAiReply, type AiConnection, type ApiChatMessage } from "../services/chatApi";
 
 type ChatMessage =
@@ -69,7 +70,8 @@ const topicNames: Record<ChatTopic, string> = {
   autocuidado: "Autocuidado",
 };
 
-export default function ChatPage({ onHelp, navigate }: { onHelp: () => void; navigate: (view: MainView) => void }) {
+export default function ChatPage({ onHelp, navigate, preferences }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences }) {
+  const memory = useChatMemory(preferences.rememberConversations);
   const [messages, setMessages] = useState<ChatMessage[]>([{ id: 1, role: "assistant", reply: initialReply }]);
   const [value, setValue] = useState("");
   const [typing, setTyping] = useState(false);
@@ -78,6 +80,8 @@ export default function ChatPage({ onHelp, navigate }: { onHelp: () => void; nav
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [plan, setPlan] = useState<Array<{ text: string; done: boolean }>>([]);
   const [aiConnection, setAiConnection] = useState<AiConnection>("checking");
+  const [activePrompt, setActivePrompt] = useState<ConversationReply | null>(null);
+  const [promptDismissed, setPromptDismissed] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sendingRef = useRef(false);
@@ -128,7 +132,19 @@ export default function ChatPage({ onHelp, navigate }: { onHelp: () => void; nav
     setPlan(reply.steps.map((step) => ({ text: `${step.horizon}: ${step.text}`, done: false })));
     setTyping(false);
     sendingRef.current = false;
+    memory.remember(reply.topic);
+    if (reply.mode !== "safety" && !promptDismissed) setActivePrompt(reply);
     if (reply.openHelp) window.setTimeout(onHelp, 350);
+  }
+
+  function choosePrompt(choice: string) {
+    setActivePrompt(null);
+    send(choice);
+  }
+
+  function dismissPrompt() {
+    setActivePrompt(null);
+    setPromptDismissed(true);
   }
 
   function resetChat() {
@@ -136,6 +152,8 @@ export default function ChatPage({ onHelp, navigate }: { onHelp: () => void; nav
     setCurrentTopic("inicio");
     setPlan([]);
     setValue("");
+    setActivePrompt(null);
+    setPromptDismissed(false);
     sendingRef.current = false;
   }
 
@@ -177,8 +195,9 @@ export default function ChatPage({ onHelp, navigate }: { onHelp: () => void; nav
 
         <section className="conversation-panel" aria-label="Conversación de orientación">
           <div className="conversation-scroll" ref={scrollRef} role="log" aria-live="polite" aria-relevant="additions" aria-busy={typing}>
-            <div className="conversation-day"><Sparkles size={13} /> Conversación nueva · no se guarda</div>
-            {messages.map((message) => message.role === "user" ? <div className="studio-message user" data-chat-message key={message.id}><div className="user-message">{message.text}</div></div> : <AssistantReply key={message.id} reply={message.reply} onChoice={send} onHelp={onHelp} navigate={navigate} disabled={typing} />)}
+            <div className="conversation-day"><Sparkles size={13} /> {preferences.rememberConversations ? "Conversación nueva · recuerda temas en este dispositivo" : "Conversación nueva · no se guarda"}</div>
+            {memory.entries.length > 0 && <div className="memory-banner"><MessageCircle size={14} /><span>La última vez hablamos de: {memory.entries.slice(-3).map((entry) => topicNames[entry.topic]).join(", ")}.</span></div>}
+            {messages.map((message) => message.role === "user" ? <div className="studio-message user" data-chat-message key={message.id}><div className="user-message">{message.text}</div></div> : <AssistantReply key={message.id} reply={message.reply} onChoice={send} onHelp={onHelp} navigate={navigate} disabled={typing} onReopenPrompt={() => setActivePrompt(message.reply)} />)}
             {typing && <div className="studio-message assistant" data-chat-message><BrandMark size="small" /><div className="thinking-card" role="status"><div className="thinking-dots"><i /><i /><i /></div><span>Organizando una respuesta segura y útil…</span></div></div>}
           </div>
 
@@ -203,11 +222,23 @@ export default function ChatPage({ onHelp, navigate }: { onHelp: () => void; nav
           <button className="reset-chat" onClick={resetChat}><RotateCcw size={16} /> Iniciar conversación nueva</button>
         </aside>
       </div>
+
+      {activePrompt && (
+        <Modal title={activePrompt.question} onClose={dismissPrompt}>
+          <div className="prompt-modal">
+            <p className="prompt-modal-hint">Responder es opcional: ayuda a personalizar el siguiente paso, pero puedes seguir platicando sin hacerlo.</p>
+            <div className="prompt-modal-choices">
+              {activePrompt.choices.map((choice) => <button key={choice} onClick={() => choosePrompt(choice)}>{choice}<ArrowRight size={15} /></button>)}
+            </div>
+            <Button variant="ghost" className="full-width" onClick={dismissPrompt}>Cancelar</Button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
 
-function AssistantReply({ reply, onChoice, onHelp, navigate, disabled }: { reply: ConversationReply; onChoice: (text: string) => void; onHelp: () => void; navigate: (view: MainView) => void; disabled: boolean }) {
+function AssistantReply({ reply, onChoice, onHelp, navigate, disabled, onReopenPrompt }: { reply: ConversationReply; onChoice: (text: string) => void; onHelp: () => void; navigate: (view: MainView) => void; disabled: boolean; onReopenPrompt: () => void }) {
   const sources = reply.sourceIds.map((id) => trustedSources.find((item) => item.id === id)).filter(Boolean);
   return <article className={`studio-message assistant ${reply.mode}`} data-chat-message>
     <BrandMark size="small" />
@@ -218,7 +249,7 @@ function AssistantReply({ reply, onChoice, onHelp, navigate, disabled }: { reply
         <p className="assistant-intro">{reply.introduction}</p>
         {reply.mode === "safety" ? <div className="expanded-safety-guidance">{reply.insight && <div className="context-reading"><CircleHelp size={18} /><div><strong>Por qué se activó esta ayuda</strong><p>{reply.insight}</p></div></div>}<div className="response-steps">{reply.steps.map((step) => <div key={`${step.horizon}-${step.text}`}><span>{step.horizon}</span><p>{step.text}</p></div>)}</div></div> : <details className="assistant-details"><summary><span><ListChecks size={16} /> Ver plan y explicación</span><ChevronDown size={16} /></summary><div className="assistant-details-body">{reply.insight && <div className="context-reading"><CircleHelp size={18} /><div><strong>Contexto, no diagnóstico</strong><p>{reply.insight}</p></div></div>}<div className="response-steps">{reply.steps.map((step) => <div key={`${step.horizon}-${step.text}`}><span>{step.horizon}</span><p>{step.text}</p></div>)}</div></div></details>}
       </div>
-      <div className="assistant-question"><strong>{reply.question}</strong><div>{reply.choices.map((choice) => <button key={choice} disabled={disabled} onClick={() => reply.openHelp && choice.includes("Abrir") ? onHelp() : onChoice(choice)}>{choice}<ArrowRight size={15} /></button>)}</div></div>
+      {reply.mode === "safety" ? <div className="assistant-question"><strong>{reply.question}</strong><div>{reply.choices.map((choice) => <button key={choice} disabled={disabled} onClick={() => reply.openHelp && choice.includes("Abrir") ? onHelp() : onChoice(choice)}>{choice}<ArrowRight size={15} /></button>)}</div></div> : <button className="reopen-prompt" disabled={disabled} onClick={onReopenPrompt}><MessageCircle size={14} /> Personalizar siguiente paso</button>}
       <div className="reply-footer"><button onClick={() => navigate("resources")}><BookOpenCheck size={15} /> {sources.length} {sources.length === 1 ? "fuente verificada" : "fuentes verificadas"}</button><span>{sources.map((source) => source?.organization).join(" · ")}</span></div>
     </div>
   </article>;
