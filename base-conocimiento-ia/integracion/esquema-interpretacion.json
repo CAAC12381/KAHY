@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/schemas/interpretacion-mensaje-v1.json",
+  "title": "Interpretación no diagnóstica de un mensaje",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "texto_original",
+    "texto_normalizado",
+    "idioma",
+    "expresiones_detectadas",
+    "temas_posibles",
+    "emociones_posibles",
+    "necesidades_posibles",
+    "accion_seguridad",
+    "requiere_aclaracion",
+    "no_asumir"
+  ],
+  "properties": {
+    "texto_original": { "type": "string", "maxLength": 4000 },
+    "texto_normalizado": { "type": "string", "maxLength": 4000 },
+    "idioma": { "type": "string", "enum": ["es-MX", "es", "mixto", "desconocido"] },
+    "expresiones_detectadas": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["texto", "entry_id", "interpretacion", "confianza"],
+        "properties": {
+          "texto": { "type": "string" },
+          "entry_id": { "type": "string" },
+          "interpretacion": { "type": "string" },
+          "confianza": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "temas_posibles": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "required": ["tema", "confianza"],
+        "properties": {
+          "tema": { "type": "string" },
+          "confianza": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "emociones_posibles": {
+      "type": "array",
+      "maxItems": 8,
+      "items": { "type": "string" }
+    },
+    "necesidades_posibles": {
+      "type": "array",
+      "maxItems": 8,
+      "items": { "type": "string" }
+    },
+    "intensidad_linguistica": {
+      "type": "string",
+      "enum": ["no_observable", "leve", "moderada", "intensa", "desconocida"]
+    },
+    "accion_seguridad": {
+      "type": "string",
+      "enum": [
+        "continuar",
+        "aclarar",
+        "ofrecer_apoyo_humano",
+        "comprobacion_de_seguridad",
+        "emergencia_inmediata"
+      ]
+    },
+    "evidencia_seguridad": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": ["fragmento", "signal_id"],
+        "properties": {
+          "fragmento": { "type": "string" },
+          "signal_id": { "type": "string" }
+        }
+      }
+    },
+    "requiere_aclaracion": { "type": "boolean" },
+    "pregunta_aclaratoria": { "type": ["string", "null"] },
+    "no_asumir": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "entry_ids_usados": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

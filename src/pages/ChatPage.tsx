@@ -263,7 +263,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
         <Modal title="Plan y siguiente paso" onClose={dismissPrompt}>
           <div className="prompt-modal">
             {activePrompt.insight && <div className="context-reading"><CircleHelp size={18} /><div><strong>Contexto, no diagnóstico</strong><p>{activePrompt.insight}</p></div></div>}
-            <div className="response-steps">{activePrompt.steps.map((step) => <div key={`${step.horizon}-${step.text}`}><span>{step.horizon}</span><p>{step.text}</p></div>)}</div>
+            {activePrompt.steps.length > 0 && <div className="response-steps">{activePrompt.steps.map((step) => <div key={`${step.horizon}-${step.text}`}><span>{step.horizon}</span><p>{step.text}</p></div>)}</div>}
             <div className="prompt-modal-divider" />
             <strong className="prompt-modal-question">{activePrompt.question}</strong>
             <p className="prompt-modal-hint">Responder es opcional: ayuda a personalizar el siguiente paso, pero puedes seguir platicando sin hacerlo.</p>

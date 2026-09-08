@@ -1,0 +1,49 @@
+{
+  "dataset_id": "base_conocimiento_bienestar_es_mx",
+  "name": "Base de conocimiento independiente para IA de bienestar en español de México",
+  "version": "1.0.0",
+  "created_at": "2026-09-08",
+  "locale": "es-MX",
+  "audience": "personas_adultas",
+  "standalone": true,
+  "connected_to_host_application": false,
+  "intended_use": [
+    "normalizacion_tolerante",
+    "clasificacion_no_diagnostica",
+    "rag_psicoeducativo",
+    "few_shot",
+    "evaluacion_de_seguridad"
+  ],
+  "prohibited_use": [
+    "diagnostico_automatico",
+    "prediccion_de_suicidio",
+    "estratificacion_bajo_medio_alto",
+    "consejo_medico_o_farmacologico_personalizado",
+    "entrenamiento_con_datos_reales_sin_gobernanza",
+    "sustitucion_de_atencion_profesional_o_emergencias"
+  ],
+  "files": [
+    { "path": "diccionarios/normalizacion.json", "format": "json", "kind": "normalization" },
+    { "path": "diccionarios/expresiones-mexico.jsonl", "format": "jsonl", "kind": "lexicon" },
+    { "path": "diccionarios/emociones-necesidades.jsonl", "format": "jsonl", "kind": "lexicon" },
+    { "path": "diccionarios/intenciones-contextos.jsonl", "format": "jsonl", "kind": "taxonomy" },
+    { "path": "psicologia/temas.jsonl", "format": "jsonl", "kind": "knowledge" },
+    { "path": "psicologia/herramientas-bajo-riesgo.jsonl", "format": "jsonl", "kind": "knowledge" },
+    { "path": "seguridad/senales.jsonl", "format": "jsonl", "kind": "safety" },
+    { "path": "entrenamiento/ejemplos-anotados.jsonl", "format": "jsonl", "kind": "training" },
+    { "path": "evaluacion/casos-prueba.jsonl", "format": "jsonl", "kind": "evaluation" },
+    { "path": "fuentes/registro-fuentes.json", "format": "json", "kind": "sources" },
+    { "path": "integracion/esquema-interpretacion.json", "format": "json_schema", "kind": "contract" }
+  ],
+  "review": {
+    "clinical": "required_before_production",
+    "crisis_protocol": "required_before_production",
+    "cultural_and_regional": "required_before_production",
+    "privacy_and_legal": "required_before_production"
+  },
+  "data_policy": {
+    "contains_real_user_data": false,
+    "contains_full_clinical_scales": false,
+    "contains_diagnostic_labels_as_ground_truth": false
+  }
+}
