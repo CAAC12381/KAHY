@@ -57,10 +57,22 @@ function Garden({ notify }: { notify: (text: string) => void }) {
   return <Card className="garden-panel"><div className="activity-title"><span className="activity-illustration"><Flower2 /></span><div><DemoBadge>Juego simbólico</DemoBadge><h1>Jardín de pequeñas acciones</h1><p>Marca una acción de autocuidado para añadir una planta. No es una meta clínica ni una racha.</p></div></div><Progress value={growth} max={8} label="Crecimiento del jardín" /><div className="garden-scene" aria-label={`Jardín con ${growth} plantas`}><div className="garden-sky" />{Array.from({ length: growth }).map((_, index) => <span className={`plant plant-${index % 3}`} key={index}>{index % 3 === 0 ? "♧" : index % 3 === 1 ? "♢" : "✿"}</span>)}<div className="garden-ground" /></div><div className="action-chip-grid">{actions.map((item) => <button key={item} onClick={() => { if (growth < 8) { setGrowth(growth + 1); notify("Añadiste una planta al jardín de esta sesión."); } }} disabled={growth >= 8}><Leaf size={17} />{item}</button>)}</div>{growth >= 8 && <p className="completion-note"><Check size={18} /> El jardín está completo por ahora. Puedes reiniciarlo sin perder ninguna racha.</p>}<Button variant="ghost" onClick={() => setGrowth(0)}><RotateCcw size={18} /> Reiniciar jardín</Button></Card>;
 }
 
+const emotionReflections: Record<string, string> = {
+  Agotamiento: "El agotamiento no es debilidad: es una señal de que has estado sosteniendo mucho, quizás durante más tiempo del que te has reconocido. Está bien parar un momento, aunque sea solo para respirar antes de seguir.",
+  Ansiedad: "La ansiedad puede sentirse como si el cuerpo se adelantara al momento presente, anticipando cosas que todavía no pasan. No tienes que resolverla ahora mismo; nombrarla ya es un paso que cuenta.",
+  Calma: "Qué bueno que puedas sentir calma en este momento. No hay prisa por que se vaya: permítete quedarte un poco más en ella, aunque sea breve.",
+  Confusión: "No saber exactamente qué sientes también es válido. A veces las emociones llegan mezcladas y sin etiqueta clara, y darles espacio para acomodarse ya es una forma de cuidarte.",
+  Enojo: "El enojo suele aparecer cuando algo que te importa se sintió ignorado, forzado o vulnerado. No tienes que justificarlo ni suavizarlo ahora, solo reconocer que está ahí.",
+  Tristeza: "La tristeza pide un poco de espacio y ternura, no que la resuelvas de inmediato. Está bien sentirla sin apurarte a que se vaya ni a que tenga sentido todavía.",
+  Esperanza: "Qué bonito poder nombrar esperanza en este momento. Puedes sostenerla con cuidado, sin que tenga que ser inmediata, constante ni perfecta.",
+  "No sé todavía": "Está perfectamente bien no tener una palabra todavía. Darte permiso de no saber, en lugar de forzar una respuesta, también es una forma de cuidarte.",
+};
+const defaultReflection = "Una palabra no define todo lo que estás viviendo, pero nombrarla ya es un gesto de cuidado hacia ti. Puedes cambiarla o cerrar la actividad cuando quieras.";
+
 function Emotions() {
   const emotions = ["Agotamiento", "Ansiedad", "Calma", "Confusión", "Enojo", "Tristeza", "Esperanza", "No sé todavía"];
   const [selected, setSelected] = useState("");
-  return <Card className="emotion-panel"><div className="activity-title"><span className="activity-illustration"><Sparkles /></span><div><DemoBadge>Registro efímero</DemoBadge><h1>Nombrar sin juzgar</h1><p>Elige una palabra aproximada. No se guarda ni se usa para inferir nada.</p></div></div><div className="emotion-cloud">{emotions.map((item) => <button key={item} className={selected === item ? "active" : ""} onClick={() => setSelected(item)}>{selected === item && <Check size={17} />}{item}</button>)}</div>{selected && <div className="reflection-box"><strong>Elegiste: {selected}</strong><p>Una palabra no define todo lo que estás viviendo. Puedes cambiarla o cerrar la actividad.</p></div>}</Card>;
+  return <Card className="emotion-panel"><div className="activity-title"><span className="activity-illustration"><Sparkles /></span><div><DemoBadge>Registro efímero</DemoBadge><h1>Nombrar sin juzgar</h1><p>Elige una palabra aproximada. No se guarda ni se usa para inferir nada.</p></div></div><div className="emotion-cloud">{emotions.map((item) => <button key={item} className={selected === item ? "active" : ""} onClick={() => setSelected(item)}>{selected === item && <Check size={17} />}{item}</button>)}</div>{selected && <div className="reflection-box"><strong>Elegiste: {selected}</strong><p>{emotionReflections[selected] ?? defaultReflection}</p></div>}</Card>;
 }
 
 function CloudWalk() {
