@@ -1,9 +1,9 @@
-import { Check, CirclePause, Cloud, Flower2, Leaf, ListChecks, Play, RotateCcw, Sparkles, Wind } from "lucide-react";
+import { Check, CirclePause, Cloud, Flower2, HeartPulse, Leaf, ListChecks, Play, RotateCcw, Sparkles, Wind } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button, Card, DemoBadge, Progress } from "../components/ui";
 import type { Preferences } from "../types";
 
-type Activity = "breathing" | "garden" | "emotions" | "task" | "clouds";
+type Activity = "breathing" | "garden" | "emotions" | "task" | "clouds" | "body";
 const phases = [
   { label: "Inhala", seconds: 4 },
   { label: "Pausa", seconds: 2 },
@@ -21,7 +21,8 @@ export default function ActivitiesPage({ preferences, notify }: { preferences: P
         <button className="activity-card emotion" onClick={() => setActivity("emotions")}><span className="activity-illustration"><Sparkles /></span><span className="pill">1 min</span><h2>Nombrar una emoción</h2><p>Elige una palabra sin que la plataforma la interprete.</p><span className="text-link">Explorar <Sparkles size={17} /></span></button>
         <button className="activity-card task" onClick={() => setActivity("task")}><span className="activity-illustration"><ListChecks /></span><span className="pill">2 min</span><h2>Desglosar una tarea</h2><p>Convierte algo grande en un siguiente paso posible.</p><span className="text-link">Desglosar <ListChecks size={17} /></span></button>
         <button className="activity-card clouds" onClick={() => setActivity("clouds")}><span className="activity-illustration"><Cloud /></span><span className="pill">Juego tranquilo</span><h2>Un paseo entre nubes</h2><p>Guía un globo despacito entre las nubes, a tu propio ritmo.</p><span className="text-link">Jugar <Play size={17} /></span></button>
-      </div> : <div className="activity-detail"><button className="back-link" onClick={() => setActivity(null)}>← Todas las actividades</button>{activity === "breathing" && <Breathing reducedMotion={preferences.reducedMotion} />}{activity === "garden" && <Garden notify={notify} />}{activity === "emotions" && <Emotions />}{activity === "task" && <TaskBreakdown notify={notify} />}{activity === "clouds" && <CloudWalk />}</div>}
+        <button className="activity-card body" onClick={() => setActivity("body")}><span className="activity-illustration"><HeartPulse /></span><span className="pill">Juego educativo</span><h2>El Inspector del Cuerpo</h2><p>Explora qué le pasa a tu cuerpo con la ansiedad y ayúdalo a calmarse.</p><span className="text-link">Explorar <Play size={17} /></span></button>
+      </div> : <div className="activity-detail"><button className="back-link" onClick={() => setActivity(null)}>← Todas las actividades</button>{activity === "breathing" && <Breathing reducedMotion={preferences.reducedMotion} />}{activity === "garden" && <Garden notify={notify} />}{activity === "emotions" && <Emotions />}{activity === "task" && <TaskBreakdown notify={notify} />}{activity === "clouds" && <CloudWalk />}{activity === "body" && <BodyInspector />}</div>}
     </div>
   );
 }
@@ -65,6 +66,10 @@ function Emotions() {
 
 function CloudWalk() {
   return <Card className="clouds-panel"><div className="activity-title"><span className="activity-illustration"><Cloud /></span><div><DemoBadge>Juego de demostración</DemoBadge><h1>Un paseo entre nubes</h1><p>Sin puntajes que juzgar ni límite de tiempo. Cierra cuando quieras.</p></div></div><div className="game-frame"><iframe src="/games/paseo-entre-nubes/index.html" title="Un paseo entre nubes" loading="lazy" /></div></Card>;
+}
+
+function BodyInspector() {
+  return <Card className="body-panel"><div className="activity-title"><span className="activity-illustration"><HeartPulse /></span><div><DemoBadge>Juego de demostración</DemoBadge><h1>El Inspector del Cuerpo</h1><p>Sin diagnóstico ni evaluación: solo una forma amable de entender las señales del cuerpo.</p></div></div><div className="game-frame"><iframe src="/games/inspector-del-cuerpo/index.html" title="El Inspector del Cuerpo" loading="lazy" /></div></Card>;
 }
 
 function TaskBreakdown({ notify }: { notify: (text: string) => void }) {

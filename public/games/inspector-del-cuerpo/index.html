@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>El Inspector del Cuerpo - Juego Interactivo de Acuarela</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-paper: #F8F5EE;
+            --watercolor-red: #E86A5D;
+            --watercolor-red-soft: #F7A399;
+            --watercolor-teal: #5BB3A7;
+            --watercolor-teal-soft: #A3D9D2;
+            --watercolor-sand: #E6C594;
+            --text-color: #4A3E3D;
+            --card-bg: #FAF6ED;
+            --card-border: #D8CEB9;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            font-family: 'Fredoka', cursive, sans-serif;
+            background-color: #2D282A;
+            background-image: url("./assets/fondo.jpg");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: var(--text-color);
+        }
+
+
+        /* Vista de laptop/desktop: se elimina únicamente el mockup del teléfono */
+        .phone-container {
+            width: min(1100px, 100vw);
+            height: min(760px, 100vh);
+            background-color: var(--bg-paper);
+            border-radius: 0;
+            box-shadow: none;
+            border: none;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            /* Se conserva el diseño y la funcionalidad interna sin el marco del celular. */
+        }
+
+        /* Textura de Acuarela en Papel */
+        .phone-container::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: 
+                radial-gradient(circle at 10% 20%, rgba(232, 106, 93, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(91, 179, 167, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(230, 197, 148, 0.1) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Pantallas */
+        .screen {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
+            transform: scale(0.96);
+            z-index: 2;
+        }
+
+        .screen.active {
+            opacity: 1;
+            pointer-events: all;
+            transform: scale(1);
+        }
+
+        /* UI Acuarela */
+        .tag-pill {
+            background: #F2E4D2;
+            border: 2px stroke #D8C3A5;
+            padding: 6px 16px;
+            border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #7A6352;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 2px 3px 0px rgba(120, 100, 80, 0.1);
+        }
+
+        .title {
+            font-size: 26px;
+            font-weight: 700;
+            text-align: center;
+            color: #3D3130;
+            line-height: 1.2;
+            margin-top: 10px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            text-align: center;
+            color: #756563;
+            margin-top: 8px;
+            line-height: 1.4;
+            padding: 0 10px;
+        }
+
+        /* Botón Estilo Trazo Acuarela */
+        .btn-watercolor {
+            width: 100%;
+            padding: 16px 20px;
+            border: none;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            position: relative;
+            background: linear-gradient(135deg, var(--watercolor-red) 0%, #D95648 100%);
+            border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
+            box-shadow: 0 6px 12px rgba(232, 106, 93, 0.3), inset 0 2px 4px rgba(255,255,255,0.4);
+            transition: transform 0.15s ease, filter 0.2s ease;
+            outline: none;
+        }
+
+        .btn-watercolor:hover {
+            transform: translateY(-2px) scale(1.01);
+            filter: brightness(1.05);
+        }
+
+        .btn-watercolor:active {
+            transform: translateY(2px) scale(0.98);
+        }
+
+        .btn-teal {
+            background: linear-gradient(135deg, var(--watercolor-teal) 0%, #469B90 100%);
+            box-shadow: 0 6px 12px rgba(91, 179, 167, 0.3), inset 0 2px 4px rgba(255,255,255,0.4);
+        }
+
+        /* Tarjeta Bordes Irregulares Papel */
+        .watercolor-card {
+            background: #FFFDF9;
+            width: 100%;
+            border-radius: 18px 22px 20px 24px;
+            border: 2px solid #E5DAC6;
+            padding: 16px;
+            box-shadow: 0 8px 20px rgba(100, 80, 60, 0.06);
+            position: relative;
+        }
+
+        .watercolor-card::after {
+            content: "";
+            position: absolute;
+            inset: -4px;
+            border: 2px dashed rgba(216, 206, 185, 0.5);
+            border-radius: 22px 26px 24px 28px;
+            pointer-events: none;
+        }
+
+        /* --- PANTALLA 1: INICIO --- */
+        .hero-illustration {
+            width: 180px;
+            height: 180px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0;
+        }
+
+        .hero-circle {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(247, 163, 153, 0.4) 0%, rgba(248, 245, 238, 0) 70%);
+            position: absolute;
+            animation: pulse-soft 3s infinite ease-in-out;
+        }
+
+        /* --- PANTALLA 2: INSPECTOR (CUERPO) --- */
+        .body-container {
+            position: relative;
+            width: 240px;
+            height: 380px;
+            margin: 10px 0;
+        }
+
+        .body-shape {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Hotspots interactivos */
+        .body-hotspot {
+            position: absolute;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, background-color 0.3s;
+        }
+
+        .body-hotspot:hover {
+            transform: translate(-50%, -50%) scale(1.15) !important;
+        }
+
+        .hotspot-heart {
+            top: 28%;
+            left: 48%;
+            transform: translate(-50%, -50%);
+            width: 45px;
+            height: 45px;
+            background: rgba(232, 106, 93, 0.25);
+            border: 2px dashed var(--watercolor-red);
+            animation: pulse-heart 1s infinite alternate;
+        }
+
+        .hotspot-chest {
+            top: 24%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 55px;
+            height: 35px;
+            background: rgba(232, 106, 93, 0.25);
+            border: 2px dashed var(--watercolor-red);
+            animation: pulse-heart 1.2s infinite alternate;
+        }
+
+        .hotspot-stomach {
+            top: 42%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 48px;
+            height: 48px;
+            background: rgba(232, 106, 93, 0.25);
+            border: 2px dashed var(--watercolor-red);
+            animation: pulse-heart 1.1s infinite alternate;
+        }
+
+        .hotspot-hands {
+            top: 48%;
+            left: 17%;
+            transform: translate(-50%, -50%);
+            width: 38px;
+            height: 38px;
+            background: rgba(232, 106, 93, 0.25);
+            border: 2px dashed var(--watercolor-red);
+            animation: shake-light 0.4s infinite alternate;
+        }
+
+        /* Estilo cuando una zona ya fue calmada */
+        .body-hotspot.calmed-spot {
+            background: rgba(91, 179, 167, 0.25) !important;
+            border: 2px solid var(--watercolor-teal) !important;
+            animation: none !important;
+        }
+
+        .hotspot-tag {
+            position: absolute;
+            background: #FFF;
+            border: 1.5px solid #D8CEB9;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        /* --- DETALLE DE CADA ZONA --- */
+        .zone-visual-box {
+            width: 100%;
+            height: 220px;
+            background: radial-gradient(circle, rgba(247, 163, 153, 0.25) 0%, rgba(255, 253, 249, 0.8) 100%);
+            border-radius: 20px;
+            border: 2px solid #F0E3D0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            transition: background 0.4s ease;
+
+            /* --- COLOCA TU IMAGEN DE FONDO AQUÍ --- */
+            background-image: url("assets/fondo.jpg");
+            background-size: cover;
+            background-position: center;
+            /* --------------------------------------- */
+        }
+
+        .zone-visual-box.calmed {
+            background: radial-gradient(circle, rgba(163, 217, 210, 0.3) 0%, rgba(255, 253, 249, 0.8) 100%);
+        }
+
+        .badge-status {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: var(--watercolor-red);
+            color: white;
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 10px;
+            font-weight: 600;
+            animation: pulse-badge 2s infinite;
+        }
+
+        .badge-status.calmed {
+            background: var(--watercolor-teal);
+            animation: none;
+        }
+
+        /* Animaciones SVG */
+        .zone-svg {
+            width: 80px;
+            height: 80px;
+            transition: transform 0.3s ease;
+        }
+
+        .beat-fast { animation: beat-fast 0.5s infinite ease-in-out; }
+        .beat-slow { animation: beat-slow 1.6s infinite ease-in-out; }
+        .heavy-press { animation: heavy-press 1.2s infinite ease-in-out; }
+        .gentle-breeze { animation: gentle-breeze 2.5s infinite ease-in-out; }
+        .knot-twist { animation: knot-twist 0.8s infinite alternate ease-in-out; }
+        .stomach-flow { animation: stomach-flow 2s infinite ease-in-out; }
+        .hand-shake { animation: hand-shake 0.6s infinite cubic-bezier(0.45, 0, 0.55, 1); transform-origin: 40px 55px; }
+        .hand-still { animation: hand-still 2.4s infinite cubic-bezier(0.45, 0, 0.55, 1); transform-origin: 40px 55px; }
+
+        .info-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .info-icon {
+            width: 36px;
+            height: 36px;
+            background: #FCEBE8;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+            animation: float-icon 3s ease-in-out infinite;
+        }
+
+        .watercolor-icon {
+            width: 25px;
+            height: 25px;
+            object-fit: contain;
+            display: block;
+            flex-shrink: 0;
+        }
+
+        .button-icon {
+            width: 21px;
+            height: 21px;
+            object-fit: contain;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
+        .tag-icon {
+            width: 17px;
+            height: 17px;
+            object-fit: contain;
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+
+        /* Keyframes */
+        @keyframes pulse-badge {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        @keyframes float-icon {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+        @keyframes pulse-soft {
+            0%, 100% { transform: scale(0.95); opacity: 0.6; }
+            50% { transform: scale(1.05); opacity: 0.9; }
+        }
+        @keyframes pulse-heart {
+            0% { transform: translate(-50%, -50%) scale(0.9); }
+            100% { transform: translate(-50%, -50%) scale(1.15); }
+        }
+        @keyframes shake-light {
+            0% { transform: translate(-52%, -50%); }
+            100% { transform: translate(-48%, -50%); }
+        }
+        @keyframes beat-fast {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.25); }
+        }
+        @keyframes beat-slow {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+        @keyframes heavy-press {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(6px) scale(0.92, 1.08); }
+        }
+        @keyframes gentle-breeze {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-4px) scale(1.04); }
+        }
+        @keyframes knot-twist {
+            0% { transform: rotate(-8deg) scale(0.95); }
+            100% { transform: rotate(8deg) scale(1.05); }
+        }
+        @keyframes stomach-flow {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.06); }
+        }
+        @keyframes hand-shake {
+            0%, 100% { transform: rotate(-4deg) translate(-1.5px, 0px); }
+            25% { transform: rotate(2deg) translate(1px, -1px); }
+            50% { transform: rotate(-3deg) translate(-1px, 0.5px); }
+            75% { transform: rotate(3deg) translate(1.5px, -0.5px); }
+        }
+        @keyframes hand-still {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-6px) rotate(-3deg); }
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: white;
+            border: 1px solid #D8CEB9;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            color: #7A6352;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="phone-container">
+        
+        <!-- PANTALLA 1: INICIO -->
+        <div class="screen active" id="screen-1">
+            <div class="tag-pill">
+                <img class="tag-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%A7%A0%3C/text%3E%3C/svg%3E" alt=""> Salud mental · Ansiedad
+            </div>
+
+            <div class="hero-illustration">
+                <div class="hero-circle"></div>
+                <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
+                    <circle cx="60" cy="40" r="16" fill="#E6C594" opacity="0.9" />
+                    <rect x="44" y="60" width="32" height="42" rx="12" fill="#E6C594" opacity="0.9" />
+                    <path d="M60 73 C60 70, 56 67, 53 70 C50 73, 53 78, 60 82 C67 78, 70 73, 67 70 C64 67, 60 70, 60 73 Z" fill="#E86A5D" />
+                    <circle cx="72" cy="75" r="14" stroke="#D95648" stroke-width="4" fill="rgba(255,255,255,0.3)"/>
+                    <line x1="82" y1="85" x2="94" y2="97" stroke="#D95648" stroke-width="5" stroke-linecap="round"/>
+                </svg>
+            </div>
+
+            <div>
+                <h1 class="title">El Inspector<br>del Cuerpo</h1>
+                <p class="subtitle">Vamos a descubrir por qué tu cuerpo reacciona así cuando sientes ansiedad.</p>
+            </div>
+
+            <div style="width: 100%;">
+                <button class="btn-watercolor" onclick="goToScreen('screen-2')">Empezar a explorar →</button>
+                <p class="subtitle" style="font-size: 11px; margin-top: 10px;">Sin límite de tiempo · No hay respuestas incorrectas</p>
+            </div>
+        </div>
+
+        <!-- PANTALLA 2: INSPECTOR (CUERPO GENERAL) -->
+        <div class="screen" id="screen-2">
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <h2 class="title" style="font-size: 20px; text-align: left;">El Inspector del Cuerpo</h2>
+                    <span class="tag-pill" id="step-pill" style="font-size: 10px; padding: 3px 8px;">Explora las zonas</span>
+                </div>
+                <p class="subtitle" style="text-align: left; padding: 0; margin-top: 4px;">Toca una zona que sientas en tu cuerpo</p>
+            </div>
+
+            <!-- Cuerpo interactivo -->
+            <div class="body-container">
+                <svg class="body-shape" viewBox="0 0 200 320" fill="none">
+                    <!-- Cabeza -->
+                    <circle cx="100" cy="35" r="22" fill="#E6C594" opacity="0.85" />
+                    <!-- Torso -->
+                    <rect x="70" y="65" width="60" height="90" rx="18" fill="#E6C594" opacity="0.85" />
+                    <!-- Brazos -->
+                    <rect x="42" y="70" width="22" height="85" rx="11" fill="#E6C594" opacity="0.85" />
+                    <rect x="136" y="70" width="22" height="85" rx="11" fill="#E6C594" opacity="0.85" />
+                    <!-- Piernas -->
+                    <rect x="74" y="160" width="22" height="110" rx="11" fill="#E6C594" opacity="0.85" />
+                    <rect x="104" y="160" width="22" height="110" rx="11" fill="#E6C594" opacity="0.85" />
+                    
+                    <!-- Sombras de acuarela orgánicas -->
+                    <circle id="chest-shadow" cx="100" cy="85" r="16" fill="#F7A399" opacity="0.4" />
+                    <circle id="heart-shadow" cx="95" cy="95" r="12" fill="#F7A399" opacity="0.5" />
+                    <circle id="stomach-shadow" cx="100" cy="125" r="18" fill="#F7A399" opacity="0.4" />
+                    <circle id="hands-shadow" cx="42" cy="145" r="12" fill="#F7A399" opacity="0.4" />
+                </svg>
+
+                <!-- Hotspots Interactivos -->
+                <div class="body-hotspot hotspot-chest" id="spot-chest" onclick="openZone('chest')"></div>
+                <div class="body-hotspot hotspot-heart" id="spot-heart" onclick="openZone('heart')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#E86A5D">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                </div>
+                <div class="body-hotspot hotspot-stomach" id="spot-stomach" onclick="openZone('stomach')"></div>
+                <div class="body-hotspot hotspot-hands" id="spot-hands" onclick="openZone('hands')"></div>
+
+                <!-- Etiquetas de ubicación -->
+                <div class="hotspot-tag" style="top: 29%; left: -5%;">Corazón</div>
+                <div class="hotspot-tag" style="top: 20%; right: 2%;">Pecho</div>
+                <div class="hotspot-tag" style="top: 42%; right: 0%;">Estómago</div>
+                <div class="hotspot-tag" style="top: 52%; left: -6%;">Manos</div>
+            </div>
+
+            <div class="watercolor-card" style="padding: 10px 14px; text-align: center;">
+                <p style="font-size: 12px; color: #6B5B57;" id="status-hint"><img class="tag-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%8C%B8%3C/text%3E%3C/svg%3E" alt=""> Los halos indican zonas que puedes explorar</p>
+            </div>
+
+            <div style="width: 100%; margin-top: 5px;">
+                <button class="btn-watercolor btn-teal" id="btn-finish-exploration" style="display: none;" onclick="goToScreen('screen-5')">Ver resumen final ✓</button>
+            </div>
+        </div>
+
+        <!-- PANTALLA 3: DETALLE ZONA EN CRISIS (DINÁMICA) -->
+        <div class="screen" id="screen-zone-active">
+            <div class="back-btn" onclick="goToScreen('screen-2')">←</div>
+            <h2 class="title" id="active-title" style="font-size: 18px; margin-bottom: 10px;">Zona</h2>
+
+            <!-- Cuadro Visual Dinámico -->
+            <div class="zone-visual-box" id="active-visual-box">
+                <span class="badge-status" id="active-badge">¡Inquietas!</span>
+                <div id="active-svg-container"></div>
+            </div>
+
+            <!-- Tarjeta de Información Educativa -->
+            <div class="watercolor-card">
+                <div class="info-row">
+                    <div class="info-icon" id="active-icon-1"><img class="watercolor-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%E2%9A%A1%3C/text%3E%3C/svg%3E" alt=""></div>
+                    <p style="font-size: 13px; line-height: 1.3;" id="active-text-main">
+                        Texto principal...
+                    </p>
+                </div>
+                <div class="info-row" style="margin-bottom: 0; background: #F8F3EA; padding: 8px; border-radius: 10px;">
+                    <div style="font-size: 16px; margin-right: 6px;"><img class="tag-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%92%A1%3C/text%3E%3C/svg%3E" alt=""></div>
+                    <p style="font-size: 11px; color: #6D5C58;" id="active-text-sub">
+                        Minidato educativo...
+                    </p>
+                </div>
+            </div>
+
+            <div style="width: 100%;">
+                <button class="btn-watercolor" id="active-btn-action" onclick="calmCurrentZone()"><img class="button-icon" id="active-btn-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%A4%B2%3C/text%3E%3C/svg%3E" alt="">Mantén las manos abrigadas</button>
+                <p class="subtitle" id="active-action-hint" style="font-size: 11px; margin-top: 6px;">Toca para soltar la tensión acumulada</p>
+            </div>
+        </div>
+
+        <!-- PANTALLA 4: DETALLE ZONA CALMADA (DINÁMICA) -->
+        <div class="screen" id="screen-zone-calmed">
+            <div class="back-btn" onclick="goToScreen('screen-2')">←</div>
+            <h2 class="title" id="calmed-title" style="font-size: 18px; margin-bottom: 10px;">Zona</h2>
+
+            <div class="zone-visual-box calmed">
+                <span class="badge-status calmed">✓ Calmado</span>
+                <div id="calmed-svg-container"></div>
+            </div>
+
+            <div class="watercolor-card">
+                <div class="info-row">
+                    <div class="info-icon" style="background: #E8F5F3;" id="calmed-icon-1"><img class="watercolor-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%8C%8A%3C/text%3E%3C/svg%3E" alt=""></div>
+                    <p style="font-size: 13px; line-height: 1.3;" id="calmed-text-main">
+                        Texto de alivio...
+                    </p>
+                </div>
+                <div class="info-row" style="margin-bottom: 0; background: #EBF5F3; padding: 8px; border-radius: 10px;">
+                    <div style="font-size: 16px; margin-right: 6px;"><img class="tag-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%8C%B8%3C/text%3E%3C/svg%3E" alt=""></div>
+                    <p style="font-size: 11px; color: #4A6B66;" id="calmed-text-sub">
+                        Cierre tierno...
+                    </p>
+                </div>
+            </div>
+
+            <div style="width: 100%;">
+                <button class="btn-watercolor btn-teal" onclick="goToScreen('screen-2')">Explorar otra zona →</button>
+            </div>
+        </div>
+
+        <!-- PANTALLA 5: RESUMEN FINAL -->
+        <div class="screen" id="screen-5">
+            <div class="tag-pill" style="background: #E8F5F3; color: #3B7A72;">
+                <span>✓</span> Exploración finalizada
+            </div>
+
+            <h2 class="title" style="font-size: 22px; margin-top: 10px;">Tu cuerpo no está fallando, te está cuidando.</h2>
+
+            <!-- Cuerpo Resumen Final -->
+            <div class="body-container" style="height: 260px;">
+                <svg class="body-shape" viewBox="0 0 200 320" fill="none">
+                    <circle cx="100" cy="35" r="22" fill="#E6C594" opacity="0.85" />
+                    <rect x="70" y="65" width="60" height="90" rx="18" fill="#E6C594" opacity="0.85" />
+                    <rect id="final-arm-left" x="42" y="70" width="22" height="85" rx="11" fill="#E6C594" opacity="0.85" />
+                    <rect x="136" y="70" width="22" height="85" rx="11" fill="#E6C594" opacity="0.85" />
+                    <rect x="74" y="160" width="22" height="110" rx="11" fill="#E6C594" opacity="0.85" />
+                    <rect x="104" y="160" width="22" height="110" rx="11" fill="#E6C594" opacity="0.85" />
+                    
+                    <circle id="final-chest-tint" cx="100" cy="85" r="16" fill="#5BB3A7" opacity="0" />
+                    <circle id="final-stomach-tint" cx="100" cy="125" r="18" fill="#5BB3A7" opacity="0" />
+                </svg>
+
+                <div class="hotspot-tag" style="top: 35%; left: -10%; border-color: #5BB3A7; color: #3B7A72;">✓ Sanando</div>
+                <div class="hotspot-tag" style="top: 35%; right: -10%; border-color: #5BB3A7; color: #3B7A72;">✓ En calma</div>
+            </div>
+
+            <div class="watercolor-card" style="background: #FAF6EE;">
+                <p style="font-size: 12px; text-align: center; line-height: 1.4; color: #5C4E4B;">
+                    Cada síntoma que exploraste es una señal de que tu cuerpo está haciendo exactamente lo que debe. No es peligroso — <strong>es protección.</strong>
+                </p>
+            </div>
+
+            <div style="width: 100%;">
+                <button class="btn-watercolor btn-teal" onclick="resetGame()">Volver a empezar 🔄</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Estado del Juego
+        let currentZoneKey = null;
+        const calmedZones = {
+            heart: false,
+            chest: false,
+            stomach: false,
+            hands: false
+        };
+
+        // Base de Datos de las Zonas del Cuerpo
+        const zoneData = {
+            heart: {
+                title: "El corazón",
+                badgeActive: "¡Acelerado!",
+                badgeCalmed: "✓ Calmándose",
+                icon1: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%8F%83%3C/text%3E%3C/svg%3E",
+                textMain: "<strong>¡Tu corazón está corriendo un maratón para protegerte!</strong> Es como tener un superhéroe adentro.",
+                textSub: "<strong>¿Sabías que?</strong> Las palpitaciones no son peligrosas — son tu cuerpo diciéndote 'estoy alerta y listo'.",
+                btnAction: "Dale un toque suave al corazón",
+                btnIcon: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%A4%B2%3C/text%3E%3C/svg%3E",
+                actionHint: "Toca para ayudarle a bajar la velocidad",
+                iconCalmed: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%8C%8A%3C/text%3E%3C/svg%3E",
+                calmedMain: "Así es, poco a poco tu cuerpo puede calmarse solo. <strong>¡Lo estás haciendo muy bien!</strong>",
+                calmedSub: "Tu cuerpo sabe perfectamente cómo volver a la calma. No necesitas hacer nada especial.",
+                svgActive: `
+                    <svg class="zone-svg beat-fast" viewBox="0 0 24 24" fill="#E86A5D">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                    <svg class="ecg-line" viewBox="0 0 200 40" style="width:100%; height:40px; margin-top:15px;">
+                        <path d="M 0 20 L 40 20 L 50 5 L 60 35 L 70 10 L 80 25 L 90 20 L 130 20 L 140 0 L 150 40 L 160 10 L 170 20 L 200 20" fill="none" stroke="#E86A5D" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>`,
+                svgCalmed: `
+                    <svg class="zone-svg beat-slow" viewBox="0 0 24 24" fill="#5BB3A7">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                    <svg class="ecg-line" viewBox="0 0 200 40" style="width:100%; height:40px; margin-top:15px;">
+                        <path d="M 0 20 L 70 20 L 80 12 L 90 28 L 100 20 L 200 20" fill="none" stroke="#5BB3A7" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>`
+            },
+            chest: {
+                title: "El pecho",
+                badgeActive: "¡Pesado!",
+                badgeCalmed: "✓ Liberado",
+                icon1: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%90%98%3C/text%3E%3C/svg%3E",
+                textMain: "<strong>¿Sientes el pecho pesado?</strong> Es porque tus pulmones se están llenando de oxígeno para darte super fuerza.",
+                textSub: "<strong>¿Sabías que?</strong> La sensación de opresión no te quitará el aire, solo significa que tus músculos del tórax se tensaron para cuidarte.",
+                btnAction: "🪶 Abraza tu pecho con suavidad",
+                actionHint: "Toca para aflojar el peso y respirar más suave",
+                iconCalmed: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%8D%83%3C/text%3E%3C/svg%3E",
+                calmedMain: "¡Poco a poco el peso se derrite! <strong>Tus pulmones vuelven a su ritmo natural.</strong>",
+                calmedSub: "Siente cómo el aire entra y sale suavemente, como una brisa marina.",
+                svgActive: `
+                    <svg class="zone-svg heavy-press" viewBox="0 0 80 80" fill="none">
+                        <rect x="20" y="25" width="40" height="30" rx="10" fill="#E86A5D" opacity="0.8"/>
+                        <path d="M25 15 L55 15 L40 25 Z" fill="#D95648"/>
+                        <path d="M30 60 L50 60" stroke="#E86A5D" stroke-width="4" stroke-linecap="round"/>
+                    </svg>`,
+                svgCalmed: `
+                    <svg class="zone-svg gentle-breeze" viewBox="0 0 80 80" fill="none">
+                        <path d="M15 40 Q 30 25, 45 40 T 75 40" stroke="#5BB3A7" stroke-width="4" stroke-linecap="round" fill="none"/>
+                        <path d="M10 52 Q 25 40, 40 52 T 70 52" stroke="#A3D9D2" stroke-width="3" stroke-linecap="round" fill="none"/>
+                    </svg>`
+            },
+            stomach: {
+                title: "El estómago",
+                badgeActive: "¡Con mariposas!",
+                badgeCalmed: "✓ En reposo",
+                icon1: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%A6%8B%3C/text%3E%3C/svg%3E",
+                textMain: "<strong>¿Nudos o mariposas en el abdomen?</strong> Tu estómago hizo una 'pausa de digestión' para enviar toda su energía a tus piernas y brazos.",
+                textSub: "<strong>¿Sabías que?</strong> Tu estómago tiene su propio sistema nervioso y reacciona de primero para protegerte de cualquier sorpresa.",
+                btnAction: "🍵 Dale un calorcito suave",
+                actionHint: "Toca para enviarle un abrazo calientito",
+                iconCalmed: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%8D%B5%3C/text%3E%3C/svg%3E",
+                calmedMain: "Las mariposas empiezan a volar tranquilas. <strong>Tu digestión vuelve a despertar despacio.</strong>",
+                calmedSub: "Todo está bien. Tu estómago puede volver a relajarse completamente.",
+                svgActive: `
+                    <svg class="zone-svg knot-twist" viewBox="0 0 80 80" fill="none">
+                        <circle cx="40" cy="40" r="24" fill="#F7A399" opacity="0.5"/>
+                        <path d="M28 40 C 28 25, 52 55, 52 40 C 52 25, 28 55, 28 40 Z" stroke="#E86A5D" stroke-width="4" fill="none"/>
+                    </svg>`,
+                svgCalmed: `
+                    <svg class="zone-svg stomach-flow" viewBox="0 0 80 80" fill="none">
+                        <circle cx="40" cy="40" r="26" fill="#A3D9D2" opacity="0.4"/>
+                        <circle cx="40" cy="40" r="16" fill="#5BB3A7" opacity="0.7"/>
+                    </svg>`
+            },
+            hands: {
+                title: "Las manos",
+                badgeActive: "¡Inquietas!",
+                badgeCalmed: "✓ Relajadas",
+                icon1: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%E2%9A%A1%3C/text%3E%3C/svg%3E",
+                textMain: "<strong>¿Tus manos tiemblan o se sienten inquietas?</strong> Tienen tanta energía acumulada que no saben qué hacer con ella.",
+                textSub: "<strong>¿Sabías que?</strong> El temblor en las manos es la forma en que tu cuerpo 'libera el vapor' de la adrenalina sobrante.",
+                btnAction: " Mantén las manos abrigadas",
+                actionHint: "Toca para soltar la tensión acumulada",
+                iconCalmed: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%E2%9C%A8%3C/text%3E%3C/svg%3E",
+                calmedMain: "La energía sobrante se disipa suavemente. <strong>Tus manos se sienten sueltas y livianas.</strong>",
+                calmedSub: "Siente la calidez en tus yemas. Tus manos están listas para descansar.",
+                svgActive: `
+                    <svg class="zone-svg hand-shake" viewBox="0 0 80 80" fill="none">
+                        <g stroke="#E86A5D" stroke-width="2.5" stroke-linejoin="round">
+                            <rect x="27" y="19" width="8" height="29" rx="4" fill="#F7A399"/>
+                            <rect x="35" y="14" width="8" height="34" rx="4" fill="#F7A399"/>
+                            <rect x="43" y="19" width="8" height="29" rx="4" fill="#F7A399"/>
+                            <rect x="51" y="27" width="8" height="21" rx="4" fill="#F7A399"/>
+                            <rect x="10" y="42" width="16" height="15" rx="7.5" fill="#F7A399" transform="rotate(-28 18 49.5)"/>
+                            <rect x="23" y="42" width="34" height="27" rx="13" fill="#F7A399"/>
+                        </g>
+                    </svg>`,
+                svgCalmed: `
+                    <svg class="zone-svg hand-still" viewBox="0 0 80 80" fill="none">
+                        <g stroke="#5BB3A7" stroke-width="2.5" stroke-linejoin="round">
+                            <rect x="27" y="22" width="8" height="26" rx="4" fill="#A3D9D2"/>
+                            <rect x="35" y="18" width="8" height="30" rx="4" fill="#A3D9D2"/>
+                            <rect x="43" y="22" width="8" height="26" rx="4" fill="#A3D9D2"/>
+                            <rect x="51" y="29" width="8" height="19" rx="4" fill="#A3D9D2"/>
+                            <rect x="10" y="43" width="16" height="15" rx="7.5" fill="#A3D9D2" transform="rotate(-22 18 50.5)"/>
+                            <rect x="23" y="43" width="34" height="27" rx="13" fill="#A3D9D2"/>
+                        </g>
+                    </svg>`
+            }
+        };
+
+        // Navegación de pantallas
+        function goToScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        // Abrir una zona específica
+        function openZone(key) {
+            currentZoneKey = key;
+            const data = zoneData[key];
+
+            if (calmedZones[key]) {
+                // Si la zona ya se calmó, abre la pantalla calmada directamente
+                document.getElementById('calmed-title').innerText = data.title;
+                document.getElementById('calmed-icon-1').querySelector('img').src = data.iconCalmed;
+                document.getElementById('calmed-text-main').innerHTML = data.calmedMain;
+                document.getElementById('calmed-text-sub').innerHTML = data.calmedSub;
+                document.getElementById('calmed-svg-container').innerHTML = data.svgCalmed;
+                goToScreen('screen-zone-calmed');
+            } else {
+                // Si la zona sigue activa/en crisis
+                document.getElementById('active-title').innerText = data.title;
+                document.getElementById('active-badge').innerText = data.badgeActive;
+                document.getElementById('active-icon-1').querySelector('img').src = data.icon1;
+                document.getElementById('active-text-main').innerHTML = data.textMain;
+                document.getElementById('active-text-sub').innerHTML = data.textSub;
+                document.getElementById('active-btn-action').querySelector('#active-btn-icon').src = data.btnIcon || 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%A4%B2%3C/text%3E%3C/svg%3E';
+        document.getElementById('active-btn-action').querySelector('#active-btn-icon').alt = '';
+        document.getElementById('active-btn-action').lastChild.textContent = data.btnAction;
+                document.getElementById('active-action-hint').innerText = data.actionHint;
+                document.getElementById('active-svg-container').innerHTML = data.svgActive;
+                goToScreen('screen-zone-active');
+            }
+        }
+
+        // Acción de Calmar la zona actual
+        function calmCurrentZone() {
+            if (!currentZoneKey) return;
+
+            calmedZones[currentZoneKey] = true;
+            
+            // Marcar hotspot en el mapa del cuerpo como calmado
+            const spotEl = document.getElementById(`spot-${currentZoneKey}`);
+            if (spotEl) {
+                spotEl.classList.add('calmed-spot');
+            }
+
+            // Cambiar la sombra del mapa a color turquesa
+            const shadowEl = document.getElementById(`${currentZoneKey}-shadow`);
+            if (shadowEl) {
+                shadowEl.setAttribute('fill', '#5BB3A7');
+            }
+
+            // Verificar si hay alguna zona calmada para mostrar botón final
+            updateGeneralProgress();
+
+            // Transición a la pantalla calmada de la zona
+            openZone(currentZoneKey);
+        }
+
+        function updateGeneralProgress() {
+            const countCalmed = Object.values(calmedZones).filter(Boolean).length;
+            const hint = document.getElementById('status-hint');
+            const finishBtn = document.getElementById('btn-finish-exploration');
+
+            if (countCalmed > 0) {
+                hint.innerHTML = `<img class="tag-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%E2%9C%A8%3C/text%3E%3C/svg%3E" alt=""> Has calmado ${countCalmed} de 4 zonas de tu cuerpo`;
+                finishBtn.style.display = 'block';
+            }
+
+            // Actualizar tinte en el muñeco final
+            if (calmedZones.chest || calmedZones.heart) {
+                document.getElementById('final-chest-tint').setAttribute('opacity', '0.6');
+            }
+            if (calmedZones.stomach) {
+                document.getElementById('final-stomach-tint').setAttribute('opacity', '0.6');
+            }
+            if (calmedZones.hands) {
+                document.getElementById('final-arm-left').setAttribute('fill', '#A3D9D2');
+            }
+        }
+
+        // Reiniciar el juego
+        function resetGame() {
+            Object.keys(calmedZones).forEach(key => {
+                calmedZones[key] = false;
+                const spotEl = document.getElementById(`spot-${key}`);
+                if (spotEl) spotEl.classList.remove('calmed-spot');
+
+                const shadowEl = document.getElementById(`${key}-shadow`);
+                if (shadowEl) shadowEl.setAttribute('fill', '#F7A399');
+            });
+
+            document.getElementById('btn-finish-exploration').style.display = 'none';
+            document.getElementById('status-hint').innerHTML = '<img class="tag-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%8C%B8%3C/text%3E%3C/svg%3E" alt=""> Los halos indican zonas que puedes explorar';
+            document.getElementById('final-chest-tint').setAttribute('opacity', '0');
+            document.getElementById('final-stomach-tint').setAttribute('opacity', '0');
+            document.getElementById('final-arm-left').setAttribute('fill', '#E6C594');
+
+            goToScreen('screen-1');
+        }
+    </script>
+</body>
+</html>
