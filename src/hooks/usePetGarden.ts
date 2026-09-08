@@ -24,15 +24,16 @@ const defaultState: PetGardenState = {
   lastCare: Date.now(),
 };
 
-function readState(): PetGardenState {
+function readState(initialFlowerId?: FlowerId): PetGardenState {
+  const seededDefault = initialFlowerId ? { ...defaultState, flowerId: initialFlowerId } : defaultState;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultState;
+    if (!raw) return seededDefault;
     const data = JSON.parse(raw) as Partial<PetGardenState>;
-    if (data.version !== 1 || !data.careCounts) return defaultState;
-    return { ...defaultState, ...data, careCounts: { ...defaultState.careCounts, ...data.careCounts } };
+    if (data.version !== 1 || !data.careCounts) return seededDefault;
+    return { ...seededDefault, ...data, careCounts: { ...defaultState.careCounts, ...data.careCounts } };
   } catch {
-    return defaultState;
+    return seededDefault;
   }
 }
 
@@ -70,8 +71,8 @@ const moodMessages: Record<string, string> = {
   "bien": "Me alegra mucho verte así. ¡Gracias por compartirlo conmigo!",
 };
 
-export function usePetGarden() {
-  const [state, setState] = useState<PetGardenState>(readState);
+export function usePetGarden(initialFlowerId?: FlowerId) {
+  const [state, setState] = useState<PetGardenState>(() => readState(initialFlowerId));
   const [message, setMessage] = useState("Aquí estoy para acompañarte un ratito.");
 
   useEffect(() => persist(state), [state]);
@@ -79,8 +80,7 @@ export function usePetGarden() {
   const totalCare = Object.values(state.careCounts).reduce((sum, count) => sum + count, 0);
   const isNeglected = Date.now() - state.lastCare > NEGLECT_WINDOW;
   const mood: PetMood = isNeglected ? "triste" : "feliz";
-  const growth = Math.min(3, 1 + Math.floor(totalCare / 3));
-  const growthPhase = isNeglected ? 4 : growth;
+  const growth = Math.min(4, 1 + Math.floor(totalCare / 3));
 
   function care(action: CareAction) {
     setState((current) => {
@@ -111,7 +111,6 @@ export function usePetGarden() {
     happiness: state.happiness,
     bond: state.bond,
     growth,
-    growthPhase,
     mood,
     isNeglected,
     message,

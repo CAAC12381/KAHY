@@ -1,9 +1,9 @@
-import { Apple, Droplets, Flower2, Gamepad2, Heart, MessageCircle, PawPrint, Sparkles, Sprout, Sun } from "lucide-react";
+import { Apple, Droplets, Gamepad2, Heart, MessageCircle, Sparkles, Sprout, Sun } from "lucide-react";
 import { useState } from "react";
 import { flowers, mascots } from "../mock/data";
 import type { CareAction } from "../hooks/usePetGarden";
 import { usePetGarden } from "../hooks/usePetGarden";
-import type { MascotId } from "../types";
+import type { CompanionType, FlowerId, MascotId } from "../types";
 import Mascot, { Flower } from "./Mascot";
 import { Card } from "./ui";
 
@@ -22,20 +22,23 @@ const plantCareLabels: CareButton[] = [
 ];
 
 export default function PetGarden({
-  animalId,
-  onChangeAnimal,
+  companionType,
+  mascotId,
+  flowerId,
   moodHint,
 }: {
-  animalId: MascotId;
-  onChangeAnimal: (id: MascotId) => void;
+  companionType: CompanionType;
+  mascotId: MascotId;
+  flowerId: FlowerId;
   moodHint?: string;
 }) {
-  const garden = usePetGarden();
+  const garden = usePetGarden(flowerId);
   const [speaking, setSpeaking] = useState(false);
-  const [selected, setSelected] = useState<"mascota" | "planta">("mascota");
-  const animal = mascots.find((item) => item.id === animalId) ?? mascots[0];
-  const flower = flowers.find((item) => item.id === garden.flowerId) ?? flowers[0];
-  const activeCareLabels = selected === "mascota" ? animalCareLabels : plantCareLabels;
+  const animal = mascots.find((item) => item.id === mascotId) ?? mascots[0];
+  const flower = flowers.find((item) => item.id === flowerId) ?? flowers[0];
+  const isMascot = companionType === "mascota";
+  const activeCareLabels = isMascot ? animalCareLabels : plantCareLabels;
+  const companionLabel = isMascot ? animal.name : `tu ${flower.name.toLowerCase()}`;
 
   function talk() {
     setSpeaking(true);
@@ -47,68 +50,27 @@ export default function PetGarden({
       <div className="pet-garden-heading">
         <div>
           <span className="eyebrow"><Sparkles size={14} /> Tu rincón de compañía</span>
-          <h2>Cuida a {animal.name} y a tu {flower.name.toLowerCase()}</h2>
+          <h2>Cuida a {companionLabel}</h2>
           <p>Un espacio simbólico para pausar un momento. No sustituye el cuidado real de una mascota o planta.</p>
         </div>
         {garden.isNeglected && <span className="pet-alert">Te han extrañado un poco</span>}
       </div>
 
-      <div className="pet-target-toggle" role="tablist" aria-label="Elegir a quién cuidar">
-        <button type="button" role="tab" aria-selected={selected === "mascota"} className={selected === "mascota" ? "active" : ""} onClick={() => setSelected("mascota")}>
-          <PawPrint size={16} /> Mascota
-        </button>
-        <button type="button" role="tab" aria-selected={selected === "planta"} className={selected === "planta" ? "active" : ""} onClick={() => setSelected("planta")}>
-          <Flower2 size={16} /> Planta
-        </button>
-      </div>
-
-      <div className="pet-garden-grid">
-        <div className="pet-slot">
-          <div
-            className={`pet-slot-frame ${selected === "mascota" ? "pet-slot-frame--selected" : ""}`}
-            role="button"
-            tabIndex={0}
-            aria-pressed={selected === "mascota"}
-            onClick={() => setSelected("mascota")}
-            onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelected("mascota"); } }}
-          >
-            <Mascot id={animalId} size="large" mood={garden.mood} className="pet-slot-image" />
-            {speaking && <span className="pet-bubble">{garden.message}</span>}
-          </div>
-          <div className="pet-species-row" role="group" aria-label="Elegir animal acompañante">
-            {mascots.map((item) => (
-              <button key={item.id} className={item.id === animalId ? "active" : ""} onClick={() => onChangeAnimal(item.id)} title={item.name}>
-                <Mascot id={item.id} size="tiny" />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="pet-slot">
-          <div
-            className={`pet-slot-frame pet-slot-frame--plant ${selected === "planta" ? "pet-slot-frame--selected" : ""}`}
-            role="button"
-            tabIndex={0}
-            aria-pressed={selected === "planta"}
-            onClick={() => setSelected("planta")}
-            onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelected("planta"); } }}
-          >
-            <Flower id={garden.flowerId} phase={garden.growthPhase as 1 | 2 | 3 | 4} size="large" className="pet-slot-image" />
-          </div>
-          <div className="pet-species-row" role="group" aria-label="Elegir planta acompañante">
-            {flowers.map((item) => (
-              <button key={item.id} className={item.id === garden.flowerId ? "active" : ""} onClick={() => garden.setFlower(item.id)} title={item.name}>
-                <Flower id={item.id} phase={1} size="tiny" />
-              </button>
-            ))}
-          </div>
+      <div className="pet-garden-single">
+        <div className={`pet-slot-frame ${isMascot ? "" : "pet-slot-frame--plant"}`}>
+          {isMascot ? (
+            <Mascot id={mascotId} size="large" mood={garden.mood} className="pet-slot-image" />
+          ) : (
+            <Flower id={flowerId} phase={garden.growth as 1 | 2 | 3 | 4} size="large" className="pet-slot-image" />
+          )}
+          {speaking && <span className="pet-bubble">{garden.message}</span>}
         </div>
       </div>
 
       <div className="pet-meters">
         <div className="pet-meter"><span>Felicidad</span><div className="pet-meter-track"><span style={{ width: `${garden.happiness}%` }} /></div></div>
         <div className="pet-meter"><span>Vínculo</span><div className="pet-meter-track"><span style={{ width: `${garden.bond}%` }} /></div></div>
-        <div className="pet-meter"><span>Crecimiento</span><div className="pet-meter-track"><span style={{ width: `${(garden.growth / 3) * 100}%` }} /></div></div>
+        <div className="pet-meter"><span>Crecimiento</span><div className="pet-meter-track"><span style={{ width: `${(garden.growth / 4) * 100}%` }} /></div></div>
       </div>
 
       <div className="pet-actions">

@@ -238,21 +238,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .pet-garden-heading h2 { margin: 4px 0 6px; }
 .pet-garden-heading p { max-width: 520px; margin: 0; font-size: .88rem; }
 .pet-alert { flex: 0 0 auto; padding: 6px 11px; border-radius: 999px; background: var(--yellow-soft); color: var(--yellow-deep); font-size: .72rem; font-weight: 800; white-space: nowrap; }
-.pet-target-toggle { display: flex; gap: 8px; margin-bottom: 18px; }
-.pet-target-toggle button { display: inline-flex; align-items: center; gap: 6px; padding: 8px 15px; border: 1px solid rgba(147,112,158,.25); border-radius: 999px; background: white; color: var(--muted); font-weight: 760; font-size: .8rem; }
-.pet-target-toggle button.active { background: var(--purple-deep); color: white; border-color: transparent; }
-.pet-garden-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
-.pet-slot { min-width: 0; display: grid; justify-items: center; gap: 12px; }
-.pet-slot-frame { position: relative; display: grid; place-items: center; width: 100%; padding: 18px; border-radius: 26px; background: rgba(255,255,255,.7); box-shadow: var(--shadow-sm); cursor: pointer; transition: box-shadow .2s ease; }
+.pet-garden-single { display: flex; justify-content: center; }
+.pet-slot-frame { position: relative; display: grid; place-items: center; width: min(320px, 100%); padding: 18px; border-radius: 26px; background: rgba(255,255,255,.7); box-shadow: var(--shadow-sm); }
 .pet-slot-frame--plant { background: rgba(255,255,255,.55); }
-.pet-slot-frame--selected { box-shadow: 0 0 0 3px var(--purple), var(--shadow-sm); }
 .pet-slot-image { width: min(180px, 60%); height: min(180px, 60%); box-shadow: 0 14px 30px rgba(63,65,57,.12); }
 .flower-pot.pet-slot-image { box-shadow: none; background: transparent; }
 .pet-bubble { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); max-width: min(240px, 90%); padding: 9px 13px; border-radius: 14px 14px 14px 3px; background: white; box-shadow: var(--shadow-sm); color: var(--ink); font-size: .74rem; line-height: 1.4; text-align: center; animation: fade-up .2s ease both; }
-.pet-species-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
-.pet-species-row button { width: 46px; height: 46px; padding: 2px; border: 2px solid transparent; border-radius: 50%; background: transparent; }
-.pet-species-row button .mascot, .pet-species-row button .flower-pot { width: 100%; height: 100%; }
-.pet-species-row button.active { border-color: var(--purple); }
 .pet-meters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 22px 0 16px; }
 .pet-meter { display: grid; gap: 6px; }
 .pet-meter span { color: var(--ink); font-size: .74rem; font-weight: 760; }
@@ -562,7 +553,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .content { padding-inline: 14px; }.page-heading { align-items: flex-start; flex-direction: column; }.page-heading h1 { font-size: 2rem; }
   .hero-card { min-height: auto; padding: 27px 20px; border-radius: 24px; }.hero-copy h1 { font-size: 2.25rem; }.hero-actions { display: grid; }.hero-actions .button { width: 100%; }
   .section-heading { align-items: flex-start; flex-direction: column; gap: 4px; }.mood-card { padding: 10px; overflow-x: auto; }.mood-row { min-width: 520px; }.quick-grid, .activity-grid, .resource-grid { grid-template-columns: 1fr; }.quick-card { min-height: 210px; }.daily-card { align-items: flex-start; flex-direction: column; }
-  .pet-garden-grid { grid-template-columns: 1fr; }.pet-garden-heading { flex-direction: column; }.pet-actions .pet-talk { margin-left: 0; width: 100%; justify-content: center; }.pet-meters { grid-template-columns: 1fr; }
+  .pet-garden-heading { flex-direction: column; }.pet-actions .pet-talk { margin-left: 0; width: 100%; justify-content: center; }.pet-meters { grid-template-columns: 1fr; }
   .chat-page { height: calc(100svh - 188px); min-height: 520px; }.chat-header { align-items: flex-start; }.chat-header .button { width: 46px; overflow: hidden; padding: 0; font-size: 0; }.chat-header .button svg { width: 20px; }.demo-banner .demo-badge { display: none; }.conversation { padding: 14px; }.message-bubble { max-width: 86%; }.chat-prompts { padding: 10px; }
   .activity-title { flex-direction: column; }.breathing-panel, .garden-panel, .emotion-panel, .task-panel { padding: 22px 17px; }.breathing-orb { width: 185px; height: 185px; }.breath-steps { flex-wrap: wrap; justify-content: center; }.activity-controls { display: grid; }.activity-controls .button { width: 100%; }
   .specialist-grid { grid-template-columns: 1fr; }.slot-grid { grid-template-columns: 1fr; }.modal-profile-head { flex-direction: column; }

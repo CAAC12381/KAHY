@@ -26,6 +26,7 @@ const defaultPreferences: Preferences = {
 
 const defaultProfile: DemoProfile = {
   name: "Invitado",
+  companionType: "mascota",
   mascot: "vaca",
   flower: "Clavel",
   city: "Morelia",
@@ -41,7 +42,8 @@ function readRegistration(): PersistedRegistration | null {
     const preferences = data.preferences;
     if (data.version !== 1 || !profile || !preferences) return null;
     if (typeof profile.name !== "string" || !["vaca", "pollito", "camaleon", "tortuga"].includes(profile.mascot)) return null;
-    return { version: 1, profile: { ...defaultProfile, ...profile }, preferences } as PersistedRegistration;
+    const companionType = profile.companionType === "planta" ? "planta" : "mascota";
+    return { version: 1, profile: { ...defaultProfile, ...profile, companionType }, preferences } as PersistedRegistration;
   } catch {
     return null;
   }
@@ -138,7 +140,7 @@ export default function App() {
     <div className={`kahy-app ${preferences.reducedMotion ? "reduce-motion" : ""} ${preferences.lowStimuli ? "low-stimuli" : ""} ${preferences.simplified ? "simplified" : ""} ${preferences.textScale === "large" ? "large-text" : ""}`}>
       <a className="skip-link" href="#main-content">Saltar al contenido</a>
       <AppShell currentView={view} onNavigate={setView} onHelp={() => setShowHelp(true)} mascot={profile.mascot} preferences={preferences}>
-        {view === "home" && <HomePage profile={profile} preferences={preferences} navigate={setView} notify={notify} onChangeMascot={(mascot) => updateProfile({ ...profile, mascot })} />}
+        {view === "home" && <HomePage profile={profile} preferences={preferences} navigate={setView} notify={notify} />}
         {view === "chat" && <ChatPage onHelp={() => setShowHelp(true)} navigate={setView} />}
         {view === "activities" && <ActivitiesPage preferences={preferences} notify={notify} />}
         {view === "specialists" && <SpecialistsPage notify={notify} />}
