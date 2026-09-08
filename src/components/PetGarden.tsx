@@ -2,7 +2,7 @@ import { Apple, Droplets, Gamepad2, Heart, MessageCircle, Sparkles, Sprout, Sun 
 import { useState } from "react";
 import { flowers, mascots } from "../mock/data";
 import type { CareAction } from "../hooks/usePetGarden";
-import { usePetGarden } from "../hooks/usePetGarden";
+import { stageForGrowth, usePetGarden } from "../hooks/usePetGarden";
 import type { CompanionType, FlowerId, MascotId } from "../types";
 import Mascot, { Flower } from "./Mascot";
 import { Card } from "./ui";
@@ -21,6 +21,12 @@ const plantCareLabels: CareButton[] = [
   { action: "prune", label: "Nutrir / Podar", icon: Sprout },
 ];
 
+function stageLabel(stage: number, stageCount: number): string {
+  if (stage <= 1) return "Bebé";
+  if (stage >= stageCount) return "Adulto";
+  return "Creciendo";
+}
+
 export default function PetGarden({
   companionType,
   mascotId,
@@ -32,13 +38,15 @@ export default function PetGarden({
   flowerId: FlowerId;
   moodHint?: string;
 }) {
-  const garden = usePetGarden(flowerId);
+  const garden = usePetGarden();
   const [speaking, setSpeaking] = useState(false);
   const animal = mascots.find((item) => item.id === mascotId) ?? mascots[0];
   const flower = flowers.find((item) => item.id === flowerId) ?? flowers[0];
   const isMascot = companionType === "mascota";
   const activeCareLabels = isMascot ? animalCareLabels : plantCareLabels;
   const companionLabel = isMascot ? animal.name : `tu ${flower.name.toLowerCase()}`;
+  const stageCount = isMascot ? animal.stages.length : flower.stages.length;
+  const stage = stageForGrowth(garden.growth, stageCount);
 
   function talk() {
     setSpeaking(true);
@@ -59,18 +67,19 @@ export default function PetGarden({
       <div className="pet-garden-single">
         <div className={`pet-slot-frame ${isMascot ? "" : "pet-slot-frame--plant"}`}>
           {isMascot ? (
-            <Mascot id={mascotId} size="large" mood={garden.mood} className="pet-slot-image" />
+            <Mascot id={mascotId} size="large" mood={garden.mood} stage={stage} className="pet-slot-image" />
           ) : (
-            <Flower id={flowerId} phase={garden.growth as 1 | 2 | 3 | 4} size="large" className="pet-slot-image" />
+            <Flower id={flowerId} stage={stage} neglected={garden.isNeglected} size="large" className="pet-slot-image" />
           )}
           {speaking && <span className="pet-bubble">{garden.message}</span>}
         </div>
+        <span className="pet-stage-tag">{stageLabel(stage, stageCount)}</span>
       </div>
 
       <div className="pet-meters">
         <div className="pet-meter"><span>Felicidad</span><div className="pet-meter-track"><span style={{ width: `${garden.happiness}%` }} /></div></div>
         <div className="pet-meter"><span>Vínculo</span><div className="pet-meter-track"><span style={{ width: `${garden.bond}%` }} /></div></div>
-        <div className="pet-meter"><span>Crecimiento</span><div className="pet-meter-track"><span style={{ width: `${(garden.growth / 4) * 100}%` }} /></div></div>
+        <div className="pet-meter"><span>Crecimiento</span><div className="pet-meter-track"><span style={{ width: `${garden.growth}%` }} /></div></div>
       </div>
 
       <div className="pet-actions">

@@ -1,8 +1,10 @@
-import { ArrowRight, BookOpen, CalendarDays, Heart, Leaf, MessageCircle, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, CalendarDays, ClipboardList, Heart, Leaf, MessageCircle, Sparkles } from "lucide-react";
 import { useState } from "react";
 import Mascot from "../components/Mascot";
 import PetGarden from "../components/PetGarden";
+import SupportBanner from "../components/SupportBanner";
 import { Button, Card, DemoBadge } from "../components/ui";
+import type { ScreeningsState } from "../hooks/useScreenings";
 import type { DemoProfile, MainView, Preferences } from "../types";
 
 const moods = [
@@ -18,17 +20,22 @@ export default function HomePage({
   preferences,
   navigate,
   notify,
+  screenings,
+  onHelp,
 }: {
   profile: DemoProfile;
   preferences: Preferences;
   navigate: (view: MainView) => void;
   notify: (message: string) => void;
+  screenings: ScreeningsState;
+  onHelp: () => void;
 }) {
   const [mood, setMood] = useState("");
   const displayName = profile.name === "Invitado" ? "" : `, ${profile.name}`;
 
   return (
     <div className="page home-page">
+      {screenings.showSupportBanner && <SupportBanner onHelp={onHelp} onAcknowledge={screenings.acknowledgeSupport} />}
       <section className="hero-card">
         <div className="hero-copy">
           <DemoBadge>Bienestar cotidiano · demo</DemoBadge>
@@ -63,6 +70,7 @@ export default function HomePage({
         <button className="quick-card olive" onClick={() => navigate("activities")}><span className="quick-icon"><Leaf /></span><strong>Necesito bajar estímulos</strong><p>Respiración, pausa sensorial y una actividad sencilla.</p><span className="text-link">Ver actividades <ArrowRight size={17} /></span></button>
         <button className="quick-card pink" onClick={() => navigate("specialists")}><span className="quick-icon"><CalendarDays /></span><strong>Quiero conocer opciones</strong><p>Explora cómo sería un directorio de especialistas.</p><span className="text-link">Ver directorio <ArrowRight size={17} /></span></button>
         <button className="quick-card cream" onClick={() => navigate("resources")}><span className="quick-icon"><BookOpen /></span><strong>Quiero información clara</strong><p>Consulta recursos locales y la base de fuentes verificadas.</p><span className="text-link">Abrir biblioteca <ArrowRight size={17} /></span></button>
+        <button className="quick-card lilac" onClick={() => navigate("screening")}><span className="quick-icon"><ClipboardList /></span><strong>Quiero un autorreporte</strong><p>Cuestionarios de ánimo, ansiedad, atención o estrés postraumático. No diagnostican.</p><span className="text-link">Ir a Tamizaje <ArrowRight size={17} /></span></button>
       </div>
 
       <Card className="daily-card"><div><span className="eyebrow"><Sparkles size={15} /> Idea para hoy</span><h2>Haz visible el primer paso</h2><p>En lugar de “terminar el proyecto”, prueba “abrir el archivo y escribir un título”.</p></div><Button variant="secondary" onClick={() => navigate("activities")}>Desglosar una tarea</Button></Card>

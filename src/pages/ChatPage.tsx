@@ -5,6 +5,7 @@ import {
   BookOpenCheck,
   Check,
   CircleHelp,
+  ClipboardList,
   CloudOff,
   Database,
   Leaf,
@@ -18,14 +19,31 @@ import {
   UserRoundSearch,
   WifiOff,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import BrandMark from "../components/BrandMark";
+import SupportBanner from "../components/SupportBanner";
 import { Button, DemoBadge, Modal } from "../components/ui";
 import { useChatMemory } from "../hooks/useChatMemory";
+import type { ScreeningsState } from "../hooks/useScreenings";
 import { createReply, detectSafetySignal, type ChatTopic, type ConversationReply } from "../mock/conversation";
 import { trustedSources } from "../mock/data";
 import type { MainView, Preferences } from "../types";
 import { getAiStatus, requestAiReply, type AiConnection, type ApiChatMessage } from "../services/chatApi";
+
+type ScreeningSuggestion = { label: string; prompt: string };
+
+function buildScreeningSuggestions(screenings: ScreeningsState): ScreeningSuggestion[] {
+  const suggestions: ScreeningSuggestion[] = [];
+  const gad7 = screenings.latestOf("gad7");
+  if (gad7 && gad7.score >= 5) suggestions.push({ label: `Ejercicio para la ansiedad (según tu GAD-7: ${gad7.band.toLowerCase()})`, prompt: "Según un tamizaje reciente mi ansiedad está en un nivel que quiero trabajar. ¿Podemos hacer un ejercicio de respiración?" });
+  const phq9 = screenings.latestOf("phq9");
+  if (phq9 && phq9.score >= 5) suggestions.push({ label: `Un paso pequeño para el ánimo (según tu PHQ-9: ${phq9.band.toLowerCase()})`, prompt: "Un tamizaje reciente detectó que tengo el ánimo bajo. ¿Me ayudas con un paso pequeño y quizás llevar un diario breve?" });
+  const pcl5 = screenings.latestOf("pcl5");
+  if (pcl5 && pcl5.score >= 33) suggestions.push({ label: "Hablar de estrés postraumático (según tu PCL-5 reciente)", prompt: "Un tamizaje reciente de estrés postraumático me dio un resultado por encima del punto de corte. Quiero hablar de esto con cuidado." });
+  const asrs = screenings.latestOf("asrs");
+  if (asrs && asrs.band.startsWith("Compatible")) suggestions.push({ label: "Herramientas de atención y organización (según tu ASRS reciente)", prompt: "Un tamizaje reciente de atención salió compatible con síntomas de TDAH. ¿Me ayudas con herramientas para organizarme?" });
+  return suggestions.slice(0, 2);
+}
 
 type ChatMessage =
   | { id: number; role: "user"; text: string }
@@ -69,8 +87,9 @@ const topicNames: Record<ChatTopic, string> = {
   autocuidado: "Autocuidado",
 };
 
-export default function ChatPage({ onHelp, navigate, preferences }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences }) {
+export default function ChatPage({ onHelp, navigate, preferences, screenings }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences; screenings: ScreeningsState }) {
   const memory = useChatMemory(preferences.rememberConversations);
+  const screeningSuggestions = useMemo(() => buildScreeningSuggestions(screenings), [screenings.results]);
   const [messages, setMessages] = useState<ChatMessage[]>([{ id: 1, role: "assistant", reply: initialReply }]);
   const [value, setValue] = useState("");
   const [typing, setTyping] = useState(false);
@@ -160,6 +179,7 @@ export default function ChatPage({ onHelp, navigate, preferences }: { onHelp: ()
 
   return (
     <div className="page chat-page chat-studio">
+      {screenings.showSupportBanner && <SupportBanner onHelp={onHelp} onAcknowledge={screenings.acknowledgeSupport} />}
       <section className="chat-command-bar">
         <div className="chat-brand-persona">
           <BrandMark size="medium" />
@@ -195,6 +215,13 @@ export default function ChatPage({ onHelp, navigate, preferences }: { onHelp: ()
             {messages.map((message) => message.role === "user" ? <div className="studio-message user" data-chat-message key={message.id}><div className="user-message">{message.text}</div></div> : <AssistantReply key={message.id} reply={message.reply} onChoice={send} onHelp={onHelp} navigate={navigate} disabled={typing} onReopenPrompt={() => setActivePrompt(message.reply)} />)}
             {typing && <div className="studio-message assistant" data-chat-message><BrandMark size="small" /><div className="thinking-card" role="status"><div className="thinking-dots"><i /><i /><i /></div><span>Organizando una respuesta segura y útil…</span></div></div>}
           </div>
+
+          {screeningSuggestions.length > 0 && (
+            <div className="screening-suggestion-row" aria-label="Sugerencias según tu tamizaje reciente">
+              <span><ClipboardList size={14} /> Según tu tamizaje reciente:</span>
+              {screeningSuggestions.map((suggestion) => <button key={suggestion.label} onClick={() => send(suggestion.prompt)}>{suggestion.label}</button>)}
+            </div>
+          )}
 
           <div className="starter-row" aria-label="Atajos de conversación">
             <button onClick={() => send("Estoy muy estresado y no sé qué resolver primero")}><MessageCircle size={16} /> Estrés</button>

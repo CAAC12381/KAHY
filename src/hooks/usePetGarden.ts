@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
-import type { FlowerId, PetMood } from "../types";
+import type { PetMood } from "../types";
 
 export type CareAction = "food" | "play" | "love" | "water" | "sun" | "prune";
 
 type PetGardenState = {
-  version: 1;
-  flowerId: FlowerId;
   happiness: number;
   bond: number;
   careCounts: Record<CareAction, number>;
@@ -14,26 +12,25 @@ type PetGardenState = {
 
 const STORAGE_KEY = "kahy.pet-garden.v1";
 const NEGLECT_WINDOW = 24 * 60 * 60 * 1000;
+/** Total care actions needed to go from newborn (0%) to fully grown (100%). */
+const GROWTH_TARGET_ACTIONS = 9;
 
 const defaultState: PetGardenState = {
-  version: 1,
-  flowerId: "Clavel",
   happiness: 70,
   bond: 12,
   careCounts: { food: 0, play: 0, love: 0, water: 0, sun: 0, prune: 0 },
   lastCare: Date.now(),
 };
 
-function readState(initialFlowerId?: FlowerId): PetGardenState {
-  const seededDefault = initialFlowerId ? { ...defaultState, flowerId: initialFlowerId } : defaultState;
+function readState(): PetGardenState {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return seededDefault;
+    if (!raw) return defaultState;
     const data = JSON.parse(raw) as Partial<PetGardenState>;
-    if (data.version !== 1 || !data.careCounts) return seededDefault;
-    return { ...seededDefault, ...data, careCounts: { ...defaultState.careCounts, ...data.careCounts } };
+    if (!data.careCounts) return defaultState;
+    return { ...defaultState, ...data, careCounts: { ...defaultState.careCounts, ...data.careCounts } };
   } catch {
-    return seededDefault;
+    return defaultState;
   }
 }
 
@@ -71,8 +68,14 @@ const moodMessages: Record<string, string> = {
   "bien": "Me alegra mucho verte así. ¡Gracias por compartirlo conmigo!",
 };
 
-export function usePetGarden(initialFlowerId?: FlowerId) {
-  const [state, setState] = useState<PetGardenState>(() => readState(initialFlowerId));
+/** Maps a 0-100 growth percent onto a 1-indexed stage for a companion with `stageCount` art stages. */
+export function stageForGrowth(growthPercent: number, stageCount: number): number {
+  const index = Math.min(stageCount - 1, Math.floor((growthPercent / 100) * stageCount));
+  return index + 1;
+}
+
+export function usePetGarden() {
+  const [state, setState] = useState<PetGardenState>(readState);
   const [message, setMessage] = useState("Aquí estoy para acompañarte un ratito.");
 
   useEffect(() => persist(state), [state]);
@@ -80,7 +83,7 @@ export function usePetGarden(initialFlowerId?: FlowerId) {
   const totalCare = Object.values(state.careCounts).reduce((sum, count) => sum + count, 0);
   const isNeglected = Date.now() - state.lastCare > NEGLECT_WINDOW;
   const mood: PetMood = isNeglected ? "triste" : "feliz";
-  const growth = Math.min(4, 1 + Math.floor(totalCare / 3));
+  const growth = Math.min(100, Math.round((totalCare / GROWTH_TARGET_ACTIONS) * 100));
 
   function care(action: CareAction) {
     setState((current) => {
@@ -101,13 +104,7 @@ export function usePetGarden(initialFlowerId?: FlowerId) {
     setMessage(moodMessages[moodValue] || "Gracias por contarme cómo te sientes hoy.");
   }
 
-  function setFlower(id: FlowerId) {
-    setState((current) => ({ ...current, flowerId: id }));
-    setMessage("Gracias por elegirme. Creceremos juntas a tu ritmo.");
-  }
-
   return {
-    flowerId: state.flowerId,
     happiness: state.happiness,
     bond: state.bond,
     growth,
@@ -116,6 +113,5 @@ export function usePetGarden(initialFlowerId?: FlowerId) {
     message,
     care,
     reactToMood,
-    setFlower,
   };
 }
