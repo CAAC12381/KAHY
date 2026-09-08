@@ -136,7 +136,8 @@ export function getTopic(input: string): ChatTopic {
     "depres", "triste", "sin energia", "desanimo", "animo bajo", "vacio", "agotad", "sin ganas de nada", "no disfruto",
     "ando bien mal", "traigo la moral por los suelos", "me siento hecho bolas", "me siento hecha bolas", "no me nace hacer nada",
     "ya nada me llena", "me siento vacio por dentro", "me siento vacia por dentro", "no le veo caso a nada", "ya no puedo ni levantarme",
-    "estoy en depre", "traigo bajon", "ando de bajon",
+    "estoy en depre", "traigo bajon", "ando de bajon", "me siento mal", "me siento muy mal", "no me siento bien",
+    "no ando bien", "no estoy bien",
   ])) return "ánimo";
   if (includesAny(text, [
     "tarea", "organizar", "procrast", "pendiente", "concentr", "estudiar", "trabajo acumulado",
