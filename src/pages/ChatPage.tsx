@@ -4,7 +4,6 @@ import {
   ArrowUp,
   BookOpenCheck,
   Check,
-  ChevronDown,
   CircleHelp,
   CloudOff,
   Database,
@@ -81,7 +80,6 @@ export default function ChatPage({ onHelp, navigate, preferences }: { onHelp: ()
   const [plan, setPlan] = useState<Array<{ text: string; done: boolean }>>([]);
   const [aiConnection, setAiConnection] = useState<AiConnection>("checking");
   const [activePrompt, setActivePrompt] = useState<ConversationReply | null>(null);
-  const [promptDismissed, setPromptDismissed] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sendingRef = useRef(false);
@@ -133,7 +131,6 @@ export default function ChatPage({ onHelp, navigate, preferences }: { onHelp: ()
     setTyping(false);
     sendingRef.current = false;
     memory.remember(reply.topic);
-    if (reply.mode !== "safety" && !promptDismissed) setActivePrompt(reply);
     if (reply.openHelp) window.setTimeout(onHelp, 350);
   }
 
@@ -144,7 +141,6 @@ export default function ChatPage({ onHelp, navigate, preferences }: { onHelp: ()
 
   function dismissPrompt() {
     setActivePrompt(null);
-    setPromptDismissed(true);
   }
 
   function resetChat() {
@@ -153,7 +149,6 @@ export default function ChatPage({ onHelp, navigate, preferences }: { onHelp: ()
     setPlan([]);
     setValue("");
     setActivePrompt(null);
-    setPromptDismissed(false);
     sendingRef.current = false;
   }
 
@@ -224,8 +219,12 @@ export default function ChatPage({ onHelp, navigate, preferences }: { onHelp: ()
       </div>
 
       {activePrompt && (
-        <Modal title={activePrompt.question} onClose={dismissPrompt}>
+        <Modal title="Plan y siguiente paso" onClose={dismissPrompt}>
           <div className="prompt-modal">
+            {activePrompt.insight && <div className="context-reading"><CircleHelp size={18} /><div><strong>Contexto, no diagnóstico</strong><p>{activePrompt.insight}</p></div></div>}
+            <div className="response-steps">{activePrompt.steps.map((step) => <div key={`${step.horizon}-${step.text}`}><span>{step.horizon}</span><p>{step.text}</p></div>)}</div>
+            <div className="prompt-modal-divider" />
+            <strong className="prompt-modal-question">{activePrompt.question}</strong>
             <p className="prompt-modal-hint">Responder es opcional: ayuda a personalizar el siguiente paso, pero puedes seguir platicando sin hacerlo.</p>
             <div className="prompt-modal-choices">
               {activePrompt.choices.map((choice) => <button key={choice} onClick={() => choosePrompt(choice)}>{choice}<ArrowRight size={15} /></button>)}
@@ -247,9 +246,9 @@ function AssistantReply({ reply, onChoice, onHelp, navigate, disabled, onReopenP
         <div className="assistant-label"><span>{reply.mode === "safety" ? <AlertTriangle size={15} /> : <Sparkles size={15} />}{reply.label}</span>{reply.mode === "safety" && <DemoBadge>Activación preventiva</DemoBadge>}</div>
         <h2>{reply.title}</h2>
         <p className="assistant-intro">{reply.introduction}</p>
-        {reply.mode === "safety" ? <div className="expanded-safety-guidance">{reply.insight && <div className="context-reading"><CircleHelp size={18} /><div><strong>Por qué se activó esta ayuda</strong><p>{reply.insight}</p></div></div>}<div className="response-steps">{reply.steps.map((step) => <div key={`${step.horizon}-${step.text}`}><span>{step.horizon}</span><p>{step.text}</p></div>)}</div></div> : <details className="assistant-details"><summary><span><ListChecks size={16} /> Ver plan y explicación</span><ChevronDown size={16} /></summary><div className="assistant-details-body">{reply.insight && <div className="context-reading"><CircleHelp size={18} /><div><strong>Contexto, no diagnóstico</strong><p>{reply.insight}</p></div></div>}<div className="response-steps">{reply.steps.map((step) => <div key={`${step.horizon}-${step.text}`}><span>{step.horizon}</span><p>{step.text}</p></div>)}</div></div></details>}
+        {reply.mode === "safety" && <div className="expanded-safety-guidance">{reply.insight && <div className="context-reading"><CircleHelp size={18} /><div><strong>Por qué se activó esta ayuda</strong><p>{reply.insight}</p></div></div>}<div className="response-steps">{reply.steps.map((step) => <div key={`${step.horizon}-${step.text}`}><span>{step.horizon}</span><p>{step.text}</p></div>)}</div></div>}
       </div>
-      {reply.mode === "safety" ? <div className="assistant-question"><strong>{reply.question}</strong><div>{reply.choices.map((choice) => <button key={choice} disabled={disabled} onClick={() => reply.openHelp && choice.includes("Abrir") ? onHelp() : onChoice(choice)}>{choice}<ArrowRight size={15} /></button>)}</div></div> : <button className="reopen-prompt" disabled={disabled} onClick={onReopenPrompt}><MessageCircle size={14} /> Personalizar siguiente paso</button>}
+      {reply.mode === "safety" ? <div className="assistant-question"><strong>{reply.question}</strong><div>{reply.choices.map((choice) => <button key={choice} disabled={disabled} onClick={() => reply.openHelp && choice.includes("Abrir") ? onHelp() : onChoice(choice)}>{choice}<ArrowRight size={15} /></button>)}</div></div> : <button className="reopen-prompt" disabled={disabled} onClick={onReopenPrompt}><ListChecks size={14} /> Ver plan y opciones</button>}
       <div className="reply-footer"><button onClick={() => navigate("resources")}><BookOpenCheck size={15} /> {sources.length} {sources.length === 1 ? "fuente verificada" : "fuentes verificadas"}</button><span>{sources.map((source) => source?.organization).join(" · ")}</span></div>
     </div>
   </article>;
