@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Un paseo entre nubes</title>
+<style>
+  :root{--paper:#fff8df;--sky:#b9ddeb;--sky-light:#d9edf1;--ink:#413a35;--pink:#f3afa7;--yellow:#f5cf70;--green:#9ebc82;--cloud:#9ba0a2;--cloud-light:#b6babc;--cream:#fffdf3}
+  *{box-sizing:border-box} body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f1ead5;color:var(--ink);font-family:"Trebuchet MS","Comic Sans MS",system-ui,sans-serif}
+  .game{width:min(1050px,96vw);min-height:720px;position:relative;overflow:hidden;border:3px solid var(--ink);border-radius:30px;background:var(--paper);box-shadow:8px 10px 0 rgba(65,58,53,.13)}
+  header{position:relative;z-index:10;padding:23px 25px 10px;text-align:center} h1{margin:0;font-size:clamp(28px,4vw,44px);letter-spacing:.3px}.subtitle{max-width:650px;margin:7px auto 0;line-height:1.45}.hud{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:14px}.pill{padding:7px 14px;border:2px solid var(--ink);border-radius:999px;background:var(--cream);font-weight:800}
+  .scene{height:520px;position:relative;margin:0 20px 22px;overflow:hidden;border:3px solid var(--ink);border-radius:27px;background:url("escena-acuarela.png") center/100% 100% no-repeat}
+  .scene:before{content:"";position:absolute;inset:0;display:none;pointer-events:none}.scene.is-playing{background-image:url("escena-sin-globo.png?v=2")}.sun{display:none}
+  .ground,.flower{display:none}
+  .cloud{position:absolute;width:168px;height:94px;border:0;background:url("nube-acuarela.png") center/contain no-repeat;filter:grayscale(1) brightness(.66) contrast(.9) drop-shadow(2px 3px 0 rgba(65,58,53,.12));z-index:3;will-change:transform}.cloud:before,.cloud:after,.cloud i,.cloud b{display:none}.cloud.small{transform:scale(.72)}.cloud.large{transform:scale(1.18)}
+  .balloon-wrap{display:none;position:absolute;left:50%;top:48%;width:170px;height:220px;z-index:6;transform:translate(-50%,-50%);will-change:left,top}.scene.is-playing .balloon-wrap{display:block}.balloon{position:relative;width:170px;height:220px;margin:auto;background:url("globo-acuarela.png") center/contain no-repeat;filter:drop-shadow(3px 5px 0 rgba(65,58,53,.08));animation:float 4.5s ease-in-out infinite}.balloon svg,.string,.basket{display:none}
+  .hint{position:absolute;z-index:8;left:50%;bottom:19px;transform:translateX(-50%);width:min(560px,92%);padding:10px 16px;text-align:center;font-weight:700;border:2px solid var(--ink);border-radius:18px;background:rgba(255,253,243,.92)}.controls{position:absolute;left:50%;bottom:15px;z-index:12;display:flex;gap:10px;transform:translateX(-50%)}button{border:3px solid var(--ink);border-radius:999px;padding:10px 21px;background:var(--yellow);box-shadow:3px 4px 0 var(--ink);font:800 16px inherit;color:var(--ink);cursor:pointer}button:hover{transform:translateY(-2px)}button:active{transform:translate(2px,3px);box-shadow:1px 1px 0 var(--ink)}button.secondary{background:var(--cream)}button:disabled{opacity:.7;cursor:default}
+  .notice{position:absolute;inset:0;display:none;place-items:center;z-index:20;background:rgba(255,248,223,.76);backdrop-filter:blur(2px)}.card{width:min(480px,88%);padding:29px;text-align:center;background:var(--cream);border:3px solid var(--ink);border-radius:25px;box-shadow:7px 8px 0 rgba(65,58,53,.14)}.card h2{margin:0;font-size:30px}.card p{line-height:1.5}.card button{margin-top:8px}
+  @keyframes float{0%,100%{transform:translateY(3px) rotate(-1deg)}50%{transform:translateY(-9px) rotate(1deg)}}
+  @media (prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+  @media(max-width:650px){.game{min-height:700px}.scene{height:500px;margin-inline:9px}.balloon-wrap{transform:translate(-50%,-50%) scale(.82)}.subtitle{font-size:14px}.hint{font-size:14px}.sun{right:18px;transform:scale(.75)}}
+</style>
+</head>
+<body>
+<main class="game" id="game">
+  <header><h1>Un paseo entre nubes ☁️</h1><p class="subtitle">Guía el globo despacito para pasar entre las nubecitas grises. No hay prisa: este espacio es tuyo.</p><div class="hud"><span class="pill">Nubes esquivadas: <span id="score">0</span></span><span class="pill">Ritmo: tranquilo</span></div></header>
+  <section class="scene" id="scene" aria-label="Zona de juego. Usa las flechas o toca donde quieras mover el globo.">
+    <div class="sun"></div><div class="flower one"></div><div class="flower two"></div><div class="flower three"></div><div class="ground"></div>
+    <div class="balloon-wrap" id="balloonWrap" aria-hidden="true"><div class="balloon"><svg viewBox="0 0 132 168"><path class="body" d="M66 158 C55 145 14 119 10 71 C6 28 31 8 66 7 C101 8 126 28 122 71 C118 119 77 145 66 158Z"/><path class="shine" d="M44 30 C28 45 27 72 34 91 C38 102 44 106 47 101 C42 80 44 53 55 34 C59 27 51 24 44 30Z"/><path d="M52 142 Q66 151 80 142" fill="none" stroke="#413a35" stroke-width="3" stroke-linecap="round"/><path class="knot" d="M58 154 L74 154 L66 166Z"/></svg><div class="string"></div><div class="basket"></div></div></div>
+    <div class="hint" id="hint">Pulsa <b>Empezar</b>. Después usa ← ↑ ↓ → o toca suavemente el cielo para mover el globo.</div>
+  </section>
+  <div class="controls"><button id="start">Empezar</button><button id="pause" class="secondary" disabled>Pausar</button><button id="reset" class="secondary">Reiniciar</button></div>
+  <div class="notice" id="notice"><div class="card"><h2>Está bien detenerse un momento a respirar</h2><p>El paseo terminó. Puedes reiniciar cuando te sientas listo.</p><button id="continue">Volver a jugar</button></div></div>
+</main>
+<script>
+(() => {
+  const scene=document.querySelector('#scene'), wrap=document.querySelector('#balloonWrap'), scoreEl=document.querySelector('#score'), hint=document.querySelector('#hint'), start=document.querySelector('#start'), pause=document.querySelector('#pause'), reset=document.querySelector('#reset'), notice=document.querySelector('#notice'), cont=document.querySelector('#continue');
+  let playing=false, paused=false, score=0, x=50, y=48, targetX=50, targetY=48, clouds=[], raf, last=0, nextCloud=0, lastHit=0;
+  const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
+  function place(){wrap.style.left=x+'%';wrap.style.top=y+'%'}
+  function addCloud(){const el=document.createElement('div');const sizes=['','small','large'];el.className='cloud '+sizes[Math.floor(Math.random()*sizes.length)];const fromRight=Math.random()>.5;const top=12+Math.random()*55;el.style.left=(fromRight?108:-23)+'%';el.style.top=top+'%';scene.insertBefore(el,wrap);clouds.push({el,x:fromRight?108:-23,v:(fromRight?-1:1)*(.45+Math.random()*.25),counted:false});}
+  function intersects(c){const a=wrap.getBoundingClientRect(),b=c.el.getBoundingClientRect();return a.left+30<b.right-14&&a.right-30>b.left+14&&a.top+24<b.bottom-18&&a.bottom-22>b.top+18}
+  function hit(){lastHit=performance.now();playing=false;scene.classList.remove('is-playing');notice.style.display='grid';pause.disabled=true;start.disabled=true;start.textContent='Partida terminada';hint.innerHTML='Tómate un momento para respirar.'}
+  function loop(now){if(!playing||paused)return;const dt=Math.min(40,now-last||16);last=now;const smooth=1-Math.pow(.001,dt/1000);x+=(targetX-x)*smooth;y+=(targetY-y)*smooth;place();if(now>nextCloud){addCloud();nextCloud=now+2600+Math.random()*1200}clouds.forEach(c=>{c.x+=c.v*dt/16;c.el.style.left=c.x+'%';if(!c.counted&&((c.v<0&&c.x<-22)||(c.v>0&&c.x>107))){c.counted=true;score++;scoreEl.textContent=score}if(now-lastHit>700&&intersects(c))hit()});clouds=clouds.filter(c=>{if(c.counted){c.el.remove();return false}return true});raf=requestAnimationFrame(loop)}
+  function begin(){if(playing)return;playing=true;scene.classList.add('is-playing');paused=false;notice.style.display='none';start.disabled=true;start.textContent='En vuelo…';pause.disabled=false;pause.textContent='Pausar';hint.innerHTML='Vas muy bien. Deslízate con calma entre las nubes.';last=performance.now();nextCloud=last+1000;raf=requestAnimationFrame(loop)}
+  function move(dx,dy){if(!playing||paused)return;targetX=clamp(targetX+dx,12,88);targetY=clamp(targetY+dy,25,73)}
+  window.addEventListener('keydown',e=>{const keys={ArrowLeft:[-6,0],ArrowRight:[6,0],ArrowUp:[0,-6],ArrowDown:[0,6]};if(keys[e.key]){e.preventDefault();move(...keys[e.key])}});
+  scene.addEventListener('pointerdown',e=>{if(!playing||paused||e.target.closest('.cloud'))return;const r=scene.getBoundingClientRect();targetX=clamp((e.clientX-r.left)/r.width*100,12,88);targetY=clamp((e.clientY-r.top)/r.height*100,25,73)});
+  function restart(){cancelAnimationFrame(raf);playing=false;paused=false;scene.classList.remove('is-playing');score=0;scoreEl.textContent=0;x=50;y=48;targetX=50;targetY=48;place();clouds.forEach(c=>c.el.remove());clouds=[];notice.style.display='none';start.disabled=false;start.textContent='Empezar';pause.disabled=true;hint.innerHTML='Pulsa <b>Empezar</b>. Después usa ← ↑ ↓ → o toca suavemente el cielo para mover el globo.'}
+  start.onclick=begin;pause.onclick=()=>{paused=!paused;pause.textContent=paused?'Continuar':'Pausar';if(!paused){last=performance.now();raf=requestAnimationFrame(loop)}};cont.onclick=()=>{restart();begin()};reset.onclick=restart;place();
+})();
+</script>
+</body>
+</html>
