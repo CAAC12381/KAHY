@@ -96,7 +96,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .flower-pot--large { width: min(260px, 38vw); height: min(260px, 38vw); padding: 14px; }
 .mini-mascot-grid .flower-pot { width: 76px; height: 76px; }
 
-.kahy-guide { flex: 0 0 auto; display: inline-block; overflow: hidden; border: 1px solid rgba(154,115,36,.2); border-radius: 32%; background-color: #fff9e8; background-image: url("/assets/kahy-logo.png"); background-position: center; background-repeat: no-repeat; background-size: cover; box-shadow: 0 7px 18px rgba(154,115,36,.1); }
+.kahy-guide { flex: 0 0 auto; display: inline-block; overflow: hidden; border: 1px solid rgba(154,115,36,.2); border-radius: 32%; background-color: #fff9e8; background-position: center; background-repeat: no-repeat; background-size: cover; box-shadow: 0 7px 18px rgba(154,115,36,.1); }
 .kahy-guide--small { width: 42px; height: 42px; }
 .kahy-guide--medium { width: 68px; height: 68px; }
 .kahy-guide--large { width: 136px; height: 136px; }

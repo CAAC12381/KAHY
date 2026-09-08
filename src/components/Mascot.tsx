@@ -1,5 +1,5 @@
 import type { MascotId, PetMood } from "../types";
-import { mascots } from "../mock/data";
+import { flowers, mascots } from "../mock/data";
 
 export default function Mascot({
   id = "vaca",
@@ -36,9 +36,11 @@ export function Flower({
   size?: "tiny" | "small" | "medium" | "large";
   className?: string;
 }) {
+  const flower = flowers.find((item) => item.id === id) ?? flowers[0];
+  const src = flower.phases[phase - 1] ?? flower.phases[0];
   return (
     <span className={`flower-pot flower-pot--${size} ${className}`} role="img" aria-label={`${id} en su etapa ${phase} de cuidado`}>
-      <img src={`/assets/pets/plantas/${id}/Fase${phase}.jpg`} alt="" loading="lazy" />
+      <img src={src} alt="" loading="lazy" />
     </span>
   );
 }
