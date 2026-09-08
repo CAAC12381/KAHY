@@ -2,6 +2,7 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   Home,
   Leaf,
   MessageCircle,
@@ -18,6 +19,7 @@ const icons = {
   home: Home,
   chat: MessageCircle,
   activities: Leaf,
+  screening: ClipboardList,
   specialists: Users,
   profile: User,
 };
@@ -77,7 +79,7 @@ export default function AppShell({
         {!collapsed && (
           <div className="sidebar-note">
             {preferences.showMascot && <Mascot id={mascot} size="tiny" />}
-            <div><strong>Prototipo local</strong><small>Sin IA, diagnóstico ni expediente.</small></div>
+            <div><strong>Orientación privada</strong><small>Chat activo · sin expediente clínico.</small></div>
           </div>
         )}
       </aside>
@@ -88,7 +90,7 @@ export default function AppShell({
           <span className="prototype-label">Vista demostrativa</span>
           <button className="help-button" onClick={onHelp}>Necesito ayuda ahora</button>
         </header>
-        <main id="main-content" className="content">{children}</main>
+        <main id="main-content" className={currentView === "chat" ? "content content--chat" : "content"}>{children}</main>
       </div>
 
       <nav className="bottom-nav" aria-label="Navegación móvil">

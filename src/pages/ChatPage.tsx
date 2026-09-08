@@ -6,6 +6,7 @@ import {
   Check,
   ChevronDown,
   CircleHelp,
+  ClipboardList,
   CloudOff,
   Database,
   Leaf,
@@ -19,13 +20,31 @@ import {
   UserRoundSearch,
   WifiOff,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import BrandMark from "../components/BrandMark";
-import { Button, DemoBadge } from "../components/ui";
+import SupportBanner from "../components/SupportBanner";
+import { Button, DemoBadge, Modal } from "../components/ui";
+import { useChatMemory } from "../hooks/useChatMemory";
+import type { ScreeningsState } from "../hooks/useScreenings";
 import { createReply, detectSafetySignal, type ChatTopic, type ConversationReply } from "../mock/conversation";
 import { trustedSources } from "../mock/data";
-import type { MainView } from "../types";
-import { requestAiReply, type AiConnection, type ApiChatMessage } from "../services/chatApi";
+import type { MainView, Preferences } from "../types";
+import { getAiStatus, requestAiReply, type AiConnection, type ApiChatMessage } from "../services/chatApi";
+
+type ScreeningSuggestion = { label: string; prompt: string };
+
+function buildScreeningSuggestions(screenings: ScreeningsState): ScreeningSuggestion[] {
+  const suggestions: ScreeningSuggestion[] = [];
+  const gad7 = screenings.latestOf("gad7");
+  if (gad7 && gad7.score >= 5) suggestions.push({ label: `Ejercicio para la ansiedad (según tu GAD-7: ${gad7.band.toLowerCase()})`, prompt: "Según un tamizaje reciente mi ansiedad está en un nivel que quiero trabajar. ¿Podemos hacer un ejercicio de respiración?" });
+  const phq9 = screenings.latestOf("phq9");
+  if (phq9 && phq9.score >= 5) suggestions.push({ label: `Un paso pequeño para el ánimo (según tu PHQ-9: ${phq9.band.toLowerCase()})`, prompt: "Un tamizaje reciente detectó que tengo el ánimo bajo. ¿Me ayudas con un paso pequeño y quizás llevar un diario breve?" });
+  const pcl5 = screenings.latestOf("pcl5");
+  if (pcl5 && pcl5.score >= 33) suggestions.push({ label: "Hablar de estrés postraumático (según tu PCL-5 reciente)", prompt: "Un tamizaje reciente de estrés postraumático me dio un resultado por encima del punto de corte. Quiero hablar de esto con cuidado." });
+  const asrs = screenings.latestOf("asrs");
+  if (asrs && asrs.band.startsWith("Compatible")) suggestions.push({ label: "Herramientas de atención y organización (según tu ASRS reciente)", prompt: "Un tamizaje reciente de atención salió compatible con síntomas de TDAH. ¿Me ayudas con herramientas para organizarme?" });
+  return suggestions.slice(0, 2);
+}
 
 type ChatMessage =
   | { id: number; role: "user"; text: string }
@@ -58,13 +77,20 @@ const topicNames: Record<ChatTopic, string> = {
   organización: "Organización",
   acceso: "Acceso a atención",
   seguridad: "Seguridad inmediata",
-  duelo: "Duelo o pérdida",
+  sueño: "Sueño y descanso",
+  duelo: "Duelo y pérdida",
   soledad: "Soledad",
-  relaciones: "Relaciones y conflictos",
-  "sueño": "Sueño y descanso",
+  relaciones: "Relaciones y límites",
+  pánico: "Síntomas de pánico",
+  medicación: "Medicamentos",
+  diagnóstico: "Preparar evaluación",
+  apoyo: "Apoyar a otra persona",
+  autocuidado: "Autocuidado",
 };
 
-export default function ChatPage({ onHelp, navigate }: { onHelp: () => void; navigate: (view: MainView) => void }) {
+export default function ChatPage({ onHelp, navigate, preferences, screenings }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences; screenings: ScreeningsState }) {
+  const memory = useChatMemory(preferences.rememberConversations);
+  const screeningSuggestions = useMemo(() => buildScreeningSuggestions(screenings), [screenings.results]);
   const [messages, setMessages] = useState<ChatMessage[]>([{ id: 1, role: "assistant", reply: initialReply }]);
   const [value, setValue] = useState("");
   const [typing, setTyping] = useState(false);
@@ -72,12 +98,32 @@ export default function ChatPage({ onHelp, navigate }: { onHelp: () => void; nav
   const [lowData, setLowData] = useState(true);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [plan, setPlan] = useState<Array<{ text: string; done: boolean }>>([]);
-  const [aiConnection, setAiConnection] = useState<AiConnection>("local");
+  const [aiConnection, setAiConnection] = useState<AiConnection>("checking");
+  const [activePrompt, setActivePrompt] = useState<ConversationReply | null>(null);
+  const [promptDismissed, setPromptDismissed] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const sendingRef = useRef(false);
+
+  useEffect(() => {
+    getAiStatus().then(setAiConnection);
+  }, []);
+
+  useEffect(() => {
+    const scroll = scrollRef.current;
+    if (!scroll) return;
+    const messageNodes = scroll.querySelectorAll<HTMLElement>("[data-chat-message]");
+    const latestMessage = messageNodes.item(messageNodes.length - 1);
+    const top = typing || !latestMessage
+      ? scroll.scrollHeight
+      : Math.max(0, latestMessage.offsetTop - 12);
+    scroll.scrollTo({ top, behavior: "smooth" });
+  }, [messages, typing]);
 
   async function send(text = value) {
     const clean = text.trim();
-    if (!clean || typing) return;
+    if (!clean || sendingRef.current) return;
+    sendingRef.current = true;
     const userMessage: ChatMessage = { id: Date.now(), role: "user", text: clean };
     const nextMessages = [...messages, userMessage];
     setMessages(nextMessages);
@@ -104,7 +150,20 @@ export default function ChatPage({ onHelp, navigate }: { onHelp: () => void; nav
     setCurrentTopic(reply.topic);
     setPlan(reply.steps.map((step) => ({ text: `${step.horizon}: ${step.text}`, done: false })));
     setTyping(false);
+    sendingRef.current = false;
+    memory.remember(reply.topic);
+    if (reply.mode !== "safety" && !promptDismissed) setActivePrompt(reply);
     if (reply.openHelp) window.setTimeout(onHelp, 350);
+  }
+
+  function choosePrompt(choice: string) {
+    setActivePrompt(null);
+    send(choice);
+  }
+
+  function dismissPrompt() {
+    setActivePrompt(null);
+    setPromptDismissed(true);
   }
 
   function resetChat() {
@@ -112,6 +171,9 @@ export default function ChatPage({ onHelp, navigate }: { onHelp: () => void; nav
     setCurrentTopic("inicio");
     setPlan([]);
     setValue("");
+    setActivePrompt(null);
+    setPromptDismissed(false);
+    sendingRef.current = false;
   }
 
   function growInput(event: React.ChangeEvent<HTMLTextAreaElement>) {
@@ -122,10 +184,11 @@ export default function ChatPage({ onHelp, navigate }: { onHelp: () => void; nav
 
   return (
     <div className="page chat-page chat-studio">
+      {screenings.showSupportBanner && <SupportBanner onHelp={onHelp} onAcknowledge={screenings.acknowledgeSupport} />}
       <section className="chat-command-bar">
         <div className="chat-brand-persona">
           <BrandMark size="medium" />
-          <div><span className="eyebrow">Centro de orientación</span><h1>Conversación con KAHY</h1><p className={`ai-connection ${aiConnection}`}><span className="status-dot" /> {aiConnection === "live" ? "IA conectada · OpenAI" : aiConnection === "checking" ? "Comprobando conexión de IA…" : aiConnection === "error" ? "IA temporalmente no disponible · respaldo local" : "Respaldo local · falta configurar IA"}</p></div>
+          <div><span className="eyebrow">Centro de orientación</span><h1>Conversación con KAHY</h1><p className={`ai-connection ${aiConnection}`}><span className="status-dot" /> {aiConnection === "live" ? "IA generativa conectada" : aiConnection === "checking" ? "Comprobando conexión…" : aiConnection === "error" ? "Respuesta local activa · conexión temporalmente no disponible" : "Motor local activo · IA generativa pendiente"}</p></div>
         </div>
         <div className="chat-command-actions">
           <button className={lowData ? "data-mode active" : "data-mode"} onClick={() => setLowData(!lowData)} aria-pressed={lowData}><WifiOff size={17} /><span>{lowData ? "Pocos datos" : "Modo visual"}</span></button>
@@ -136,7 +199,7 @@ export default function ChatPage({ onHelp, navigate }: { onHelp: () => void; nav
 
       {detailsOpen && <section className="chat-disclosure"><div><BookOpenCheck size={21} /><span><strong>Respuestas con estructura</strong><small>La IA separa contexto, acción inmediata, continuidad y apoyo.</small></span></div><div><ShieldCheck size={21} /><span><strong>Detección preventiva</strong><small>Moderación y frases explícitas activan ayuda; no se predice ni puntúa riesgo clínico.</small></span></div><div><Database size={21} /><span><strong>Fuentes trazables</strong><small>Las reglas remiten al catálogo local verificado.</small></span></div></section>}
 
-      <section className="chat-safety-strip"><ShieldCheck size={18} /><p><strong>{aiConnection === "live" ? "IA activa:" : "Modo local:"}</strong> {aiConnection === "live" ? "el texto se envía a OpenAI para responder; KAHY no crea historial. Evita datos identificables." : "el chat usa rutas locales hasta configurar la clave segura del servidor. No se envía el texto."}</p><span>{lowData ? <><CloudOff size={15} /> Solo texto</> : <><Sparkles size={15} /> Visual completo</>}</span></section>
+      <section className="chat-safety-strip"><ShieldCheck size={18} /><p><strong>{aiConnection === "live" ? "IA activa:" : "Orientación local activa:"}</strong> {aiConnection === "live" ? "el texto se procesa para generar una respuesta; KAHY no crea expediente. Evita datos identificables." : "el chat responde con una biblioteca segura y contextual dentro del navegador; no envía tu texto."}</p><span>{lowData ? <><CloudOff size={15} /> Pocos datos</> : <><Sparkles size={15} /> Visual completo</>}</span></section>
 
       <div className="chat-workspace">
         <aside className="conversation-map">
@@ -147,15 +210,23 @@ export default function ChatPage({ onHelp, navigate }: { onHelp: () => void; nav
             <li className={plan.length ? "active" : ""}><span>3</span><div><strong>Construir un plan</strong><small>{plan.length ? `${plan.length} acciones sugeridas` : "Aún sin acciones"}</small></div></li>
             <li><span>4</span><div><strong>Conectar apoyo</strong><small>Recurso o persona adecuada</small></div></li>
           </ol>
-          <div className="coverage-card"><UserRoundSearch size={19} /><strong>Temas disponibles</strong><p>Estrés, ánimo bajo, trauma, consumo, neurodivergencia, organización y acceso regional.</p></div>
+          <div className="coverage-card"><UserRoundSearch size={19} /><strong>Temas disponibles</strong><p>Ansiedad, ánimo, trauma, autismo, TDAH, consumo, sueño, duelo, relaciones, organización y acceso.</p></div>
         </aside>
 
         <section className="conversation-panel" aria-label="Conversación de orientación">
-          <div className="conversation-scroll" aria-live="polite">
-            <div className="conversation-day"><Sparkles size={13} /> Sesión local nueva</div>
-            {messages.map((message) => message.role === "user" ? <div className="studio-message user" key={message.id}><div className="user-message">{message.text}</div></div> : <AssistantReply key={message.id} reply={message.reply} onChoice={send} onHelp={onHelp} navigate={navigate} />)}
-            {typing && <div className="studio-message assistant"><BrandMark size="small" /><div className="thinking-card"><div className="thinking-dots"><i /><i /><i /></div><span>Organizando una respuesta segura y útil…</span></div></div>}
+          <div className="conversation-scroll" ref={scrollRef} role="log" aria-live="polite" aria-relevant="additions" aria-busy={typing}>
+            <div className="conversation-day"><Sparkles size={13} /> {preferences.rememberConversations ? "Conversación nueva · recuerda temas en este dispositivo" : "Conversación nueva · no se guarda"}</div>
+            {memory.entries.length > 0 && <div className="memory-banner"><MessageCircle size={14} /><span>La última vez hablamos de: {memory.entries.slice(-3).map((entry) => topicNames[entry.topic]).join(", ")}.</span></div>}
+            {messages.map((message) => message.role === "user" ? <div className="studio-message user" data-chat-message key={message.id}><div className="user-message">{message.text}</div></div> : <AssistantReply key={message.id} reply={message.reply} onChoice={send} onHelp={onHelp} navigate={navigate} disabled={typing} onReopenPrompt={() => setActivePrompt(message.reply)} />)}
+            {typing && <div className="studio-message assistant" data-chat-message><BrandMark size="small" /><div className="thinking-card" role="status"><div className="thinking-dots"><i /><i /><i /></div><span>Organizando una respuesta segura y útil…</span></div></div>}
           </div>
+
+          {screeningSuggestions.length > 0 && (
+            <div className="screening-suggestion-row" aria-label="Sugerencias según tu tamizaje reciente">
+              <span><ClipboardList size={14} /> Según tu tamizaje reciente:</span>
+              {screeningSuggestions.map((suggestion) => <button key={suggestion.label} onClick={() => send(suggestion.prompt)}>{suggestion.label}</button>)}
+            </div>
+          )}
 
           <div className="starter-row" aria-label="Atajos de conversación">
             <button onClick={() => send("Estoy muy estresado y no sé qué resolver primero")}><MessageCircle size={16} /> Estrés</button>
@@ -178,22 +249,35 @@ export default function ChatPage({ onHelp, navigate }: { onHelp: () => void; nav
           <button className="reset-chat" onClick={resetChat}><RotateCcw size={16} /> Iniciar conversación nueva</button>
         </aside>
       </div>
+
+      {activePrompt && (
+        <Modal title={activePrompt.question} onClose={dismissPrompt}>
+          <div className="prompt-modal">
+            <p className="prompt-modal-hint">Responder es opcional: ayuda a personalizar el siguiente paso, pero puedes seguir platicando sin hacerlo.</p>
+            <div className="prompt-modal-choices">
+              {activePrompt.choices.map((choice) => <button key={choice} onClick={() => choosePrompt(choice)}>{choice}<ArrowRight size={15} /></button>)}
+            </div>
+            <Button variant="ghost" className="full-width" onClick={dismissPrompt}>Cancelar</Button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
 
-function AssistantReply({ reply, onChoice, onHelp, navigate }: { reply: ConversationReply; onChoice: (text: string) => void; onHelp: () => void; navigate: (view: MainView) => void }) {
+function AssistantReply({ reply, onChoice, onHelp, navigate, disabled, onReopenPrompt }: { reply: ConversationReply; onChoice: (text: string) => void; onHelp: () => void; navigate: (view: MainView) => void; disabled: boolean; onReopenPrompt: () => void }) {
   const sources = reply.sourceIds.map((id) => trustedSources.find((item) => item.id === id)).filter(Boolean);
-  return <article className={`studio-message assistant ${reply.mode}`}>
+  return <article className={`studio-message assistant ${reply.mode}`} data-chat-message>
     <BrandMark size="small" />
-    <div className="assistant-card">
-      <div className="assistant-label"><span>{reply.mode === "safety" ? <AlertTriangle size={15} /> : <Sparkles size={15} />}{reply.label}</span>{reply.mode === "safety" && <DemoBadge>Activación preventiva</DemoBadge>}</div>
-      <h2>{reply.title}</h2>
-      <p className="assistant-intro">{reply.introduction}</p>
-      {reply.insight && <div className="context-reading"><CircleHelp size={18} /><div><strong>Lectura de contexto, no diagnóstico</strong><p>{reply.insight}</p></div></div>}
-      <div className="response-steps">{reply.steps.map((step) => <div key={`${step.horizon}-${step.text}`}><span>{step.horizon}</span><p>{step.text}</p></div>)}</div>
-      <div className="assistant-question"><strong>{reply.question}</strong><div>{reply.choices.map((choice) => <button key={choice} onClick={() => reply.openHelp && choice.includes("Abrir") ? onHelp() : onChoice(choice)}>{choice}<ArrowRight size={15} /></button>)}</div></div>
-      <div className="reply-footer"><button onClick={() => navigate("resources")}><BookOpenCheck size={15} /> Basado en {sources.length} {sources.length === 1 ? "fuente verificada" : "fuentes verificadas"} <ChevronDown size={14} /></button><span>{sources.map((source) => source?.organization).join(" · ")}</span></div>
+    <div className="assistant-response">
+      <div className="assistant-card">
+        <div className="assistant-label"><span>{reply.mode === "safety" ? <AlertTriangle size={15} /> : <Sparkles size={15} />}{reply.label}</span>{reply.mode === "safety" && <DemoBadge>Activación preventiva</DemoBadge>}</div>
+        <h2>{reply.title}</h2>
+        <p className="assistant-intro">{reply.introduction}</p>
+        {reply.mode === "safety" ? <div className="expanded-safety-guidance">{reply.insight && <div className="context-reading"><CircleHelp size={18} /><div><strong>Por qué se activó esta ayuda</strong><p>{reply.insight}</p></div></div>}<div className="response-steps">{reply.steps.map((step) => <div key={`${step.horizon}-${step.text}`}><span>{step.horizon}</span><p>{step.text}</p></div>)}</div></div> : <details className="assistant-details"><summary><span><ListChecks size={16} /> Ver plan y explicación</span><ChevronDown size={16} /></summary><div className="assistant-details-body">{reply.insight && <div className="context-reading"><CircleHelp size={18} /><div><strong>Contexto, no diagnóstico</strong><p>{reply.insight}</p></div></div>}<div className="response-steps">{reply.steps.map((step) => <div key={`${step.horizon}-${step.text}`}><span>{step.horizon}</span><p>{step.text}</p></div>)}</div></div></details>}
+      </div>
+      {reply.mode === "safety" ? <div className="assistant-question"><strong>{reply.question}</strong><div>{reply.choices.map((choice) => <button key={choice} disabled={disabled} onClick={() => reply.openHelp && choice.includes("Abrir") ? onHelp() : onChoice(choice)}>{choice}<ArrowRight size={15} /></button>)}</div></div> : <button className="reopen-prompt" disabled={disabled} onClick={onReopenPrompt}><MessageCircle size={14} /> Personalizar siguiente paso</button>}
+      <div className="reply-footer"><button onClick={() => navigate("resources")}><BookOpenCheck size={15} /> {sources.length} {sources.length === 1 ? "fuente verificada" : "fuentes verificadas"}</button><span>{sources.map((source) => source?.organization).join(" · ")}</span></div>
     </div>
   </article>;
 }
