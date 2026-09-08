@@ -1,4 +1,4 @@
-import { getStatusPayload } from '../_lib/kahyAi'
+import { getStatusPayload } from '../_lib/kahyAi.js'
 
 /**
  * Vercel Node.js serverless function — GET /api/kahy/status.
