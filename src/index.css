@@ -223,6 +223,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .mood > span { font-size: 1.5rem; color: var(--purple-deep); }
 .mood small { color: var(--muted); }
 .mood-response { display: flex; align-items: center; gap: 9px; margin: 14px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--sage-soft); color: var(--ink); font-size: .88rem; }
+.habits-card { padding: 18px; }
+.habits-list { display: flex; flex-wrap: wrap; gap: 9px; }
+.habit-chip { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px; border: 1px solid var(--line); border-radius: 999px; background: var(--cream); color: var(--ink); font-weight: 720; font-size: .84rem; }
+.habit-chip:hover { border-color: var(--purple); }
+.habit-chip.done { border-color: transparent; background: var(--sage-soft); color: var(--sage-deep); }
+.habit-check { display: grid; place-items: center; width: 18px; height: 18px; border: 1.5px solid currentColor; border-radius: 50%; opacity: .5; }
+.habit-chip.done .habit-check { border-color: var(--sage-deep); background: var(--sage-deep); color: white; opacity: 1; }
+.habits-note { margin: 12px 0 0; color: var(--muted); font-size: .8rem; }
 .quick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
 .quick-card { min-height: 250px; display: flex; flex-direction: column; align-items: flex-start; padding: 22px; border: 1px solid rgba(63,65,57,.1); border-radius: 22px; text-align: left; transition: transform .2s ease, box-shadow .2s ease; }
 .quick-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-sm); }
@@ -256,6 +264,25 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .pet-meter span { color: var(--ink); font-size: .74rem; font-weight: 760; }
 .pet-meter-track { height: 8px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.75); }
 .pet-meter-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--purple), var(--pink)); transition: width .4s ease; }
+.pet-meter-fill--gain { animation: meter-flash .9s ease; }
+
+/* Idle animations: subtle signs of life on the companion art */
+.pet-idle { display: inline-flex; }
+.pet-idle--breathe { animation: idle-breathe 3.6s ease-in-out infinite; transform-origin: 50% 85%; }
+.pet-idle--sway { animation: idle-sway 4.2s ease-in-out infinite; transform-origin: 50% 95%; }
+
+/* Gain pulse: a brief glow + sparkle burst whenever XP is earned (care, a habit, or chatting) */
+.pet-slot-frame--gain { animation: frame-pop .9s ease; }
+.pet-sparkles { position: absolute; inset: 0; pointer-events: none; }
+.pet-sparkles i { position: absolute; top: 50%; left: 50%; width: 7px; height: 7px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 6px 1px rgba(242,207,120,.8); opacity: 0; animation: sparkle-burst .8s ease-out both; }
+.pet-sparkles i:nth-child(1) { animation-delay: 0s; --sx: -46px; --sy: -38px; }
+.pet-sparkles i:nth-child(2) { animation-delay: .06s; --sx: 44px; --sy: -34px; background: var(--purple); box-shadow: 0 0 6px 1px rgba(147,112,158,.7); }
+.pet-sparkles i:nth-child(3) { animation-delay: .1s; --sx: -40px; --sy: 34px; background: var(--pink); box-shadow: 0 0 6px 1px rgba(225,197,216,.9); }
+.pet-sparkles i:nth-child(4) { animation-delay: .04s; --sx: 42px; --sy: 40px; }
+
+/* Evolution celebration: a bigger, one-off moment when growth crosses into the next art stage */
+.pet-slot-frame--evolve { animation: frame-evolve 1.6s ease; }
+.pet-evolve-badge { position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%); padding: 6px 14px; border-radius: 999px; background: var(--purple-deep); color: white; font-size: .74rem; font-weight: 800; white-space: nowrap; box-shadow: 0 8px 18px rgba(104,77,114,.28); animation: evolve-badge 1.6s ease both; }
 .pet-actions { display: flex; flex-wrap: wrap; gap: 9px; }
 .pet-actions button { min-height: 42px; display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; border: 1px solid rgba(147,112,158,.2); border-radius: 13px; background: white; color: var(--purple-deep); font-weight: 760; font-size: .82rem; }
 .pet-actions button:hover { background: var(--purple-soft); }
@@ -312,6 +339,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .chat-brand-persona h1 { margin: 0 0 3px; font-size: clamp(1.35rem, 2.4vw, 2rem); }
 .chat-brand-persona p { margin: 0; font-size: .76rem; }
 .chat-command-actions { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; }
+.chat-companion-chip { position: relative; z-index: 1; display: grid; justify-items: center; gap: 6px; flex: 0 0 auto; }
+.chat-companion-chip .mascot, .chat-companion-chip .flower-pot { width: 40px; height: 40px; }
+.chat-companion-chip--gain { animation: frame-pop .9s ease; }
+.chat-companion-progress { width: 56px; height: 6px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.7); }
+.chat-companion-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--purple), var(--pink)); transition: width .4s ease; }
 .data-mode, .chat-menu-button { min-height: 44px; display: flex; align-items: center; gap: 7px; padding: 8px 11px; border: 1px solid rgba(104,77,114,.18); border-radius: 12px; background: rgba(255,255,255,.75); color: var(--muted); font-size: .76rem; font-weight: 760; }
 .data-mode.active { border-color: #c6bc8a; background: var(--sage-soft); color: #56543e; }
 .chat-disclosure { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; padding: 12px; border: 1px dashed #c8b8ce; border-radius: 18px; background: rgba(255,255,255,.65); animation: fade-up .2s ease both; }
@@ -593,6 +625,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @keyframes breathe-in { from { transform: scale(.84); } to { transform: scale(1.12); } }
 @keyframes breathe-out { from { transform: scale(1.12); } to { transform: scale(.84); } }
 @keyframes grow { from { opacity: 0; transform: translateY(35px) scale(.5); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes idle-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+@keyframes idle-sway { 0%, 100% { transform: rotate(-1.6deg); } 50% { transform: rotate(1.6deg); } }
+@keyframes meter-flash { 0% { filter: brightness(1); } 35% { filter: brightness(1.5); } 100% { filter: brightness(1); } }
+@keyframes frame-pop { 0% { transform: scale(1); box-shadow: var(--shadow-sm); } 30% { transform: scale(1.045); box-shadow: 0 0 0 8px rgba(242,207,120,.22), var(--shadow-sm); } 100% { transform: scale(1); box-shadow: var(--shadow-sm); } }
+@keyframes sparkle-burst { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.3); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(calc(-50% + var(--sx)), calc(-50% + var(--sy))) scale(1); } }
+@keyframes frame-evolve { 0% { transform: scale(1); } 18% { transform: scale(1.12) rotate(-1.5deg); } 36% { transform: scale(.97) rotate(1.5deg); } 55% { transform: scale(1.05); } 100% { transform: scale(1); } }
+@keyframes evolve-badge { 0% { opacity: 0; transform: translate(-50%, 6px) scale(.85); } 15% { opacity: 1; transform: translate(-50%, 0) scale(1); } 85% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -4px) scale(.95); } }
 
 @media (max-width: 1080px) {
   .quick-grid { grid-template-columns: repeat(2, 1fr); }

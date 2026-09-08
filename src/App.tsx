@@ -10,6 +10,7 @@ import ResourcesPage from "./pages/ResourcesPage";
 import ScreeningPage from "./pages/ScreeningPage";
 import SpecialistsPage from "./pages/SpecialistsPage";
 import { Button, DemoBadge, Modal } from "./components/ui";
+import { usePetGarden } from "./hooks/usePetGarden";
 import { useScreenings } from "./hooks/useScreenings";
 import type { DemoProfile, MainView, Preferences, ToastMessage } from "./types";
 
@@ -71,6 +72,7 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const screenings = useScreenings();
+  const garden = usePetGarden();
 
   useEffect(() => {
     const timer = window.setTimeout(() => setStage(restoredRegistration ? "app" : "access"), 950);
@@ -147,8 +149,8 @@ export default function App() {
     <div className={`kahy-app ${preferences.reducedMotion ? "reduce-motion" : ""} ${preferences.lowStimuli ? "low-stimuli" : ""} ${preferences.simplified ? "simplified" : ""} ${preferences.textScale === "large" ? "large-text" : ""}`}>
       <a className="skip-link" href="#main-content">Saltar al contenido</a>
       <AppShell currentView={view} onNavigate={setView} onHelp={() => setShowHelp(true)} mascot={profile.mascot} preferences={preferences}>
-        {view === "home" && <HomePage profile={profile} preferences={preferences} navigate={setView} notify={notify} screenings={screenings} onHelp={() => setShowHelp(true)} />}
-        {view === "chat" && <ChatPage onHelp={() => setShowHelp(true)} navigate={setView} preferences={preferences} screenings={screenings} />}
+        {view === "home" && <HomePage profile={profile} preferences={preferences} navigate={setView} notify={notify} screenings={screenings} onHelp={() => setShowHelp(true)} garden={garden} />}
+        {view === "chat" && <ChatPage onHelp={() => setShowHelp(true)} navigate={setView} preferences={preferences} screenings={screenings} garden={garden} profile={profile} />}
         {view === "activities" && <ActivitiesPage preferences={preferences} notify={notify} />}
         {view === "screening" && <ScreeningPage screenings={screenings} onHelp={() => setShowHelp(true)} navigate={setView} />}
         {view === "specialists" && <SpecialistsPage notify={notify} />}
