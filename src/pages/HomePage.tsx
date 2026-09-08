@@ -1,10 +1,13 @@
-import { ArrowRight, BookOpen, CalendarDays, ClipboardList, Heart, Leaf, MessageCircle, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, CalendarDays, Check, ClipboardList, Heart, Leaf, MessageCircle, Sparkles } from "lucide-react";
 import { useState } from "react";
 import Mascot from "../components/Mascot";
 import PetGarden from "../components/PetGarden";
 import SupportBanner from "../components/SupportBanner";
 import { Button, Card, DemoBadge } from "../components/ui";
+import { dailyHabits, useDailyHabits } from "../hooks/useDailyHabits";
+import type { PetGardenApi } from "../hooks/usePetGarden";
 import type { ScreeningsState } from "../hooks/useScreenings";
+import { flowers, mascots } from "../mock/data";
 import type { DemoProfile, MainView, Preferences } from "../types";
 
 const moods = [
@@ -22,6 +25,7 @@ export default function HomePage({
   notify,
   screenings,
   onHelp,
+  garden,
 }: {
   profile: DemoProfile;
   preferences: Preferences;
@@ -29,9 +33,14 @@ export default function HomePage({
   notify: (message: string) => void;
   screenings: ScreeningsState;
   onHelp: () => void;
+  garden: PetGardenApi;
 }) {
   const [mood, setMood] = useState("");
+  const habits = useDailyHabits(garden.gainFromHabit);
   const displayName = profile.name === "Invitado" ? "" : `, ${profile.name}`;
+  const companionName = profile.companionType === "mascota"
+    ? mascots.find((item) => item.id === profile.mascot)?.name
+    : flowers.find((item) => item.id === profile.flower)?.name;
 
   return (
     <div className="page home-page">
@@ -57,10 +66,26 @@ export default function HomePage({
         {mood && <p className="mood-response"><Heart size={18} /> Puedes cambiar tu selección cuando quieras. KAHY no interpreta este registro.</p>}
       </Card>
 
+      <div className="section-heading"><div><span className="eyebrow">Hábitos de hoy</span><h2>Pequeñas acciones que también cuentan</h2></div><small>Se reinicia cada día · en este dispositivo</small></div>
+      <Card className="habits-card">
+        <div className="habits-list">
+          {dailyHabits.map((habit) => {
+            const done = habits.completed.includes(habit.id);
+            return (
+              <button key={habit.id} className={done ? "habit-chip done" : "habit-chip"} onClick={() => habits.toggle(habit.id)} aria-pressed={done}>
+                <span className="habit-check">{done && <Check size={14} />}</span>
+                {habit.label}
+              </button>
+            );
+          })}
+        </div>
+        {preferences.showMascot && companionName && <p className="habits-note">Cada hábito que marcas también ayuda a {companionName} a crecer un poco.</p>}
+      </Card>
+
       {preferences.showMascot && (
         <>
           <div className="section-heading"><div><span className="eyebrow">Compañía simbólica</span><h2>Tu jardín de bienestar</h2></div><small>Se guarda solo en este dispositivo</small></div>
-          <PetGarden companionType={profile.companionType} mascotId={profile.mascot} flowerId={profile.flower} moodHint={mood} />
+          <PetGarden companionType={profile.companionType} mascotId={profile.mascot} flowerId={profile.flower} moodHint={mood} garden={garden} />
         </>
       )}
 
