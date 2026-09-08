@@ -4,9 +4,11 @@
 # ---------------------------------------------------------------------------
 # Images & Graphics
 # ---------------------------------------------------------------------------
-*.png                filter=lfs diff=lfs merge=lfs -text
-*.jpg                filter=lfs diff=lfs merge=lfs -text
-*.jpeg               filter=lfs diff=lfs merge=lfs -text
+# NOTE: LFS disabled for raster images used by the app (*.png/*.jpg/*.jpeg).
+# Vercel's default GitHub integration does not fetch LFS content during
+# build, so LFS-tracked images were deployed as text pointer stubs instead
+# of real image bytes. These files are small enough (~18MB total) to live
+# as normal git blobs.
 *.gif                filter=lfs diff=lfs merge=lfs -text
 *.bmp                filter=lfs diff=lfs merge=lfs -text
 *.tiff               filter=lfs diff=lfs merge=lfs -text
