@@ -2,10 +2,9 @@ import { defineConfig, loadEnv, type HtmlTagDescriptor, type Plugin } from 'vite
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
-import type { IncomingMessage } from 'node:http'
 
 import siteConfiguration from './.figma/make/site.json'
-import { detectSafetySignal } from './src/mock/conversation'
+import { getChatReply, getStatusPayload, readJsonBody } from './server/kahyAi'
 
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -50,97 +49,13 @@ export default defineConfig(({ mode }) => {
   }
 })
 
-type KahyChatMessage = { role: 'user' | 'assistant'; content: string }
-
-const KAHY_REPLY_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['mode', 'topic', 'label', 'title', 'introduction', 'insight', 'steps', 'question', 'choices', 'sourceIds', 'openHelp'],
-  properties: {
-    mode: { type: 'string', enum: ['standard', 'support', 'safety'] },
-    topic: {
-      type: 'string',
-      enum: [
-        'inicio', 'estrés', 'ánimo', 'trauma', 'neurodivergencia', 'adicciones', 'organización', 'acceso', 'seguridad',
-        'duelo', 'soledad', 'relaciones', 'sueño', 'pánico', 'medicación', 'diagnóstico', 'apoyo', 'autocuidado',
-      ],
-    },
-    label: { type: 'string' },
-    title: { type: 'string' },
-    introduction: { type: 'string' },
-    insight: { type: 'string' },
-    steps: {
-      type: 'array',
-      minItems: 2,
-      maxItems: 4,
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['horizon', 'text'],
-        properties: { horizon: { type: 'string' }, text: { type: 'string' } },
-      },
-    },
-    question: { type: 'string' },
-    choices: { type: 'array', minItems: 2, maxItems: 4, items: { type: 'string' } },
-    sourceIds: {
-      type: 'array',
-      minItems: 1,
-      maxItems: 3,
-      items: {
-        type: 'string',
-        enum: [
-          'who-ai-health', 'nice-self-harm', 'nimh-asq', 'mexico-privacy', 'linea-vida', 'who-pfa', 'who-selfhelp',
-          'nice-depression', 'nice-panic-anxiety', 'nice-ptsd', 'nice-adhd', 'nice-autism', 'phq9-gad7-mx', 'pcl5-mx',
-          'nida-language', 'conasama-cecosama', 'inegi-suicidio', 'phq9-gad7-unam', 'pcl5-unam', 'asrs-mx',
-        ],
-      },
-    },
-    openHelp: { type: 'boolean' },
-  },
-} as const
-
-const KAHY_SYSTEM_PROMPT = `Eres el motor de orientación de KAHY para personas adultas en México. Responde siempre en español claro, cálido y directo.
-
-Tu función es ayudar a ordenar problemas cotidianos, proponer siguientes pasos concretos y facilitar conexión con apoyo humano. No eres psicólogo, médico ni servicio de emergencia. No diagnostiques, no asegures que comprendes emociones, no prometas confidencialidad absoluta y no clasifiques riesgo en bajo/medio/alto.
-
-Reglas:
-1. No reduzcas la respuesta a respirar. Separa situación, impacto y siguiente decisión.
-2. Usa enfoque informado por trauma y neuroafirmativo. No fuerces detalles ni patologices.
-3. Para consumo, no indiques suspensiones bruscas ni ajustes médicos. Señala urgencias físicas y atención profesional.
-4. Si existe intención explícita de autolesión, suicidio, violencia actual, sobredosis, inconsciencia o dificultad respiratoria, usa mode=safety, topic=seguridad, openHelp=true. Indica 911, Línea de la Vida 800 911 2000, contacto humano inmediato y alejarse de medios de daño. No continúes con exploración profunda.
-5. No inventes especialistas, teléfonos, disponibilidad ni servicios locales. El directorio actual es demostrativo.
-6. Haz una sola pregunta de seguimiento y ofrece entre dos y cuatro respuestas rápidas.
-7. La lectura de contexto debe describirse como posibilidad, nunca como diagnóstico.
-8. Las acciones deben ser observables, realistas y divididas por horizonte temporal.
-9. No pidas nombre, domicilio, ubicación exacta ni información identificable.
-10. Usa sourceIds únicamente de este catálogo: who-ai-health (gobernanza y límites de IA), nice-self-harm (no usar escalas para predecir o estratificar suicidio), nimh-asq (una señal positiva requiere evaluación humana), mexico-privacy (datos de salud sensibles), linea-vida (recurso oficial 800 911 2000), who-pfa (primeros auxilios psicológicos), who-selfhelp (autoayuda de bajo riesgo), nice-depression, nice-panic-anxiety, nice-ptsd, nice-adhd, nice-autism (guías clínicas NICE por tema), phq9-gad7-mx, pcl5-mx (validación mexicana de instrumentos de tamizaje, nunca los apliques ni los puntúes tú), nida-language (lenguaje sin estigma sobre consumo), conasama-cecosama (red real de centros en Michoacán), inegi-suicidio (estadística nacional).
-11. Para el tema medicación, nunca sugieras iniciar, suspender o cambiar una dosis; remite siempre a quien recetó o a un farmacéutico.
-12. openHelp debe ser true únicamente cuando mode=safety; en cualquier otro caso debe ser false.
-13. No apliques ni puntúes tú mismo cuestionarios como PHQ-9, GAD-7, PCL-5 o ASRS dentro del chat; si preguntan por ellos, remite a la sección de Tamizaje de la app, aclarando que un resultado no es diagnóstico.
-
-Devuelve únicamente el objeto solicitado por el esquema.`
-
-type AiProviderName = 'groq' | 'openai'
-type ResolvedProvider = { name: AiProviderName; apiKey: string; model: string }
-
 /**
- * Groq is checked first: it's the free tier, so it's the sensible default
- * once both keys happen to be configured. Falls back to OpenAI so an
- * existing OPENAI_API_KEY keeps working without any config change.
+ * Dev-server middleware: the actual chat/status logic lives in
+ * server/kahyAi.ts, shared with the Vercel serverless functions under
+ * api/kahy/ that serve the deployed production build (Vite plugins with
+ * `apply: 'serve'` never run outside `vite dev`/`vite preview`).
  */
-function resolveProvider(): ResolvedProvider | null {
-  if (process.env.GROQ_API_KEY) {
-    return { name: 'groq', apiKey: process.env.GROQ_API_KEY, model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b' }
-  }
-  if (process.env.OPENAI_API_KEY) {
-    return { name: 'openai', apiKey: process.env.OPENAI_API_KEY, model: process.env.OPENAI_MODEL || 'gpt-5.5' }
-  }
-  return null
-}
-
 function kahyAiApi(): Plugin {
-  const requestLog = new Map<string, number[]>()
-
   return {
     name: 'kahy-ai-api',
     apply: 'serve',
@@ -148,12 +63,7 @@ function kahyAiApi(): Plugin {
       server.middlewares.use('/api/kahy/status', (req, res) => {
         res.setHeader('Content-Type', 'application/json; charset=utf-8')
         res.setHeader('Cache-Control', 'no-store')
-        const resolved = resolveProvider()
-        res.end(JSON.stringify({
-          configured: Boolean(resolved),
-          provider: resolved?.name === 'groq' ? 'Groq' : 'OpenAI',
-          model: resolved?.model,
-        }))
+        res.end(JSON.stringify(getStatusPayload()))
       })
 
       server.middlewares.use('/api/kahy/chat', async (req, res) => {
@@ -164,173 +74,13 @@ function kahyAiApi(): Plugin {
           return res.end(JSON.stringify({ error: 'Método no permitido.' }))
         }
 
-        const resolved = resolveProvider()
-        if (!resolved) {
-          res.statusCode = 503
-          return res.end(JSON.stringify({ code: 'AI_NOT_CONFIGURED', error: 'La IA todavía no tiene una clave configurada en el servidor.' }))
-        }
-
+        const body = await readJsonBody(req)
         const clientId = req.socket.remoteAddress || 'local'
-        const now = Date.now()
-        const recent = (requestLog.get(clientId) || []).filter((time) => now - time < 60_000)
-        if (recent.length >= 12) {
-          res.statusCode = 429
-          return res.end(JSON.stringify({ code: 'RATE_LIMIT', error: 'Espera un momento antes de enviar otro mensaje.' }))
-        }
-        recent.push(now)
-        requestLog.set(clientId, recent)
-
-        try {
-          const body = await readJsonBody(req)
-          const messages = sanitizeMessages(body?.messages)
-          const latest = [...messages].reverse().find((message) => message.role === 'user')?.content || ''
-          const safetyContext = messages.filter((message) => message.role === 'user').slice(-3).map((message) => message.content).join('\n')
-          if (!latest) {
-            res.statusCode = 400
-            return res.end(JSON.stringify({ error: 'Escribe un mensaje para continuar.' }))
-          }
-
-          // The moderation endpoint is OpenAI-specific; local regex coverage
-          // (safetyPatterns in src/mock/conversation.ts, mirrored here) is
-          // what actually catches the Groq path.
-          const safetyDetected = localSafetyCheck(safetyContext)
-            || (resolved.name === 'openai' && await moderationSafetyCheck(resolved.apiKey, safetyContext))
-          if (safetyDetected) return res.end(JSON.stringify({ reply: serverSafetyReply(), provider: 'safety-protocol' }))
-
-          const controller = new AbortController()
-          const timeout = setTimeout(() => controller.abort(), 30_000)
-          const reply = resolved.name === 'groq'
-            ? await callGroq(resolved, messages, controller.signal)
-            : await callOpenAi(resolved, messages, controller.signal)
-          clearTimeout(timeout)
-
-          // Deterministic override: never trust the model's own openHelp for
-          // whether to pop the crisis modal — it must follow mode=safety 1:1,
-          // not the model's judgement call on a given response.
-          reply.openHelp = reply.mode === 'safety'
-          res.end(JSON.stringify({ reply, provider: resolved.name }))
-        } catch (error) {
-          console.error('[KAHY AI]', error instanceof Error ? error.message : error)
-          res.statusCode = 502
-          res.end(JSON.stringify({ code: 'AI_UNAVAILABLE', error: 'La IA no está disponible en este momento. Se usará la orientación local.' }))
-        }
+        const { status, body: responseBody } = await getChatReply(body?.messages, clientId)
+        res.statusCode = status
+        res.end(JSON.stringify(responseBody))
       })
     },
-  }
-}
-
-async function callOpenAi(provider: ResolvedProvider, messages: KahyChatMessage[], signal: AbortSignal) {
-  const response = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' },
-    signal,
-    body: JSON.stringify({
-      model: provider.model,
-      store: false,
-      max_output_tokens: 1400,
-      input: [{ role: 'developer', content: KAHY_SYSTEM_PROMPT }, ...messages],
-      text: { format: { type: 'json_schema', name: 'kahy_reply', strict: true, schema: KAHY_REPLY_SCHEMA } },
-    }),
-  })
-  if (!response.ok) throw new Error(`OpenAI respondió ${response.status}`)
-  const payload = await response.json() as Record<string, unknown>
-  const outputText = extractOutputText(payload)
-  if (!outputText) throw new Error('La respuesta de IA llegó vacía.')
-  return JSON.parse(outputText)
-}
-
-async function callGroq(provider: ResolvedProvider, messages: KahyChatMessage[], signal: AbortSignal) {
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' },
-    signal,
-    body: JSON.stringify({
-      model: provider.model,
-      max_tokens: 1400,
-      messages: [{ role: 'system', content: KAHY_SYSTEM_PROMPT }, ...messages],
-      response_format: { type: 'json_schema', json_schema: { name: 'kahy_reply', strict: true, schema: KAHY_REPLY_SCHEMA } },
-    }),
-  })
-  if (!response.ok) throw new Error(`Groq respondió ${response.status}`)
-  const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> }
-  const content = payload.choices?.[0]?.message?.content
-  if (!content) throw new Error('La respuesta de IA llegó vacía.')
-  return JSON.parse(content)
-}
-
-async function readJsonBody(req: IncomingMessage) {
-  let raw = ''
-  for await (const chunk of req) {
-    raw += String(chunk)
-    if (raw.length > 24_000) throw new Error('Solicitud demasiado grande.')
-  }
-  return JSON.parse(raw || '{}') as { messages?: unknown }
-}
-
-function sanitizeMessages(value: unknown): KahyChatMessage[] {
-  if (!Array.isArray(value)) return []
-  return value.slice(-10).flatMap((message) => {
-    if (!message || typeof message !== 'object') return []
-    const item = message as Record<string, unknown>
-    if ((item.role !== 'user' && item.role !== 'assistant') || typeof item.content !== 'string') return []
-    const content = item.content.trim().slice(0, 1400)
-    return content ? [{ role: item.role, content }] : []
-  })
-}
-
-/**
- * Delegates to the same safetyPatterns used by the client-side local
- * fallback (src/mock/conversation.ts) so the two never drift apart — a
- * phrase missed here is a false negative on a real crisis signal (see
- * KAHY's evidence guide, rule: never rely on model judgement alone for
- * this layer).
- */
-function localSafetyCheck(text: string) {
-  return detectSafetySignal(text)
-}
-
-async function moderationSafetyCheck(apiKey: string, input: string) {
-  try {
-    const response = await fetch('https://api.openai.com/v1/moderations', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'omni-moderation-latest', input }),
-    })
-    if (!response.ok) return false
-    const payload = await response.json() as { results?: Array<{ categories?: Record<string, boolean> }> }
-    const categories = payload.results?.[0]?.categories || {}
-    return Boolean(categories['self-harm/intent'] || categories['self-harm/instructions'])
-  } catch {
-    return false
-  }
-}
-
-function extractOutputText(payload: Record<string, unknown>) {
-  if (typeof payload.output_text === 'string') return payload.output_text
-  const output = Array.isArray(payload.output) ? payload.output : []
-  for (const item of output) {
-    if (!item || typeof item !== 'object') continue
-    const content = Array.isArray((item as Record<string, unknown>).content) ? (item as Record<string, unknown>).content as unknown[] : []
-    for (const part of content) {
-      if (part && typeof part === 'object' && typeof (part as Record<string, unknown>).text === 'string') return (part as Record<string, unknown>).text as string
-    }
-  }
-  return ''
-}
-
-function serverSafetyReply() {
-  return {
-    mode: 'safety', topic: 'seguridad', label: 'Conexión humana inmediata', title: 'Paremos aquí y prioricemos tu seguridad',
-    introduction: 'El mensaje contiene una señal explícita relacionada con autolesión o peligro. KAHY no va a intentar resolverlo únicamente con una respuesta automática.',
-    insight: 'No se asignó una puntuación de riesgo. La detección solo activa una ruta preventiva hacia ayuda humana.',
-    steps: [
-      { horizon: 'Ahora', text: 'Si existe peligro inmediato, llama al 911 o acude al servicio de urgencias más cercano.' },
-      { horizon: 'Con alguien', text: 'Contacta a una persona de confianza y pídele que permanezca contigo o te ayude a llegar a un lugar seguro.' },
-      { horizon: 'Orientación', text: 'Línea de la Vida: 800 911 2000, disponible todos los días.' },
-    ],
-    question: '¿Puedes contactar ahora a emergencias o a una persona de confianza?',
-    choices: ['Abrir opciones de ayuda', 'Puedo contactar a alguien', 'Necesito ver el número'],
-    sourceIds: ['nice-self-harm', 'nimh-asq', 'linea-vida'], openHelp: true,
   }
 }
 
