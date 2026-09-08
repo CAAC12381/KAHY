@@ -1,4 +1,4 @@
-import { getChatReply } from '../../server/kahyAi'
+import { getChatReply } from '../_lib/kahyAi.js'
 
 type VercelLikeRequest = {
   method?: string
