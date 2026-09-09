@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { PetMood } from "../types";
+import { fetchRemotePetGarden, saveRemotePetGarden } from "../services/dataApi";
 
 export type CareAction = "food" | "play" | "love" | "water" | "sun" | "prune";
 
@@ -88,13 +89,34 @@ export function stageForGrowth(growthPercent: number, stageCount: number): numbe
   return index + 1;
 }
 
-export function usePetGarden() {
+export function usePetGarden(deviceId: string) {
   const [state, setState] = useState<PetGardenState>(readState);
   const [message, setMessage] = useState("Aquí estoy para acompañarte un ratito.");
   /** Bumped on every point gained, so any screen can trigger a one-off gain animation by watching it. */
   const [pulse, setPulse] = useState(0);
 
   useEffect(() => persist(state), [state]);
+
+  useEffect(() => {
+    fetchRemotePetGarden(deviceId).then((remote) => {
+      if (!remote) return;
+      setState((current) => ({
+        ...current,
+        happiness: remote.happiness,
+        bond: remote.bond,
+        progress: remote.progress,
+        lastCare: remote.lastCare,
+        careCounts: { ...current.careCounts, ...remote.careCounts },
+      }));
+    });
+    // Una sola vez al montar: después de esto, este mismo estado local es la fuente de verdad para el resto de la sesión.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deviceId]);
+
+  useEffect(() => {
+    saveRemotePetGarden(deviceId, state);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   const isNeglected = Date.now() - state.lastCare > NEGLECT_WINDOW;
   const mood: PetMood = isNeglected ? "triste" : "feliz";

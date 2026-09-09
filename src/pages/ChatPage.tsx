@@ -24,7 +24,7 @@ import BrandMark from "../components/BrandMark";
 import Mascot, { Flower } from "../components/Mascot";
 import SupportBanner from "../components/SupportBanner";
 import { Button, DemoBadge, Modal } from "../components/ui";
-import { useChatMemory } from "../hooks/useChatMemory";
+import { useChatMemory, type ChatMemoryEntry } from "../hooks/useChatMemory";
 import { stageForGrowth, type PetGardenApi } from "../hooks/usePetGarden";
 import type { ScreeningsState } from "../hooks/useScreenings";
 import { createReply, detectSafetySignal, type ChatTopic, type ConversationReply } from "../mock/conversation";
@@ -87,8 +87,25 @@ const topicNames: Record<ChatTopic, string> = {
   conversación: "Conversación general",
 };
 
-export default function ChatPage({ onHelp, navigate, preferences, screenings, garden, profile }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences; screenings: ScreeningsState; garden: PetGardenApi; profile: DemoProfile }) {
-  const memory = useChatMemory(preferences.rememberConversations);
+/**
+ * Short, non-sensitive summary sent alongside the chat request so the AI can
+ * personalize without KAHY ever sending raw message history as "profile
+ * data" — only declared goals/city and recent topic labels, never message
+ * text. Server side (api/_lib/kahyAi.ts, server/kahyAi.ts) appends it to the
+ * system prompt rather than the conversation itself.
+ */
+function buildPersonalContext(profile: DemoProfile, memory: ChatMemoryEntry[]): string | undefined {
+  const parts: string[] = [];
+  if (profile.goals.length) parts.push(`metas declaradas: ${profile.goals.join(", ")}`);
+  if (memory.length) {
+    const recentTopics = [...new Set(memory.slice(-4).map((entry) => topicNames[entry.topic]))];
+    if (recentTopics.length) parts.push(`temas recientes de conversación: ${recentTopics.join(", ")}`);
+  }
+  return parts.length ? parts.join(". ") : undefined;
+}
+
+export default function ChatPage({ onHelp, navigate, preferences, screenings, garden, profile, deviceId }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences; screenings: ScreeningsState; garden: PetGardenApi; profile: DemoProfile; deviceId: string }) {
+  const memory = useChatMemory(preferences.rememberConversations, deviceId);
   const screeningSuggestions = useMemo(() => buildScreeningSuggestions(screenings), [screenings.results]);
   const [messages, setMessages] = useState<ChatMessage[]>([{ id: 1, role: "assistant", reply: initialReply }]);
   const [companionGaining, setCompanionGaining] = useState(false);
@@ -144,7 +161,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
       const apiMessages: ApiChatMessage[] = nextMessages.slice(-16).map((message) => message.role === "user"
         ? { role: "user", content: message.text }
         : { role: "assistant", content: summarizeReply(message.reply) });
-      const result = await requestAiReply(apiMessages);
+      const result = await requestAiReply(apiMessages, buildPersonalContext(profile, memory.entries));
       reply = result.reply;
       setAiConnection(result.provider === "openai" || result.provider === "groq" ? "live" : "local");
     } catch (error) {

@@ -7,9 +7,9 @@ import type { ScreeningsState } from "../hooks/useScreenings";
 import { flowers, mascots } from "../mock/data";
 import type { DemoProfile, FlowerId, MainView, MascotId, Preferences } from "../types";
 
-export default function ProfilePage({ profile, preferences, setProfile, setPreferences, navigate, notify, isRegistered, onResetRegistration, screenings }: { profile: DemoProfile; preferences: Preferences; setProfile: (profile: DemoProfile) => void; setPreferences: (value: Preferences) => void; navigate: (view: MainView) => void; notify: (text: string) => void; isRegistered: boolean; onResetRegistration: () => void; screenings: ScreeningsState }) {
+export default function ProfilePage({ profile, preferences, setProfile, setPreferences, navigate, notify, isRegistered, onResetRegistration, screenings, deviceId }: { profile: DemoProfile; preferences: Preferences; setProfile: (profile: DemoProfile) => void; setPreferences: (value: Preferences) => void; navigate: (view: MainView) => void; notify: (text: string) => void; isRegistered: boolean; onResetRegistration: () => void; screenings: ScreeningsState; deviceId: string }) {
   const [changingCompanion, setChangingCompanion] = useState(false);
-  const memory = useChatMemory(preferences.rememberConversations);
+  const memory = useChatMemory(preferences.rememberConversations, deviceId);
   function update(key: keyof Preferences, value: boolean | string) { setPreferences({ ...preferences, [key]: value }); notify(isRegistered ? "Ajuste guardado en este dispositivo." : "Ajuste aplicado durante esta sesión."); }
   function setCompanionType(companionType: DemoProfile["companionType"]) { setProfile({ ...profile, companionType }); notify(companionType === "mascota" ? "Ahora tu compañero es una mascota. Tu progreso se conserva." : "Ahora tu compañero es una planta. Tu progreso se conserva."); }
   const currentMascot = mascots.find((item) => item.id === profile.mascot);

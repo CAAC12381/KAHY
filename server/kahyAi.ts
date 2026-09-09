@@ -133,7 +133,7 @@ function isRateLimited(clientId: string): boolean {
   return false
 }
 
-export async function getChatReply(rawMessages: unknown, clientId: string): Promise<{ status: number; body: Record<string, unknown> }> {
+export async function getChatReply(rawMessages: unknown, clientId: string, personalContext?: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
   const resolved = resolveProvider()
   if (!resolved) {
     return { status: 503, body: { code: 'AI_NOT_CONFIGURED', error: 'La IA todavía no tiene una clave configurada en el servidor.' } }
@@ -158,12 +158,14 @@ export async function getChatReply(rawMessages: unknown, clientId: string): Prom
     return { status: 200, body: { reply: serverSafetyReply(), provider: 'safety-protocol' } }
   }
 
+  const systemPrompt = buildSystemPrompt(personalContext)
+
   try {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 30_000)
     const reply = resolved.name === 'groq'
-      ? await callGroq(resolved, messages, controller.signal)
-      : await callOpenAi(resolved, messages, controller.signal)
+      ? await callGroq(resolved, messages, controller.signal, systemPrompt)
+      : await callOpenAi(resolved, messages, controller.signal, systemPrompt)
     clearTimeout(timeout)
 
     // Deterministic override: never trust the model's own openHelp for
@@ -177,7 +179,19 @@ export async function getChatReply(rawMessages: unknown, clientId: string): Prom
   }
 }
 
-async function callOpenAi(provider: ResolvedProvider, messages: KahyChatMessage[], signal: AbortSignal) {
+/**
+ * personalContext is a short, non-sensitive string built client-side from
+ * the person's declared goals/city and recent conversation topics (never
+ * raw message text — see src/pages/ChatPage.tsx's buildPersonalContext).
+ * Appended to the system prompt, not the conversation, so the model treats
+ * it as background rather than something the person just said out loud.
+ */
+function buildSystemPrompt(personalContext: unknown): string {
+  if (typeof personalContext !== 'string' || !personalContext.trim()) return KAHY_SYSTEM_PROMPT
+  return `${KAHY_SYSTEM_PROMPT}\n\nContexto de la persona, para personalizar con sutileza (no lo cites textual ni digas "vi en tu perfil" ni "según tu historial"): ${personalContext.trim().slice(0, 600)}`
+}
+
+async function callOpenAi(provider: ResolvedProvider, messages: KahyChatMessage[], signal: AbortSignal, systemPrompt: string) {
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { Authorization: `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' },
@@ -186,7 +200,7 @@ async function callOpenAi(provider: ResolvedProvider, messages: KahyChatMessage[
       model: provider.model,
       store: false,
       max_output_tokens: 1400,
-      input: [{ role: 'developer', content: KAHY_SYSTEM_PROMPT }, ...messages],
+      input: [{ role: 'developer', content: systemPrompt }, ...messages],
       text: { format: { type: 'json_schema', name: 'kahy_reply', strict: true, schema: KAHY_REPLY_SCHEMA } },
     }),
   })
@@ -197,7 +211,7 @@ async function callOpenAi(provider: ResolvedProvider, messages: KahyChatMessage[
   return JSON.parse(outputText)
 }
 
-async function callGroq(provider: ResolvedProvider, messages: KahyChatMessage[], signal: AbortSignal) {
+async function callGroq(provider: ResolvedProvider, messages: KahyChatMessage[], signal: AbortSignal, systemPrompt: string) {
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' },
@@ -205,7 +219,7 @@ async function callGroq(provider: ResolvedProvider, messages: KahyChatMessage[],
     body: JSON.stringify({
       model: provider.model,
       max_tokens: 1400,
-      messages: [{ role: 'system', content: KAHY_SYSTEM_PROMPT }, ...messages],
+      messages: [{ role: 'system', content: systemPrompt }, ...messages],
       response_format: { type: 'json_schema', json_schema: { name: 'kahy_reply', strict: true, schema: KAHY_REPLY_SCHEMA } },
     }),
   })

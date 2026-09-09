@@ -5,6 +5,12 @@ import path from 'node:path'
 
 import siteConfiguration from './.figma/make/site.json'
 import { getChatReply, getStatusPayload, readJsonBody } from './server/kahyAi'
+import {
+  ensureSchema, getProfile, upsertProfile, deleteAllDataForDevice,
+  listScreenings, addScreening,
+  listChatMemory, addChatMemory, clearChatMemory,
+  getPetGarden, upsertPetGarden,
+} from './api/_lib/db'
 
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -26,6 +32,7 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       kahyAiApi(),
+      kahyDataApi(),
       figmaSiteConfiguration(siteConfiguration),
       figmaErrorOverlayReplay(),
       figmaReactRefreshBoundaryFallback(),
@@ -74,11 +81,149 @@ function kahyAiApi(): Plugin {
           return res.end(JSON.stringify({ error: 'Método no permitido.' }))
         }
 
-        const body = await readJsonBody(req)
+        const body = await readJsonBody(req) as { messages?: unknown; context?: unknown }
         const clientId = req.socket.remoteAddress || 'local'
-        const { status, body: responseBody } = await getChatReply(body?.messages, clientId)
+        const { status, body: responseBody } = await getChatReply(body?.messages, clientId, body?.context)
         res.statusCode = status
         res.end(JSON.stringify(responseBody))
+      })
+    },
+  }
+}
+
+/**
+ * Dev-server equivalent of api/data/*.ts (Postgres-backed persistence) —
+ * same reasoning as kahyAiApi() above: Vite plugins never run in the
+ * deployed build, so the real routes Vercel serves live under api/data/.
+ * This just gives `npm run dev` the same endpoints, reusing api/_lib/db.ts
+ * directly (Vite's own resolver has no trouble crossing this boundary —
+ * it's specifically Vercel's function bundler that can't, see kahyAi.ts).
+ */
+function kahyDataApi(): Plugin {
+  function getDeviceIdFromQuery(url: string | undefined): string | null {
+    const query = new URLSearchParams((url || '').split('?')[1] || '')
+    return query.get('deviceId')
+  }
+
+  return {
+    name: 'kahy-data-api',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use('/api/data/profile', async (req, res) => {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-store')
+        await ensureSchema()
+        if (req.method === 'GET') {
+          const deviceId = getDeviceIdFromQuery(req.url)
+          if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
+          const profile = await getProfile(deviceId)
+          return res.end(JSON.stringify({ profile }))
+        }
+        if (req.method === 'PUT') {
+          const body = await readJsonBody(req) as { deviceId?: string; profile?: Record<string, unknown> }
+          if (!body.deviceId || !body.profile) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId o profile.' })) }
+          await upsertProfile(body.deviceId, {
+            name: typeof body.profile.name === 'string' ? body.profile.name : 'Invitado',
+            companionType: typeof body.profile.companionType === 'string' ? body.profile.companionType : 'mascota',
+            mascot: typeof body.profile.mascot === 'string' ? body.profile.mascot : 'vaca',
+            flower: typeof body.profile.flower === 'string' ? body.profile.flower : 'Clavel',
+            city: typeof body.profile.city === 'string' ? body.profile.city : 'Morelia',
+            goals: Array.isArray(body.profile.goals) ? body.profile.goals as string[] : [],
+            preferences: (body.profile.preferences as Record<string, unknown> | undefined) || {},
+          })
+          return res.end(JSON.stringify({ ok: true }))
+        }
+        if (req.method === 'DELETE') {
+          const deviceId = getDeviceIdFromQuery(req.url)
+          if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
+          await deleteAllDataForDevice(deviceId)
+          return res.end(JSON.stringify({ ok: true }))
+        }
+        res.statusCode = 405
+        res.end(JSON.stringify({ error: 'Método no permitido.' }))
+      })
+
+      server.middlewares.use('/api/data/screenings', async (req, res) => {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-store')
+        await ensureSchema()
+        if (req.method === 'GET') {
+          const deviceId = getDeviceIdFromQuery(req.url)
+          if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
+          const results = await listScreenings(deviceId)
+          return res.end(JSON.stringify({ results }))
+        }
+        if (req.method === 'POST') {
+          const body = await readJsonBody(req) as { deviceId?: string; result?: Record<string, unknown> }
+          const result = body.result
+          if (!body.deviceId || !result || typeof result.id !== 'string' || typeof result.completedAt !== 'number' || !Array.isArray(result.answers) || typeof result.score !== 'number' || typeof result.band !== 'string') {
+            res.statusCode = 400
+            return res.end(JSON.stringify({ error: 'Falta deviceId o el resultado es inválido.' }))
+          }
+          await addScreening(body.deviceId, {
+            id: result.id, completedAt: result.completedAt, answers: result.answers as number[],
+            score: result.score, band: result.band, item9Positive: result.item9Positive as boolean | undefined,
+          })
+          return res.end(JSON.stringify({ ok: true }))
+        }
+        res.statusCode = 405
+        res.end(JSON.stringify({ error: 'Método no permitido.' }))
+      })
+
+      server.middlewares.use('/api/data/chat-memory', async (req, res) => {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-store')
+        await ensureSchema()
+        if (req.method === 'GET') {
+          const deviceId = getDeviceIdFromQuery(req.url)
+          if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
+          const entries = await listChatMemory(deviceId)
+          return res.end(JSON.stringify({ entries }))
+        }
+        if (req.method === 'POST') {
+          const body = await readJsonBody(req) as { deviceId?: string; topic?: string }
+          if (!body.deviceId || typeof body.topic !== 'string' || !body.topic) {
+            res.statusCode = 400
+            return res.end(JSON.stringify({ error: 'Falta deviceId o topic.' }))
+          }
+          await addChatMemory(body.deviceId, body.topic)
+          return res.end(JSON.stringify({ ok: true }))
+        }
+        if (req.method === 'DELETE') {
+          const deviceId = getDeviceIdFromQuery(req.url)
+          if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
+          await clearChatMemory(deviceId)
+          return res.end(JSON.stringify({ ok: true }))
+        }
+        res.statusCode = 405
+        res.end(JSON.stringify({ error: 'Método no permitido.' }))
+      })
+
+      server.middlewares.use('/api/data/pet-garden', async (req, res) => {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-store')
+        await ensureSchema()
+        if (req.method === 'GET') {
+          const deviceId = getDeviceIdFromQuery(req.url)
+          if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
+          const state = await getPetGarden(deviceId)
+          return res.end(JSON.stringify({ state }))
+        }
+        if (req.method === 'PUT') {
+          const body = await readJsonBody(req) as { deviceId?: string; state?: Record<string, unknown> }
+          const state = body.state
+          if (!body.deviceId || !state || typeof state.happiness !== 'number' || typeof state.bond !== 'number' || typeof state.progress !== 'number' || typeof state.lastCare !== 'number') {
+            res.statusCode = 400
+            return res.end(JSON.stringify({ error: 'Falta deviceId o el estado es inválido.' }))
+          }
+          await upsertPetGarden(body.deviceId, {
+            happiness: state.happiness, bond: state.bond, progress: state.progress,
+            careCounts: (state.careCounts as Record<string, number>) || {}, lastCare: state.lastCare,
+          })
+          return res.end(JSON.stringify({ ok: true }))
+        }
+        res.statusCode = 405
+        res.end(JSON.stringify({ error: 'Método no permitido.' }))
       })
     },
   }
