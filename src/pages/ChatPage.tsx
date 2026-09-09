@@ -31,10 +31,12 @@ import SupportBanner from "../components/SupportBanner";
 import { Button, DemoBadge, Modal } from "../components/ui";
 import { useChatMemory, type ChatMemoryEntry } from "../hooks/useChatMemory";
 import type { ChatHistoryApi, ChatHistorySession } from "../hooks/useChatHistory";
+import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
 import { stageForGrowth, type PetGardenApi } from "../hooks/usePetGarden";
 import type { ScreeningsState } from "../hooks/useScreenings";
 import { createReply, detectSafetySignal, type ChatTopic, type ConversationReply } from "../mock/conversation";
 import { flowers, mascots, trustedSources } from "../mock/data";
+import { emotionLabels, inferLocalEmotion } from "../lib/emotionLexicon";
 import type { DemoProfile, MainView, Preferences } from "../types";
 import { getAiStatus, requestAiReply, type AiConnection, type ApiChatMessage } from "../services/chatApi";
 
@@ -117,7 +119,7 @@ function formatSessionDate(timestamp: number): string {
   return date.toLocaleDateString("es-MX", { day: "numeric", month: "short" });
 }
 
-export default function ChatPage({ onHelp, navigate, preferences, screenings, garden, profile, deviceId, chatHistory }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences; screenings: ScreeningsState; garden: PetGardenApi; profile: DemoProfile; deviceId: string; chatHistory: ChatHistoryApi }) {
+export default function ChatPage({ onHelp, navigate, preferences, screenings, garden, profile, deviceId, chatHistory, emotionCalendar }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences; screenings: ScreeningsState; garden: PetGardenApi; profile: DemoProfile; deviceId: string; chatHistory: ChatHistoryApi; emotionCalendar: EmotionCalendarApi }) {
   const memory = useChatMemory(preferences.rememberConversations, deviceId);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [viewingSession, setViewingSession] = useState<ChatHistorySession | null>(null);
@@ -186,13 +188,16 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
     const minimumDelay = detectSafetySignal(clean) ? 250 : 650;
     const remaining = Math.max(0, minimumDelay - (Date.now() - started));
     if (remaining) await new Promise((resolve) => window.setTimeout(resolve, remaining));
+    const emotion = reply.emotion ?? inferLocalEmotion(clean);
+    reply = { ...reply, emotion };
     setMessages((current) => [...current, { id: Date.now() + 1, role: "assistant", reply }]);
     setCurrentTopic(reply.topic);
     if (reply.steps.length) setPlan(reply.steps.map((step) => ({ text: `${step.horizon}: ${step.text}`, done: false })));
     setTyping(false);
     sendingRef.current = false;
     memory.remember(reply.topic);
-    if (reply.mode !== "safety") garden.gainFromChat();
+    emotionCalendar.record(emotion);
+    if (reply.mode !== "safety") garden.gainFromChat(emotion);
     if (reply.openHelp) window.setTimeout(onHelp, 350);
   }
 
@@ -285,7 +290,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
 
         <section className="conversation-panel" aria-label="Conversación de orientación">
           <div className="conversation-scroll" ref={scrollRef} role="log" aria-live="polite" aria-relevant="additions" aria-busy={typing}>
-            <div className="conversation-day"><Sparkles size={13} /> {preferences.rememberConversations ? "Conversación nueva · recuerda temas en este dispositivo" : "Conversación nueva · no se guarda"}</div>
+            <div className="conversation-day"><Sparkles size={13} /> {preferences.saveChatHistory ? "Conversación nueva · se guarda en este navegador" : preferences.rememberConversations ? "Conversación nueva · recuerda solo temas" : "Conversación nueva · no se guarda"}</div>
             {memory.entries.length > 0 && <div className="memory-banner"><MessageCircle size={14} /><span>La última vez hablamos de: {memory.entries.slice(-3).map((entry) => topicNames[entry.topic]).join(", ")}.</span></div>}
             {messages.map((message) => message.role === "user" ? <div className="studio-message user" data-chat-message key={message.id}><div className="user-message">{message.text}</div></div> : <AssistantReply key={message.id} reply={message.reply} onChoice={send} onHelp={onHelp} navigate={navigate} disabled={typing} onReopenPrompt={() => setActivePrompt(message.reply)} />)}
             {typing && <div className="studio-message assistant" data-chat-message><BrandMark size="small" /><div className="thinking-card" role="status"><div className="thinking-dots"><i /><i /><i /></div><span>Organizando una respuesta segura y útil…</span></div></div>}
@@ -358,6 +363,7 @@ function AssistantReply({ reply, onChoice, onHelp, navigate, disabled, onReopenP
         {!conversational && <h2>{reply.title}</h2>}
         <p className="assistant-intro">{reply.introduction}</p>
         {conversational && reply.insight && <p className="assistant-insight">{reply.insight}</p>}
+        {reply.emotion && reply.emotion.primary !== "no_clara" && reply.emotion.confidence !== "baja" && <div className="emotion-signal"><Sparkles size={14} /><span>Señal tentativa: <strong>{emotionLabels[reply.emotion.primary]}</strong> · {reply.emotion.progress.replace("_", " ")}</span><small>No es diagnóstico</small></div>}
         {reply.mode === "safety" && <div className="expanded-safety-guidance">{reply.insight && <div className="context-reading"><CircleHelp size={18} /><div><strong>Por qué se activó esta ayuda</strong><p>{reply.insight}</p></div></div>}<div className="response-steps">{reply.steps.map((step) => <div key={`${step.horizon}-${step.text}`}><span>{step.horizon}</span><p>{step.text}</p></div>)}</div></div>}
       </div>
       {reply.mode === "safety" ? <div className="assistant-question"><strong>{reply.question}</strong><div>{reply.choices.map((choice) => <button key={choice} disabled={disabled} onClick={() => reply.openHelp && choice.includes("Abrir") ? onHelp() : onChoice(choice)}>{choice}<ArrowRight size={15} /></button>)}</div></div> : conversational ? (reply.question || reply.choices.length > 0) && <div className="assistant-question conversational-followup">{reply.question && <strong>{reply.question}</strong>}<div>{reply.choices.map((choice) => <button key={choice} disabled={disabled} onClick={() => onChoice(choice)}>{choice}<ArrowRight size={15} /></button>)}</div></div> : hasGuidance && <button className="reopen-prompt" disabled={disabled} onClick={onReopenPrompt}><ListChecks size={14} /> Ver plan y opciones</button>}

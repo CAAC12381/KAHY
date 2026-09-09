@@ -1,22 +1,15 @@
-import { ArrowRight, BookOpen, CalendarDays, Check, ClipboardList, Heart, Leaf, MessageCircle, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { ArrowRight, BookOpen, CalendarDays, Check, ClipboardList, Leaf, MessageCircle, Sparkles } from "lucide-react";
+import EmotionCalendar from "../components/EmotionCalendar";
 import Mascot from "../components/Mascot";
 import PetGarden from "../components/PetGarden";
 import SupportBanner from "../components/SupportBanner";
 import { Button, Card, DemoBadge } from "../components/ui";
 import { dailyHabits, useDailyHabits } from "../hooks/useDailyHabits";
 import type { PetGardenApi } from "../hooks/usePetGarden";
+import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
 import type { ScreeningsState } from "../hooks/useScreenings";
 import { flowers, mascots } from "../mock/data";
 import type { DemoProfile, MainView, Preferences } from "../types";
-
-const moods = [
-  { value: "difícil", symbol: "●", label: "Día difícil" },
-  { value: "pesado", symbol: "◒", label: "Algo pesado" },
-  { value: "neutral", symbol: "—", label: "Neutral" },
-  { value: "tranquilo", symbol: "◕", label: "Con calma" },
-  { value: "bien", symbol: "✦", label: "Me siento bien" },
-];
 
 export default function HomePage({
   profile,
@@ -26,6 +19,7 @@ export default function HomePage({
   screenings,
   onHelp,
   garden,
+  emotionCalendar,
 }: {
   profile: DemoProfile;
   preferences: Preferences;
@@ -34,8 +28,8 @@ export default function HomePage({
   screenings: ScreeningsState;
   onHelp: () => void;
   garden: PetGardenApi;
+  emotionCalendar: EmotionCalendarApi;
 }) {
-  const [mood, setMood] = useState("");
   const habits = useDailyHabits(garden.gainFromHabit);
   const displayName = profile.name === "Invitado" ? "" : `, ${profile.name}`;
   const companionName = profile.companionType === "mascota"
@@ -58,13 +52,8 @@ export default function HomePage({
         {preferences.showMascot && <div className="hero-mascot"><span className="speech-note">Vamos paso a paso.</span><Mascot id={profile.mascot} size="large" /></div>}
       </section>
 
-      <div className="section-heading"><div><span className="eyebrow">Registro momentáneo</span><h2>¿Cómo se siente tu día?</h2></div><small>No se guarda ni se analiza.</small></div>
-      <Card className="mood-card">
-        <div className="mood-row" role="group" aria-label="Selecciona cómo se siente tu día">
-          {moods.map((item) => <button key={item.value} className={mood === item.value ? "mood active" : "mood"} onClick={() => { setMood(item.value); notify(`Registrado solo en esta pantalla: ${item.label}.`); }} aria-pressed={mood === item.value}><span>{item.symbol}</span><small>{item.label}</small></button>)}
-        </div>
-        {mood && <p className="mood-response"><Heart size={18} /> Puedes cambiar tu selección cuando quieras. KAHY no interpreta este registro.</p>}
-      </Card>
+      <div className="section-heading"><div><span className="eyebrow">Calendario emocional</span><h2>Lo que ha aparecido en tus conversaciones</h2></div><small>Se guardan etiquetas y fechas, no el texto</small></div>
+      <Card className="emotion-calendar-card"><EmotionCalendar entries={emotionCalendar.entries} /></Card>
 
       <div className="section-heading"><div><span className="eyebrow">Hábitos de hoy</span><h2>Pequeñas acciones que también cuentan</h2></div><small>Se reinicia cada día · en este dispositivo</small></div>
       <Card className="habits-card">
@@ -85,7 +74,7 @@ export default function HomePage({
       {preferences.showMascot && (
         <>
           <div className="section-heading"><div><span className="eyebrow">Compañía simbólica</span><h2>Tu jardín de bienestar</h2></div><small>Se guarda solo en este dispositivo</small></div>
-          <PetGarden companionType={profile.companionType} mascotId={profile.mascot} flowerId={profile.flower} moodHint={mood} garden={garden} />
+          <PetGarden companionType={profile.companionType} mascotId={profile.mascot} flowerId={profile.flower} emotion={emotionCalendar.latest} garden={garden} />
         </>
       )}
 

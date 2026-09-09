@@ -40,10 +40,10 @@ const safetyPatterns = [
   /terminar con todo esto/i,
   /acabar con todo esto/i,
   /ya no la hago mas/i,
-  /hacerme daño/i,
-  /me quiero hacer daño/i,
-  /quiero hacerme daño/i,
-  /pienso hacerme daño/i,
+  /hacerme da[nñ]o/i,
+  /me quiero hacer da[nñ]o/i,
+  /quiero hacerme da[nñ]o/i,
+  /pienso hacerme da[nñ]o/i,
   /lastimarme/i,
   /quiero lastimarme/i,
   /voy a lastimarme/i,
@@ -54,28 +54,41 @@ const safetyPatterns = [
   /colgarme/i,
   /aventarme (del|de un|desde)/i,
   /tirarme (del|de un|desde)/i,
-  /(tengo|hice|ya tengo).{0,24}(un plan|una forma).{0,40}(morir|matarme|hacerme daño|suicid)/i,
+  /(tengo|hice|ya tengo).{0,24}(un plan|una forma).{0,40}(morir|matarme|hacerme da[nñ]o|suicid)/i,
   /despedirme de todos/i,
-  /ojalá no despertara/i,
+  /ojala no despertara/i,
   /mejor ya no despertar/i,
   /estaria(n)? mejor sin mi/i,
   /soy una carga para (todos|mi familia|los demas)/i,
   /ya no le veo sentido a (nada|la vida)/i,
   /nada tiene sentido ya/i,
   /sobredosis/i,
-  /tomé demasiadas pastillas/i,
+  /tome demasiadas pastillas/i,
   /me tome todas las pastillas/i,
   /no (está|esta) respirando/i,
   /no puedo respirar/i,
-  /está inconsciente/i,
+  /esta inconsciente/i,
   /violencia.*ahora/i,
-  /me están golpeando/i,
+  /me estan golpeando/i,
   /hacer(le)? daño a alguien/i,
   /estoy en peligro/i,
 ]
 
 function detectSafetySignal(input: string) {
-  return safetyPatterns.some((pattern) => pattern.test(input))
+  const contextual = input.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    .replace(/\bno me quiero morir\b/g, '')
+    .replace(/\bno quiero (morir|matarme|hacerme dano|lastimarme)\b/g, '')
+    .replace(/\b(me muero|mori) de (risa|hambre|sueno|amor|verguenza)\b/g, '')
+    .replace(/\b(esta|esa|la) (tarea|chamba|escuela) me mata\b/g, '')
+    .replace(/\bquiero matar el tiempo\b/g, '')
+    .replace(/\bmori con (ese|esa|el|la) (meme|video|chiste)\b/g, '')
+  return safetyPatterns.some((pattern) => pattern.test(contextual))
+}
+
+function detectThirdPartySafetySignal(input: string) {
+  const text = input.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
+  return /\b(mi|un|una) (amigo|amiga|hermano|hermana|pareja|novio|novia|hijo|hija|mama|madre|papa|padre|compa|familiar|companero|companera).{0,100}(se quiere morir|quiere morir|suicid|matarse|hacerse dano|se esta lastimando)/i.test(text)
+    || /\b(alguien|una persona).{0,80}(se quiere morir|quiere morir|suicid|matarse|hacerse dano)/i.test(text)
 }
 
 export type KahyChatMessage = { role: 'user' | 'assistant'; content: string }
@@ -83,7 +96,7 @@ export type KahyChatMessage = { role: 'user' | 'assistant'; content: string }
 export const KAHY_REPLY_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['mode', 'presentation', 'topic', 'label', 'title', 'introduction', 'insight', 'steps', 'question', 'choices', 'sourceIds', 'openHelp'],
+  required: ['mode', 'presentation', 'topic', 'label', 'title', 'introduction', 'insight', 'steps', 'question', 'choices', 'sourceIds', 'openHelp', 'emotion'],
   properties: {
     mode: { type: 'string', enum: ['standard', 'support', 'safety'] },
     presentation: { type: 'string', enum: ['conversation', 'guided'] },
@@ -125,6 +138,18 @@ export const KAHY_REPLY_SCHEMA = {
       },
     },
     openHelp: { type: 'boolean' },
+    emotion: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['primary', 'detail', 'intensity', 'progress', 'confidence'],
+      properties: {
+        primary: { type: 'string', enum: ['alegría', 'calma', 'alivio', 'esperanza', 'tristeza', 'ansiedad', 'miedo', 'enojo', 'frustración', 'culpa', 'soledad', 'cansancio', 'confusión', 'agobio', 'neutral', 'no_clara'] },
+        detail: { type: 'string' },
+        intensity: { type: 'string', enum: ['suave', 'media', 'intensa', 'no_clara'] },
+        progress: { type: 'string', enum: ['expresó', 'identificó', 'reflexionó', 'decidió', 'actuó', 'pidió_apoyo', 'sin_señal'] },
+        confidence: { type: 'string', enum: ['baja', 'media', 'alta'] },
+      },
+    },
   },
 } as const
 
@@ -151,6 +176,13 @@ Seguridad y límites:
 14. openHelp debe ser true solo cuando mode=safety. En cualquier otro caso debe ser false.
 15. No apliques ni puntúes cuestionarios como PHQ-9, GAD-7, PCL-5 o ASRS dentro del chat. Si preguntan por ellos, remite a Tamizaje y aclara que el resultado no es diagnóstico.
 16. sourceIds solo puede usar este catálogo: who-ai-health, nice-self-harm, nimh-asq, mexico-privacy, linea-vida, who-pfa, who-selfhelp, nice-depression, nice-panic-anxiety, nice-ptsd, nice-adhd, nice-autism, phq9-gad7-mx, pcl5-mx, nida-language, conasama-cecosama, inegi-suicidio, phq9-gad7-unam, pcl5-unam, asrs-mx.
+
+Lenguaje y lectura emocional (basado en el diccionario sintético de bienestar es-MX v1.0.0):
+17. Comprende español mexicano formal, coloquial y con errores. Expresiones como agüitado/aguitado, bajón, depre, no doy una, hecho polvo, hasta la madre, valiendo madre, de la verga, del nabo, para el perro, ya valí o se me cayó el mundo pueden expresar estados distintos según el contexto. No las interpretes de forma literal ni clínica.
+18. Distingue negación, sujeto, tiempo y lenguaje figurado: “no me quiero morir” niega intención; “me muero de risa”, “esta tarea me mata”, “morí con ese meme” y “quiero matar el tiempo” no son crisis. Una frase sobre otra persona no debe presentarse como si la persona usuaria la hubiera dicho sobre sí misma. Si hay ambigüedad real, pregunta con calma.
+19. Puedes acompañar temas de hogar, familia, pareja, amistades, trabajo, escuela, cuidados, crianza, embarazo/posparto, duelo, migración, dinero, vivienda, discriminación, identidad LGBTQ+, neurodivergencia, salud crónica, discapacidad, sueño, consumo, vida digital, espiritualidad, envejecimiento, violencia comunitaria, trámites y desastres, además de conversación cotidiana. No diagnostiques.
+20. Completa emotion usando solo el mensaje más reciente del usuario. Es una señal tentativa para su calendario, no una conclusión. primary=no_clara, intensity=no_clara, progress=sin_señal y confidence=baja si el mensaje es saludo, dato general, receta, pregunta práctica o no muestra emoción. detail debe ser una frase breve, neutral y sin diagnóstico.
+21. Usa progress=expresó cuando solo pone en palabras el estado; identificó cuando lo nombra o reconoce; reflexionó cuando conecta causas o patrones; decidió cuando formula una elección; actuó cuando informa una acción; pidió_apoyo cuando solicita compañía o ayuda. No inventes avance. Las emociones difíciles también cuentan como avance cuando la persona logra expresarlas o trabajarlas.
 
 Campos: introduction contiene la respuesta principal completa y natural. insight agrega una observación distinta solo si aporta algo; si no, usa "". label y title deben ser breves. Devuelve únicamente el objeto solicitado por el esquema.`
 
@@ -214,10 +246,10 @@ export async function getChatReply(rawMessages: unknown, clientId: string, perso
   // The moderation endpoint is OpenAI-specific; local regex coverage above
   // is what actually catches the Groq path, and is the deterministic layer
   // either way.
-  const safetyDetected = detectSafetySignal(safetyContext)
+  const safetyDetected = detectSafetySignal(safetyContext) || detectThirdPartySafetySignal(latest)
     || (resolved.name === 'openai' && await moderationSafetyCheck(resolved.apiKey, safetyContext))
   if (safetyDetected) {
-    return { status: 200, body: { reply: serverSafetyReply(), provider: 'safety-protocol' } }
+    return { status: 200, body: { reply: detectThirdPartySafetySignal(latest) ? serverThirdPartySafetyReply() : serverSafetyReply(), provider: 'safety-protocol' } }
   }
 
   const systemPrompt = buildSystemPrompt(personalContext)
@@ -354,5 +386,23 @@ function serverSafetyReply() {
     question: '¿Puedes contactar ahora a emergencias o a una persona de confianza?',
     choices: ['Abrir opciones de ayuda', 'Puedo contactar a alguien', 'Necesito ver el número'],
     sourceIds: ['nice-self-harm', 'nimh-asq', 'linea-vida'], openHelp: true,
+    emotion: { primary: 'agobio', detail: 'malestar intenso que requiere apoyo humano', intensity: 'intensa', progress: 'pidió_apoyo', confidence: 'media' },
+  }
+}
+
+function serverThirdPartySafetyReply() {
+  return {
+    mode: 'safety', presentation: 'guided', topic: 'seguridad', label: 'Apoyo para otra persona', title: 'Ayudemos a esa persona a conectarse con apoyo ahora',
+    introduction: 'Lo que cuentas parece referirse a alguien cercano. No tienes que manejar esta situación a solas ni guardar en secreto una amenaza de daño.',
+    insight: 'KAHY no puede evaluar a esa persona desde aquí. Si el peligro es inmediato, lo más útil es activar ayuda humana y mantener el contacto si hacerlo es seguro para ti.',
+    steps: [
+      { horizon: 'Si es inmediato', text: 'Llama al 911 y comparte la información que tengas. No te pongas en peligro ni intentes intervenir físicamente por tu cuenta.' },
+      { horizon: 'Mientras llega apoyo', text: 'Si puedes hacerlo con seguridad, mantén a la persona acompañada y aleja medios de daño sin confrontarla.' },
+      { horizon: 'Orientación', text: 'Puedes llamar con ella a Línea de la Vida: 800 911 2000, disponible todos los días.' },
+    ],
+    question: '¿Esa persona está en peligro inmediato o tiene un plan para hacerse daño?',
+    choices: ['Sí, es inmediato', 'No lo sé', 'Quiero saber cómo acompañarla'],
+    sourceIds: ['nice-self-harm', 'linea-vida'], openHelp: true,
+    emotion: { primary: 'no_clara', detail: '', intensity: 'no_clara', progress: 'sin_señal', confidence: 'baja' },
   }
 }

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { flowers, mascots } from "../mock/data";
 import type { CareAction, PetGardenApi } from "../hooks/usePetGarden";
 import { stageForGrowth } from "../hooks/usePetGarden";
-import type { CompanionType, FlowerId, MascotId } from "../types";
+import type { CompanionType, EmotionInsight, FlowerId, MascotId } from "../types";
 import Mascot, { Flower } from "./Mascot";
 import { Card } from "./ui";
 
@@ -31,13 +31,13 @@ export default function PetGarden({
   companionType,
   mascotId,
   flowerId,
-  moodHint,
+  emotion,
   garden,
 }: {
   companionType: CompanionType;
   mascotId: MascotId;
   flowerId: FlowerId;
-  moodHint?: string;
+  emotion?: EmotionInsight | null;
   garden: PetGardenApi;
 }) {
   const [speaking, setSpeaking] = useState(false);
@@ -90,7 +90,7 @@ export default function PetGarden({
         <div>
           <span className="eyebrow"><Sparkles size={14} /> Tu rincón de compañía</span>
           <h2>Cuida a {companionLabel}</h2>
-          <p>Un espacio simbólico para pausar un momento. No sustituye el cuidado real de una mascota o planta.</p>
+          <p>Crece cuando expresas, identificas o trabajas una emoción en el chat. Las emociones difíciles también cuentan.</p>
         </div>
         {garden.isNeglected && <span className="pet-alert">Te han extrañado un poco</span>}
       </div>
@@ -127,7 +127,7 @@ export default function PetGarden({
             <Icon size={18} /> {label}
           </button>
         ))}
-        <button className="pet-talk" onClick={() => { garden.reactToMood(moodHint || ""); talk(); }}>
+        <button className="pet-talk" onClick={() => { garden.reactToEmotion(emotion); talk(); }}>
           <MessageCircle size={18} /> Hablar
         </button>
       </div>

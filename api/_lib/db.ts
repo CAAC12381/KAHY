@@ -62,11 +62,24 @@ function createSchema() {
         last_care TIMESTAMPTZ NOT NULL DEFAULT now()
       )
     `,
+    sql`
+      CREATE TABLE IF NOT EXISTS emotion_entries (
+        entry_id TEXT PRIMARY KEY,
+        device_id TEXT NOT NULL,
+        at TIMESTAMPTZ NOT NULL,
+        primary_emotion TEXT NOT NULL,
+        detail TEXT NOT NULL DEFAULT '',
+        intensity TEXT NOT NULL,
+        progress TEXT NOT NULL,
+        confidence TEXT NOT NULL
+      )
+    `,
   ]).then(() => {
     // Index creation kept separate from CREATE TABLE for older Postgres compatibility.
     return Promise.all([
       sql`CREATE INDEX IF NOT EXISTS idx_screening_device ON screening_results(device_id)`,
       sql`CREATE INDEX IF NOT EXISTS idx_memory_device ON chat_memory(device_id)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_emotion_device_at ON emotion_entries(device_id, at DESC)`,
     ])
   }).then(() => undefined)
 }
@@ -161,6 +174,7 @@ export async function deleteAllDataForDevice(deviceId: string): Promise<void> {
     sql`DELETE FROM screening_results WHERE device_id = ${deviceId}`,
     sql`DELETE FROM chat_memory WHERE device_id = ${deviceId}`,
     sql`DELETE FROM pet_garden WHERE device_id = ${deviceId}`,
+    sql`DELETE FROM emotion_entries WHERE device_id = ${deviceId}`,
   ])
 }
 
@@ -216,4 +230,48 @@ export async function upsertPetGarden(deviceId: string, state: StoredPetGarden):
       care_counts = EXCLUDED.care_counts,
       last_care = EXCLUDED.last_care
   `
+}
+
+export type StoredEmotionEntry = {
+  id: string
+  at: number
+  primary: string
+  detail: string
+  intensity: string
+  progress: string
+  confidence: string
+}
+
+export async function listEmotionEntries(deviceId: string): Promise<StoredEmotionEntry[]> {
+  const { rows } = await sql`
+    SELECT entry_id, at, primary_emotion, detail, intensity, progress, confidence
+    FROM emotion_entries WHERE device_id = ${deviceId}
+    ORDER BY at ASC LIMIT 180
+  `
+  return rows.map((row) => ({
+    id: row.entry_id,
+    at: new Date(row.at).getTime(),
+    primary: row.primary_emotion,
+    detail: row.detail,
+    intensity: row.intensity,
+    progress: row.progress,
+    confidence: row.confidence,
+  }))
+}
+
+export async function addEmotionEntry(deviceId: string, entry: StoredEmotionEntry): Promise<void> {
+  await sql`
+    INSERT INTO emotion_entries (entry_id, device_id, at, primary_emotion, detail, intensity, progress, confidence)
+    VALUES (${entry.id}, ${deviceId}, ${new Date(entry.at).toISOString()}, ${entry.primary}, ${entry.detail}, ${entry.intensity}, ${entry.progress}, ${entry.confidence})
+    ON CONFLICT (entry_id) DO NOTHING
+  `
+  await sql`
+    DELETE FROM emotion_entries WHERE device_id = ${deviceId} AND entry_id NOT IN (
+      SELECT entry_id FROM emotion_entries WHERE device_id = ${deviceId} ORDER BY at DESC LIMIT 180
+    )
+  `
+}
+
+export async function clearEmotionEntries(deviceId: string): Promise<void> {
+  await sql`DELETE FROM emotion_entries WHERE device_id = ${deviceId}`
 }

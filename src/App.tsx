@@ -13,6 +13,7 @@ import { Button, DemoBadge, Modal } from "./components/ui";
 import { usePetGarden } from "./hooks/usePetGarden";
 import { useScreenings } from "./hooks/useScreenings";
 import { useChatHistory } from "./hooks/useChatHistory";
+import { useEmotionCalendar } from "./hooks/useEmotionCalendar";
 import { getDeviceId } from "./lib/deviceId";
 import { fetchRemoteProfile, saveRemoteProfile, deleteRemoteData } from "./services/dataApi";
 import type { DemoProfile, MainView, Preferences, ToastMessage } from "./types";
@@ -92,6 +93,7 @@ export default function App() {
   const screenings = useScreenings(deviceId);
   const garden = usePetGarden(deviceId);
   const chatHistory = useChatHistory(preferences.saveChatHistory);
+  const emotionCalendar = useEmotionCalendar(deviceId);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setStage(restoredRegistration ? "app" : "access"), 950);
@@ -183,6 +185,7 @@ export default function App() {
     deleteRemoteData(deviceId);
     screenings.reset();
     chatHistory.clear();
+    emotionCalendar.clear();
     setProfile(defaultProfile);
     setPreferences(defaultPreferences);
     setIsRegistered(false);
@@ -198,13 +201,13 @@ export default function App() {
     <div className={`kahy-app ${preferences.reducedMotion ? "reduce-motion" : ""} ${preferences.lowStimuli ? "low-stimuli" : ""} ${preferences.simplified ? "simplified" : ""} ${preferences.textScale === "large" ? "large-text" : ""}`}>
       <a className="skip-link" href="#main-content">Saltar al contenido</a>
       <AppShell currentView={view} onNavigate={setView} onHelp={() => setShowHelp(true)} mascot={profile.mascot} preferences={preferences}>
-        {view === "home" && <HomePage profile={profile} preferences={preferences} navigate={setView} notify={notify} screenings={screenings} onHelp={() => setShowHelp(true)} garden={garden} />}
-        {view === "chat" && <ChatPage onHelp={() => setShowHelp(true)} navigate={setView} preferences={preferences} screenings={screenings} garden={garden} profile={profile} deviceId={deviceId} chatHistory={chatHistory} />}
+        {view === "home" && <HomePage profile={profile} preferences={preferences} navigate={setView} notify={notify} screenings={screenings} onHelp={() => setShowHelp(true)} garden={garden} emotionCalendar={emotionCalendar} />}
+        {view === "chat" && <ChatPage onHelp={() => setShowHelp(true)} navigate={setView} preferences={preferences} screenings={screenings} garden={garden} profile={profile} deviceId={deviceId} chatHistory={chatHistory} emotionCalendar={emotionCalendar} />}
         {view === "activities" && <ActivitiesPage preferences={preferences} notify={notify} />}
         {view === "screening" && <ScreeningPage screenings={screenings} onHelp={() => setShowHelp(true)} navigate={setView} />}
         {view === "specialists" && <SpecialistsPage notify={notify} />}
         {view === "resources" && <ResourcesPage />}
-        {view === "profile" && <ProfilePage profile={profile} preferences={preferences} setProfile={updateProfile} setPreferences={updatePreferences} navigate={setView} notify={notify} isRegistered={isRegistered} onResetRegistration={resetRegistration} screenings={screenings} deviceId={deviceId} chatHistory={chatHistory} />}
+        {view === "profile" && <ProfilePage profile={profile} preferences={preferences} setProfile={updateProfile} setPreferences={updatePreferences} navigate={setView} notify={notify} isRegistered={isRegistered} onResetRegistration={resetRegistration} screenings={screenings} deviceId={deviceId} chatHistory={chatHistory} emotionCalendar={emotionCalendar} />}
       </AppShell>
 
       {showHelp && <Modal title="Ayuda inmediata" onClose={() => setShowHelp(false)}><div className="help-modal"><DemoBadge>Información oficial · sin llamada automática</DemoBadge><div className="urgent-note"><ShieldAlert size={28} /><div><h3>Si hay peligro inmediato</h3><p>Contacta al 911 o acude al servicio de urgencias más cercano. Este prototipo no puede detectar, atender ni monitorear una emergencia.</p></div></div><div className="help-option"><Phone size={22} /><div><strong>Línea de la Vida</strong><p>800 911 2000 · orientación nacional 24 horas, todos los días.</p></div></div><a className="button button--secondary full-width" href="https://www.gob.mx/conasama/es/articulos/linea-de-la-vida-800-911-2000?idiom=es" target="_blank" rel="noreferrer">Ver fuente oficial <ExternalLink size={17} /></a><p className="fine-print">No se realiza ninguna llamada desde KAHY. En una implementación real, este flujo requeriría revisión profesional, pruebas y protocolos operativos.</p><Button className="full-width" onClick={() => setShowHelp(false)}>Entendido</Button></div></Modal>}

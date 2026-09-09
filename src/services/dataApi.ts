@@ -106,3 +106,30 @@ export function saveRemotePetGarden(deviceId: string, state: RemotePetGarden): v
     body: JSON.stringify({ deviceId, state }),
   });
 }
+
+export type RemoteEmotionEntry = {
+  id: string;
+  at: number;
+  primary: string;
+  detail: string;
+  intensity: string;
+  progress: string;
+  confidence: string;
+};
+
+export async function fetchRemoteEmotions(deviceId: string): Promise<RemoteEmotionEntry[] | null> {
+  const data = await safeFetch<{ entries: RemoteEmotionEntry[] }>(`/api/data/emotions?deviceId=${encodeURIComponent(deviceId)}`);
+  return data?.entries ?? null;
+}
+
+export function saveRemoteEmotion(deviceId: string, entry: RemoteEmotionEntry): void {
+  void safeFetch("/api/data/emotions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ deviceId, entry }),
+  });
+}
+
+export function clearRemoteEmotions(deviceId: string): void {
+  void safeFetch(`/api/data/emotions?deviceId=${encodeURIComponent(deviceId)}`, { method: "DELETE" });
+}

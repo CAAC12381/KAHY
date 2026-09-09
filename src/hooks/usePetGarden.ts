@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { PetMood } from "../types";
+import type { EmotionInsight, PetMood } from "../types";
 import { fetchRemotePetGarden, saveRemotePetGarden } from "../services/dataApi";
 
 export type CareAction = "food" | "play" | "love" | "water" | "sun" | "prune";
@@ -75,12 +75,17 @@ const happinessGain: Record<CareAction, number> = {
   prune: 10,
 };
 
-const moodMessages: Record<string, string> = {
-  "difícil": "Está bien tener un día difícil. Aquí me quedo contigo un momento.",
-  "pesado": "Cuando todo pesa, un cuidado pequeño también cuenta. Gracias por estar aquí.",
-  "neutral": "Los días neutrales también son válidos. Seguimos avanzando juntos.",
-  "tranquilo": "Qué bien se siente esta calma. La disfruto contigo.",
-  "bien": "Me alegra mucho verte así. ¡Gracias por compartirlo conmigo!",
+const emotionMessages: Partial<Record<EmotionInsight["primary"], string>> = {
+  tristeza: "Ponerle palabras a la tristeza también es avanzar. Aquí sigo contigo.",
+  ansiedad: "Notar la ansiedad ya es una forma de conocer lo que necesitas.",
+  miedo: "Gracias por nombrar ese miedo. No tienes que resolverlo todo de golpe.",
+  enojo: "El enojo también trae información. Podemos escucharlo sin dejar que decida todo.",
+  frustración: "Aunque algo no haya salido, detenerte a mirarlo cuenta como avance.",
+  agobio: "Cuando todo rebasa, un paso pequeño y acompañado también vale.",
+  soledad: "Compartir la soledad rompe un poquito el aislamiento. Aquí sigo.",
+  calma: "Qué bueno poder reconocer este momento de calma.",
+  alegría: "Me alegra acompañarte también en lo que sí está saliendo bien.",
+  esperanza: "Esa esperanza puede ser pequeña y aun así abrir camino.",
 };
 
 /** Maps a 0-100 growth percent onto a 1-indexed stage for a companion with `stageCount` art stages. */
@@ -143,9 +148,9 @@ export function usePetGarden(deviceId: string) {
     setMessage(careMessages[action]);
   }
 
-  function reactToMood(moodValue: string) {
+  function reactToEmotion(emotion?: EmotionInsight | null) {
     setState((current) => ({ ...current, bond: Math.min(100, current.bond + 2) }));
-    setMessage(moodMessages[moodValue] || "Gracias por contarme cómo te sientes hoy.");
+    setMessage(emotion ? emotionMessages[emotion.primary] || "Gracias por poner en palabras cómo va tu día." : "Cuando quieras, el chat puede ayudarnos a reconocer cómo va tu día.");
   }
 
   /** Call when the user marks a daily habit as done. */
@@ -156,8 +161,12 @@ export function usePetGarden(deviceId: string) {
   }
 
   /** Call when the user sends or receives a message in the chat de acompañamiento. */
-  function gainFromChat() {
-    addProgress(PROGRESS_POINTS.chat);
+  function gainFromChat(emotion: EmotionInsight) {
+    if (emotion.primary === "no_clara" || emotion.progress === "sin_señal") return;
+    const extra = ["reflexionó", "decidió", "actuó", "pidió_apoyo"].includes(emotion.progress) ? 2 : PROGRESS_POINTS.chat;
+    setState((current) => ({ ...current, bond: Math.min(100, current.bond + extra) }));
+    addProgress(extra);
+    setMessage(emotionMessages[emotion.primary] || "Cada vez que reconoces lo que sientes, crecemos un poco juntos.");
   }
 
   return {
@@ -169,7 +178,7 @@ export function usePetGarden(deviceId: string) {
     message,
     pulse,
     care,
-    reactToMood,
+    reactToEmotion,
     gainFromHabit,
     gainFromChat,
   };

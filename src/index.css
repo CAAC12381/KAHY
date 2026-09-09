@@ -216,13 +216,30 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .hero-mascot { position: relative; align-self: end; justify-self: center; }
 .hero-mascot .mascot { box-shadow: 0 22px 50px rgba(119,116,86,.13); }
 .speech-note { position: absolute; top: -2px; left: -45px; z-index: 2; padding: 10px 13px; border-radius: 14px 14px 3px 14px; background: white; box-shadow: var(--shadow-sm); color: var(--purple-deep); font-size: .78rem; font-weight: 750; transform: rotate(-3deg); }
-.mood-card { padding: 18px; }
-.mood-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 9px; }
-.mood { min-height: 82px; display: grid; place-items: center; gap: 5px; padding: 9px; border: 1px solid transparent; border-radius: 15px; background: var(--cream); }
-.mood:hover, .mood.active { border-color: var(--purple); background: var(--purple-soft); }
-.mood > span { font-size: 1.5rem; color: var(--purple-deep); }
-.mood small { color: var(--muted); }
-.mood-response { display: flex; align-items: center; gap: 9px; margin: 14px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--sage-soft); color: var(--ink); font-size: .88rem; }
+.emotion-calendar-card { padding: clamp(16px, 3vw, 24px); overflow: hidden; }
+.emotion-calendar { display: grid; gap: 12px; }
+.emotion-calendar-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.emotion-calendar-top > div:first-child { display: grid; gap: 2px; }
+.emotion-calendar-top strong { font-family: var(--font-display); font-size: 1.08rem; text-transform: capitalize; }
+.emotion-calendar-top small { color: var(--muted); font-size: .74rem; }
+.emotion-calendar-nav { display: flex; align-items: center; gap: 5px; }
+.emotion-calendar-nav button { min-width: 34px; height: 34px; display: grid; place-items: center; padding: 0 9px; border: 1px solid var(--line); border-radius: 10px; background: var(--cream); color: var(--ink); font-size: .73rem; font-weight: 760; }
+.emotion-weekdays, .emotion-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 7px; }
+.emotion-weekdays span { color: var(--muted); font-size: .68rem; font-weight: 800; text-align: center; }
+.emotion-day { position: relative; min-height: 58px; display: grid; place-items: center; border: 1px solid #ebe7dc; border-radius: 13px; background: #fbfaf6; color: var(--muted); font-size: .78rem; }
+.emotion-day:disabled { cursor: default; opacity: .62; }
+.emotion-day.empty { border-color: transparent; background: transparent; }
+.emotion-day.has-emotion { color: var(--ink); font-weight: 800; opacity: 1; cursor: pointer; }
+.emotion-day.has-emotion:hover, .emotion-day.selected { border-color: var(--purple); transform: translateY(-1px); box-shadow: 0 7px 18px rgba(63,65,57,.08); }
+.emotion-day.tone-sun { background: #fff2cb; }.emotion-day.tone-calm { background: #e7f0df; }.emotion-day.tone-heavy { background: #ece5f0; }.emotion-day.tone-alert { background: #f5dedd; }
+.emotion-dot { position: absolute; bottom: 7px; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .55; }
+.today-dot { position: absolute; top: 6px; right: 6px; width: 5px; height: 5px; border-radius: 50%; background: var(--purple); }
+.emotion-day-detail, .emotion-calendar-empty { min-height: 65px; display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--cream); }
+.emotion-day-detail > svg, .emotion-calendar-empty > svg { flex: 0 0 auto; color: var(--purple-deep); }
+.emotion-day-detail strong { text-transform: capitalize; font-size: .8rem; }.emotion-day-detail p { margin: 3px 0; color: var(--ink); font-size: .78rem; }.emotion-day-detail small, .emotion-calendar-empty { color: var(--muted); font-size: .72rem; }
+.emotion-legend { display: flex; flex-wrap: wrap; gap: 6px; }
+.emotion-legend span { padding: 5px 8px; border-radius: 999px; color: #4f504a; font-size: .64rem; font-weight: 720; }
+.emotion-legend .tone-sun { background: #fff2cb; }.emotion-legend .tone-calm { background: #e7f0df; }.emotion-legend .tone-heavy { background: #ece5f0; }.emotion-legend .tone-alert { background: #f5dedd; }
 .habits-card { padding: 18px; }
 .habits-list { display: flex; flex-wrap: wrap; gap: 9px; }
 .habit-chip { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px; border: 1px solid var(--line); border-radius: 999px; background: var(--cream); color: var(--ink); font-weight: 720; font-size: .84rem; }
@@ -390,6 +407,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .assistant-card h2 { margin: 0 0 10px; font-size: clamp(1.05rem, 2vw, 1.32rem); line-height: 1.25; }
 .assistant-intro { margin-bottom: 0; color: #565850; font-size: .84rem; line-height: 1.6; }
 .assistant-insight { margin: 9px 0 0; color: #686961; font-size: .82rem; line-height: 1.58; }
+.emotion-signal { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: 11px; padding-top: 9px; border-top: 1px solid #ede9df; color: var(--purple-deep); font-size: .69rem; }
+.emotion-signal small { margin-left: auto; color: var(--muted); font-size: .62rem; }
 .context-reading { display: flex; align-items: flex-start; gap: 9px; margin: 12px 0 14px; padding: 11px 12px; border-left: 3px solid var(--yellow); border-radius: 5px 12px 12px 5px; background: var(--yellow-soft); }
 .context-reading > svg { flex: 0 0 auto; color: var(--yellow-deep); }.context-reading strong { font-size: .72rem; }.context-reading p { margin: 3px 0 0; color: #5c5642; font-size: .74rem; line-height: 1.5; }
 .response-steps { display: grid; gap: 7px; margin: 14px 0; }
@@ -693,7 +712,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .topbar { align-items: center; }.help-button { max-width: 145px; font-size: .73rem; }.mobile-brand { font-size: .82rem; }
   .content { padding-inline: 14px; }.page-heading { align-items: flex-start; flex-direction: column; }.page-heading h1 { font-size: 2rem; }
   .hero-card { min-height: auto; padding: 27px 20px; border-radius: 24px; }.hero-copy h1 { font-size: 2.25rem; }.hero-actions { display: grid; }.hero-actions .button { width: 100%; }
-  .section-heading { align-items: flex-start; flex-direction: column; gap: 4px; }.mood-card { padding: 10px; overflow-x: auto; }.mood-row { min-width: 520px; }.quick-grid, .activity-grid, .resource-grid, .screening-grid { grid-template-columns: 1fr; }.quick-card { min-height: 210px; }.daily-card { align-items: flex-start; flex-direction: column; }.support-banner { flex-direction: column; }
+  .section-heading { align-items: flex-start; flex-direction: column; gap: 4px; }.emotion-calendar-card { padding: 12px; }.emotion-day { min-height: 43px; border-radius: 10px; }.emotion-calendar-top { align-items: flex-start; flex-direction: column; }.emotion-calendar-nav { width: 100%; }.emotion-calendar-nav button:nth-child(2) { flex: 1; }.emotion-legend { display: none; }.quick-grid, .activity-grid, .resource-grid, .screening-grid { grid-template-columns: 1fr; }.quick-card { min-height: 210px; }.daily-card { align-items: flex-start; flex-direction: column; }.support-banner { flex-direction: column; }
   .pet-garden-heading { flex-direction: column; }.pet-actions .pet-talk { margin-left: 0; width: 100%; justify-content: center; }.pet-meters { grid-template-columns: 1fr; }
   .chat-page { height: calc(100svh - 188px); min-height: 520px; }.chat-header { align-items: flex-start; }.chat-header .button { width: 46px; overflow: hidden; padding: 0; font-size: 0; }.chat-header .button svg { width: 20px; }.demo-banner .demo-badge { display: none; }.conversation { padding: 14px; }.message-bubble { max-width: 86%; }.chat-prompts { padding: 10px; }
   .activity-title { flex-direction: column; }.breathing-panel, .task-panel { padding: 22px 17px; }.breathing-orb { width: 185px; height: 185px; }.breath-steps { flex-wrap: wrap; justify-content: center; }.activity-controls { display: grid; }.activity-controls .button { width: 100%; }

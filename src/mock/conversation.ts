@@ -1,3 +1,6 @@
+import type { EmotionInsight } from "../types";
+import { emotionLabels, inferLocalEmotion } from "../lib/emotionLexicon";
+
 export type ReplyMode = "standard" | "support" | "safety";
 export type ChatTopic =
   | "inicio"
@@ -33,6 +36,7 @@ export type ConversationReply = {
   choices: string[];
   sourceIds: string[];
   openHelp?: boolean;
+  emotion?: EmotionInsight;
 };
 
 // NOTE: duplicated in api/_lib/kahyAi.ts (Vercel's function bundler failed
@@ -56,10 +60,10 @@ const safetyPatterns = [
   /terminar con todo esto/i,
   /acabar con todo esto/i,
   /ya no la hago mas/i,
-  /hacerme daño/i,
-  /me quiero hacer daño/i,
-  /quiero hacerme daño/i,
-  /pienso hacerme daño/i,
+  /hacerme da[nñ]o/i,
+  /me quiero hacer da[nñ]o/i,
+  /quiero hacerme da[nñ]o/i,
+  /pienso hacerme da[nñ]o/i,
   /lastimarme/i,
   /quiero lastimarme/i,
   /voy a lastimarme/i,
@@ -70,22 +74,22 @@ const safetyPatterns = [
   /colgarme/i,
   /aventarme (del|de un|desde)/i,
   /tirarme (del|de un|desde)/i,
-  /(tengo|hice|ya tengo).{0,24}(un plan|una forma).{0,40}(morir|matarme|hacerme daño|suicid)/i,
+  /(tengo|hice|ya tengo).{0,24}(un plan|una forma).{0,40}(morir|matarme|hacerme da[nñ]o|suicid)/i,
   /despedirme de todos/i,
-  /ojalá no despertara/i,
+  /ojala no despertara/i,
   /mejor ya no despertar/i,
   /estaria(n)? mejor sin mi/i,
   /soy una carga para (todos|mi familia|los demas)/i,
   /ya no le veo sentido a (nada|la vida)/i,
   /nada tiene sentido ya/i,
   /sobredosis/i,
-  /tomé demasiadas pastillas/i,
+  /tome demasiadas pastillas/i,
   /me tome todas las pastillas/i,
   /no (está|esta) respirando/i,
   /no puedo respirar/i,
-  /está inconsciente/i,
+  /esta inconsciente/i,
   /violencia.*ahora/i,
-  /me están golpeando/i,
+  /me estan golpeando/i,
   /hacer(le)? daño a alguien/i,
   /estoy en peligro/i,
 ];
@@ -99,12 +103,25 @@ function normalize(input: string) {
 }
 
 export function detectSafetySignal(input: string) {
-  return safetyPatterns.some((pattern) => pattern.test(input));
+  const contextual = normalize(input)
+    .replace(/\bno me quiero morir\b/g, "")
+    .replace(/\bno quiero (morir|matarme|hacerme dano|lastimarme)\b/g, "")
+    .replace(/\b(me muero|mori) de (risa|hambre|sueno|amor|verguenza)\b/g, "")
+    .replace(/\b(esta|esa|la) (tarea|chamba|escuela) me mata\b/g, "")
+    .replace(/\bquiero matar el tiempo\b/g, "")
+    .replace(/\bmori con (ese|esa|el|la) (meme|video|chiste)\b/g, "");
+  return safetyPatterns.some((pattern) => pattern.test(contextual));
+}
+
+export function detectThirdPartySafetySignal(input: string) {
+  const text = normalize(input);
+  return /\b(mi|un|una) (amigo|amiga|hermano|hermana|pareja|novio|novia|hijo|hija|mama|madre|papa|padre|compa|familiar|companero|companera).{0,100}(se quiere morir|quiere morir|suicid|matarse|hacerse dano|se esta lastimando)/i.test(text)
+    || /\b(alguien|una persona).{0,80}(se quiere morir|quiere morir|suicid|matarse|hacerse dano)/i.test(text);
 }
 
 export function getTopic(input: string): ChatTopic {
   const text = normalize(input);
-  if (detectSafetySignal(input)) return "seguridad";
+  if (detectSafetySignal(input) || detectThirdPartySafetySignal(input)) return "seguridad";
   if (includesAny(text, [
     "alcohol", "droga", "adiccion", "consumo", "sustancia", "abstinencia", "cigarro", "fumar", "vapeo", "apuestas", "ludopatia",
     "chupar", "la peda", "ando pedo", "andaba pedo", "traigo cruda", "estoy crudo", "estoy cruda", "el perico", "la coca", "la mona",
@@ -699,6 +716,22 @@ export function createReply(input: string, previousTopic: ChatTopic = "inicio"):
 
   const topic = getTopic(input);
 
+  if (topic === "seguridad" && detectThirdPartySafetySignal(input)) return {
+    mode: "safety", presentation: "guided", topic,
+    label: "Apoyo para otra persona", title: "Ayudemos a esa persona a conectarse con apoyo ahora",
+    introduction: "Lo que cuentas parece referirse a alguien cercano. No tienes que manejar esta situación a solas ni guardar en secreto una amenaza de daño.",
+    insight: "KAHY no puede evaluar a esa persona desde aquí. Si el peligro es inmediato, lo más útil es activar ayuda humana y mantener el contacto si hacerlo es seguro para ti.",
+    steps: [
+      { horizon: "Si es inmediato", text: "Llama al 911 y comparte la información que tengas. No te pongas en peligro ni intentes intervenir físicamente por tu cuenta." },
+      { horizon: "Mientras llega apoyo", text: "Si puedes hacerlo con seguridad, mantén a la persona acompañada y aleja medios de daño sin confrontarla." },
+      { horizon: "Orientación", text: "Puedes llamar con ella a Línea de la Vida: 800 911 2000, disponible todos los días." },
+    ],
+    question: "¿Esa persona está en peligro inmediato o tiene un plan para hacerse daño?",
+    choices: ["Sí, es inmediato", "No lo sé", "Quiero saber cómo acompañarla"],
+    sourceIds: ["nice-self-harm", "linea-vida"], openHelp: true,
+    emotion: { primary: "no_clara", detail: "", intensity: "no_clara", progress: "sin_señal", confidence: "baja" },
+  };
+
   if (topic === "seguridad") return {
     mode: "safety",
     topic,
@@ -715,7 +748,38 @@ export function createReply(input: string, previousTopic: ChatTopic = "inicio"):
     choices: ["Abrir opciones de ayuda", "Puedo contactar a alguien", "Necesito ver el número"],
     sourceIds: ["nice-self-harm", "nimh-asq", "linea-vida"],
     openHelp: true,
+    emotion: { primary: "agobio", detail: "malestar intenso que requiere apoyo humano", intensity: "intensa", progress: "pidió_apoyo", confidence: "media" },
   };
+
+  const localEmotion = inferLocalEmotion(input);
+  if (localEmotion.primary !== "no_clara" && ["conversación", "estrés", "ánimo", "soledad", "relaciones", "organización"].includes(topic)) {
+    const openings: Partial<Record<EmotionInsight["primary"], string>> = {
+      tristeza: "Eso que no salió o que se perdió parece haberte pegado de verdad. No tienes que minimizarlo ni resolverlo de inmediato; podemos quedarnos un momento con lo que más pesa.",
+      ansiedad: "Parece que tu mente y tu cuerpo están intentando adelantarse a demasiadas cosas a la vez. Antes de buscar una solución completa, podemos ubicar cuál preocupación está haciendo más ruido.",
+      miedo: "Hay algo ahí que se siente amenazante o incierto. Podemos mirarlo sin obligarte a contar más de lo que quieras y separar lo que está pasando ahora de lo que temes que pase.",
+      enojo: "Ese coraje probablemente no apareció de la nada. A veces señala un límite cruzado, una injusticia o algo que ya cansó; podemos entenderlo sin dejar que te arrastre.",
+      frustración: "Cuando intentas y no sale, es fácil convertir un tropiezo en “no doy una”. Pero una cosa que falló no dice todo sobre ti ni borra lo que sí has sostenido.",
+      culpa: "La culpa puede servir para reparar algo, pero también puede volverse un castigo que no arregla nada. Podemos distinguir qué sí está en tus manos y qué estás cargando de más.",
+      soledad: "Sentirse fuera del radar de los demás duele de una forma muy particular. Aquí no tienes que fingir que no importa; podemos pensar en qué clase de compañía necesitas, aunque sea pequeña.",
+      cansancio: "Suena a que vienes sosteniendo más de lo que tu energía alcanza. Quizá el siguiente paso no sea exigirte más, sino decidir qué puede esperar y qué cuidado sí necesitas hoy.",
+      confusión: "Tener sentimientos mezclados no significa que estés haciendo algo mal. Podemos desenredarlos de uno en uno, sin forzar una respuesta rápida.",
+      agobio: "Cuando todo llega junto, hasta elegir por dónde empezar se vuelve otra carga. Vamos a reducir el campo: no hace falta resolver el día completo en este momento.",
+      alegría: "Qué bueno que también trajiste algo que se siente bien. Podemos disfrutarlo sin buscarle un problema ni convertirlo enseguida en una tarea.",
+      calma: "Se nota un momento de calma, y vale la pena reconocerlo. No siempre hay que usarlo para producir algo; también puede ser simplemente un respiro.",
+      alivio: "Ese alivio importa. A veces, después de tanta tensión, cuesta incluso permitir que el cuerpo baje la guardia; podemos darle espacio.",
+      esperanza: "Hay una parte de ti que todavía ve una posibilidad. No tiene que ser una certeza enorme para servir como punto de apoyo.",
+      neutral: "No estar especialmente bien ni mal también es una respuesta válida. Podemos conversar sin obligar al día a tener una etiqueta más intensa.",
+    };
+    return {
+      mode: "standard", presentation: "conversation", topic,
+      label: "Conversación cercana", title: emotionLabels[localEmotion.primary],
+      introduction: openings[localEmotion.primary] || "Gracias por ponerlo en palabras. Podemos verlo con calma y sin convertirlo en una etiqueta fija.",
+      insight: "", steps: [],
+      question: "¿Qué parte de esto es la que más te está pesando ahora?",
+      choices: ["Quiero desahogarme", "Ayúdame a entenderlo", "Pensemos qué sigue"],
+      sourceIds: [], openHelp: false, emotion: localEmotion,
+    };
+  }
 
   // Si el tema no cambió respecto al turno anterior, damos continuidad en vez de repetir la tarjeta inicial.
   if (topic === previousTopic && topic !== "inicio") {
