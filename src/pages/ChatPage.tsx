@@ -4,10 +4,13 @@ import {
   ArrowUp,
   BookOpenCheck,
   Check,
+  ChevronLeft,
+  ChevronRight,
   CircleHelp,
   ClipboardList,
   CloudOff,
   Database,
+  History,
   Leaf,
   ListChecks,
   Map,
@@ -16,8 +19,10 @@ import {
   RotateCcw,
   ShieldCheck,
   Sparkles,
+  Trash2,
   UserRoundSearch,
   WifiOff,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import BrandMark from "../components/BrandMark";
@@ -25,6 +30,7 @@ import Mascot, { Flower } from "../components/Mascot";
 import SupportBanner from "../components/SupportBanner";
 import { Button, DemoBadge, Modal } from "../components/ui";
 import { useChatMemory, type ChatMemoryEntry } from "../hooks/useChatMemory";
+import type { ChatHistoryApi, ChatHistorySession } from "../hooks/useChatHistory";
 import { stageForGrowth, type PetGardenApi } from "../hooks/usePetGarden";
 import type { ScreeningsState } from "../hooks/useScreenings";
 import { createReply, detectSafetySignal, type ChatTopic, type ConversationReply } from "../mock/conversation";
@@ -104,8 +110,17 @@ function buildPersonalContext(profile: DemoProfile, memory: ChatMemoryEntry[]): 
   return parts.length ? parts.join(". ") : undefined;
 }
 
-export default function ChatPage({ onHelp, navigate, preferences, screenings, garden, profile, deviceId }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences; screenings: ScreeningsState; garden: PetGardenApi; profile: DemoProfile; deviceId: string }) {
+function formatSessionDate(timestamp: number): string {
+  const date = new Date(timestamp);
+  const sameDay = date.toDateString() === new Date().toDateString();
+  if (sameDay) return date.toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit" });
+  return date.toLocaleDateString("es-MX", { day: "numeric", month: "short" });
+}
+
+export default function ChatPage({ onHelp, navigate, preferences, screenings, garden, profile, deviceId, chatHistory }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences; screenings: ScreeningsState; garden: PetGardenApi; profile: DemoProfile; deviceId: string; chatHistory: ChatHistoryApi }) {
   const memory = useChatMemory(preferences.rememberConversations, deviceId);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [viewingSession, setViewingSession] = useState<ChatHistorySession | null>(null);
   const screeningSuggestions = useMemo(() => buildScreeningSuggestions(screenings), [screenings.results]);
   const [messages, setMessages] = useState<ChatMessage[]>([{ id: 1, role: "assistant", reply: initialReply }]);
   const [companionGaining, setCompanionGaining] = useState(false);
@@ -191,6 +206,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
   }
 
   function resetChat() {
+    chatHistory.archive(messages, currentTopic);
     setMessages([{ id: Date.now(), role: "assistant", reply: initialReply }]);
     setCurrentTopic("inicio");
     setPlan([]);
@@ -206,8 +222,38 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
   }
 
   return (
-    <div className={`page chat-page chat-studio ${lowData ? "chat-low-data" : ""}`}>
+    <div className={`page chat-page chat-studio ${lowData ? "chat-low-data" : ""} ${historyOpen ? "history-open" : ""}`}>
       {screenings.showSupportBanner && <SupportBanner onHelp={onHelp} onAcknowledge={screenings.acknowledgeSupport} />}
+
+      <button className="history-tab" onClick={() => setHistoryOpen(!historyOpen)} aria-expanded={historyOpen} aria-label={historyOpen ? "Cerrar conversaciones anteriores" : "Ver conversaciones anteriores"}>
+        {historyOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+        <History size={16} />
+      </button>
+
+      <div className="history-backdrop" onClick={() => setHistoryOpen(false)} />
+
+      <aside className="history-drawer" aria-hidden={!historyOpen}>
+        <div className="history-drawer-head">
+          <span><History size={17} /> Conversaciones anteriores</span>
+          <button onClick={() => setHistoryOpen(false)} aria-label="Cerrar"><X size={18} /></button>
+        </div>
+        <p className="history-drawer-note">Se guardan solo en este dispositivo, nunca en un servidor. Puedes borrarlas en Perfil.</p>
+        {chatHistory.sessions.length === 0 ? (
+          <div className="history-empty"><MessageCircle size={26} /><p>Aún no tienes conversaciones guardadas. Cuando empieces una nueva desde "Iniciar conversación nueva", esta quedará aquí.</p></div>
+        ) : (
+          <ul className="history-list">
+            {[...chatHistory.sessions].reverse().map((session) => (
+              <li key={session.id}>
+                <button className="history-item" onClick={() => { setViewingSession(session); setHistoryOpen(false); }}>
+                  <span className="history-item-top"><strong>{topicNames[session.topic]}</strong><time>{formatSessionDate(session.startedAt)}</time></span>
+                  <span className="history-item-preview">{session.preview}</span>
+                </button>
+                <button className="history-item-delete" onClick={() => chatHistory.remove(session.id)} aria-label="Eliminar esta conversación"><Trash2 size={15} /></button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </aside>
       <section className="chat-command-bar">
         <div className="chat-brand-persona">
           <BrandMark size="medium" />
@@ -283,6 +329,17 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
             {activePrompt.choices.length > 0 && <div className="prompt-modal-choices">{activePrompt.choices.map((choice) => <button key={choice} onClick={() => choosePrompt(choice)}>{choice}<ArrowRight size={15} /></button>)}</div>}
             <Button variant="ghost" className="full-width" onClick={dismissPrompt}>Cerrar</Button>
           </div>
+        </Modal>
+      )}
+
+      {viewingSession && (
+        <Modal title={`${topicNames[viewingSession.topic]} · ${formatSessionDate(viewingSession.startedAt)}`} onClose={() => setViewingSession(null)}>
+          <div className="history-transcript">
+            {viewingSession.messages.map((message) => message.role === "user"
+              ? <div className="studio-message user" key={message.id}><div className="user-message">{message.text}</div></div>
+              : <div className="studio-message assistant" key={message.id} data-chat-message><BrandMark size="small" /><div className="assistant-response"><div className="assistant-card conversational"><p className="assistant-intro">{message.reply.introduction}</p>{message.reply.insight && <p className="assistant-insight">{message.reply.insight}</p>}</div></div></div>)}
+          </div>
+          <Button variant="ghost" className="full-width" onClick={() => setViewingSession(null)}>Cerrar</Button>
         </Modal>
       )}
     </div>

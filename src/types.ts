@@ -20,6 +20,8 @@ export interface Preferences {
   showMascot: boolean;
   textScale: TextScale;
   rememberConversations: boolean;
+  /** Full chat transcripts, kept only in this browser (never sent to the server) — separate from rememberConversations, which is topic-only and may sync. */
+  saveChatHistory: boolean;
 }
 
 export type CompanionType = "mascota" | "planta";

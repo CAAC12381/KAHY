@@ -291,7 +291,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .pet-fine-print { margin: 12px 0 0; color: var(--muted); font-size: .72rem; }
 
 /* Chat */
-.chat-page { height: calc(100vh - 128px); min-height: 650px; display: flex; flex-direction: column; }
+.chat-page { position: relative; height: calc(100vh - 128px); min-height: 650px; display: flex; flex-direction: column; }
 .chat-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 14px; }
 .chat-persona { display: flex; align-items: center; gap: 12px; }
 .chat-persona h1 { margin: 0 0 3px; font-size: 1.65rem; }
@@ -452,6 +452,33 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .plan-links button { min-height: 39px; display: grid; grid-template-columns: 19px 1fr 16px; align-items: center; gap: 6px; padding: 7px 8px; border: 0; border-radius: 10px; background: transparent; color: var(--purple-deep); text-align: left; font-size: .68rem; font-weight: 760; }
 .plan-links button:hover { background: var(--purple-soft); }
 .reset-chat { width: 100%; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 10px; border: 1px solid var(--line); border-radius: 11px; background: white; color: var(--muted); font-size: .65rem; }
+
+.history-tab { position: absolute; top: 84px; left: 0; z-index: 65; display: flex; align-items: center; gap: 4px; min-height: 40px; padding: 9px 11px 9px 8px; border: 1px solid var(--line); border-left: none; border-radius: 0 999px 999px 0; background: white; color: var(--purple-deep); box-shadow: var(--shadow-sm); transition: left .28s ease, background .15s ease; }
+.history-tab:hover { background: var(--purple-soft); }
+.chat-page.history-open .history-tab { left: min(320px, 88vw); }
+.history-backdrop { position: fixed; inset: 0; z-index: 60; background: rgba(40,41,36,.32); opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+.chat-page.history-open .history-backdrop { opacity: 1; pointer-events: auto; }
+.history-drawer { position: absolute; top: 0; left: 0; bottom: 0; z-index: 66; display: flex; flex-direction: column; width: min(320px, 88vw); padding: 18px 16px; border-right: 1px solid var(--line); background: var(--paper); box-shadow: var(--shadow-lg); transform: translateX(-100%); transition: transform .28s ease; }
+.chat-page.history-open .history-drawer { transform: translateX(0); }
+.history-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.history-drawer-head > span { display: flex; align-items: center; gap: 8px; font-weight: 800; color: var(--ink); }
+.history-drawer-head button { display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); }
+.history-drawer-head button:hover { background: var(--cream); }
+.history-drawer-note { margin: 10px 0; color: var(--muted); font-size: .72rem; line-height: 1.5; }
+.history-empty { display: grid; justify-items: center; gap: 10px; margin-top: 40px; padding: 24px; color: var(--muted); text-align: center; }
+.history-empty svg { color: var(--purple); opacity: .6; }
+.history-empty p { margin: 0; font-size: .78rem; line-height: 1.5; }
+.history-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; overflow-y: auto; }
+.history-list > li { position: relative; }
+.history-item { width: 100%; display: grid; gap: 4px; padding: 10px 34px 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: white; text-align: left; }
+.history-item:hover { border-color: var(--purple); background: var(--purple-soft); }
+.history-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: .78rem; }
+.history-item-top strong { color: var(--purple-deep); }
+.history-item-top time { flex: 0 0 auto; color: var(--muted); font-size: .68rem; }
+.history-item-preview { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--muted); font-size: .74rem; line-height: 1.4; }
+.history-item-delete { position: absolute; top: 8px; right: 6px; display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); }
+.history-item-delete:hover { background: white; color: #a3403f; }
+.history-transcript { display: grid; gap: 12px; max-height: 55vh; margin-bottom: 16px; padding-right: 4px; overflow-y: auto; }
 
 /* Activities */
 .activity-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 17px; }
