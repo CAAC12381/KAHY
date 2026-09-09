@@ -2,6 +2,7 @@ import { defineConfig, loadEnv, type HtmlTagDescriptor, type Plugin } from 'vite
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 
 import siteConfiguration from './.figma/make/site.json'
 import { getChatReply, getStatusPayload, readJsonBody } from './server/kahyAi'
@@ -109,10 +110,28 @@ function kahyDataApi(): Plugin {
     name: 'kahy-data-api',
     apply: 'serve',
     configureServer(server) {
-      server.middlewares.use('/api/data/profile', async (req, res) => {
-        res.setHeader('Content-Type', 'application/json; charset=utf-8')
-        res.setHeader('Cache-Control', 'no-store')
-        await ensureSchema()
+      /**
+       * Every handler below is wrapped by this: without it, an unconfigured
+       * POSTGRES_URL locally doesn't just 500 one request — the thrown
+       * VercelPostgresError is unhandled inside Vite's middleware chain and
+       * crashes the whole `vite dev` process. Confirmed the hard way.
+       */
+      function withDbErrorHandling(handler: (req: IncomingMessage, res: ServerResponse) => Promise<unknown>) {
+        return async (req: IncomingMessage, res: ServerResponse) => {
+          res.setHeader('Content-Type', 'application/json; charset=utf-8')
+          res.setHeader('Cache-Control', 'no-store')
+          try {
+            await ensureSchema()
+            await handler(req, res)
+          } catch (error) {
+            console.error('[KAHY DB]', error instanceof Error ? error.message : error)
+            res.statusCode = 503
+            res.end(JSON.stringify({ code: 'DB_NOT_CONFIGURED', error: 'La base de datos todavía no está disponible en el servidor.' }))
+          }
+        }
+      }
+
+      server.middlewares.use('/api/data/profile', withDbErrorHandling(async (req, res) => {
         if (req.method === 'GET') {
           const deviceId = getDeviceIdFromQuery(req.url)
           if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
@@ -141,12 +160,9 @@ function kahyDataApi(): Plugin {
         }
         res.statusCode = 405
         res.end(JSON.stringify({ error: 'Método no permitido.' }))
-      })
+      }))
 
-      server.middlewares.use('/api/data/screenings', async (req, res) => {
-        res.setHeader('Content-Type', 'application/json; charset=utf-8')
-        res.setHeader('Cache-Control', 'no-store')
-        await ensureSchema()
+      server.middlewares.use('/api/data/screenings', withDbErrorHandling(async (req, res) => {
         if (req.method === 'GET') {
           const deviceId = getDeviceIdFromQuery(req.url)
           if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
@@ -168,12 +184,9 @@ function kahyDataApi(): Plugin {
         }
         res.statusCode = 405
         res.end(JSON.stringify({ error: 'Método no permitido.' }))
-      })
+      }))
 
-      server.middlewares.use('/api/data/chat-memory', async (req, res) => {
-        res.setHeader('Content-Type', 'application/json; charset=utf-8')
-        res.setHeader('Cache-Control', 'no-store')
-        await ensureSchema()
+      server.middlewares.use('/api/data/chat-memory', withDbErrorHandling(async (req, res) => {
         if (req.method === 'GET') {
           const deviceId = getDeviceIdFromQuery(req.url)
           if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
@@ -197,12 +210,9 @@ function kahyDataApi(): Plugin {
         }
         res.statusCode = 405
         res.end(JSON.stringify({ error: 'Método no permitido.' }))
-      })
+      }))
 
-      server.middlewares.use('/api/data/pet-garden', async (req, res) => {
-        res.setHeader('Content-Type', 'application/json; charset=utf-8')
-        res.setHeader('Cache-Control', 'no-store')
-        await ensureSchema()
+      server.middlewares.use('/api/data/pet-garden', withDbErrorHandling(async (req, res) => {
         if (req.method === 'GET') {
           const deviceId = getDeviceIdFromQuery(req.url)
           if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
@@ -224,7 +234,7 @@ function kahyDataApi(): Plugin {
         }
         res.statusCode = 405
         res.end(JSON.stringify({ error: 'Método no permitido.' }))
-      })
+      }))
     },
   }
 }
