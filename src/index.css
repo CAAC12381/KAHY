@@ -459,12 +459,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .activity-card.task { background: linear-gradient(140deg, #f5efe4, #fbf8f1); }
 .activity-card.clouds { background: linear-gradient(140deg, #d9edf1, #f4fafb); }
 .activity-card.body { background: linear-gradient(140deg, #f7e2de, #fbf3ee); }
+.activity-card.bubbles { background: linear-gradient(140deg, var(--purple-soft), #eef6f6); }
 .activity-card .pill { margin: 26px 0 12px; }
 .activity-card h2 { margin-bottom: 8px; }
 .activity-card p { margin-bottom: 22px; }
 .activity-card .text-link { margin-top: auto; }
 .activity-detail > .back-link { margin-bottom: 14px; }
-.breathing-panel, .garden-panel, .emotion-panel, .task-panel, .clouds-panel, .body-panel { max-width: 900px; margin: 0 auto; padding: clamp(24px, 5vw, 48px); }
+.breathing-panel, .garden-panel, .emotion-panel, .task-panel, .clouds-panel, .body-panel, .bubbles-panel { max-width: 900px; margin: 0 auto; padding: clamp(24px, 5vw, 48px); }
 .game-frame { width: 100%; aspect-ratio: 4 / 3; margin-top: 8px; overflow: hidden; border: 1px solid rgba(63,65,57,.1); border-radius: 22px; }
 .game-frame iframe { width: 100%; height: 100%; border: 0; }
 .activity-title { display: flex; align-items: flex-start; gap: 18px; }

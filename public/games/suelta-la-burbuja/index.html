@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Suelta la Burbuja</title>
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Quicksand:wght@400;500;600&display=swap");
+
+  :root {
+    --page-bg: #201d24;
+    --bg: #2b2a30;
+    --bg-glow-a: #35303f;
+    --bg-glow-b: #2a3436;
+    --frame: #efe6d1;
+    --frame-dim: rgba(239, 230, 209, 0.28);
+    --ink: #f5efe2;
+    --ink-soft: #b6ac9a;
+    --ink-faint: #857c72;
+    --bubble-ink: #43394d;
+    --surface: rgba(245, 239, 226, 0.08);
+    --surface-border: rgba(245, 239, 226, 0.22);
+    --accent: #7fb0de;
+    --accent-ink: #1c2b38;
+    --positive: #8fd9c0;
+
+    --c0: #eec3d2; --c0-edge: #cf87a5;
+    --c1: #bfe0ee; --c1-edge: #7cb3cf;
+    --c2: #f0dcae; --c2-edge: #cf9f57;
+    --c3: #c6e2c4; --c3-edge: #7fb47e;
+    --c4: #d9c5ea; --c4-edge: #a97ed0;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    /* Fondo detrás del mockup de escritorio: mismas manchas pastel del
+       fondo acuarela de adentro de la tarjeta, pero muy tenues. */
+    background:
+      radial-gradient(36% 30% at 18% 12%, rgba(191, 224, 238, 0.1), transparent 70%),
+      radial-gradient(32% 26% at 84% 8%, rgba(217, 197, 234, 0.09), transparent 70%),
+      radial-gradient(38% 32% at 50% 100%, rgba(238, 195, 210, 0.08), transparent 70%),
+      var(--page-bg);
+    color: var(--ink);
+    font-family: "Quicksand", "Segoe UI", system-ui, sans-serif;
+    height: 100vh;
+    height: 100dvh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(10px, 2.5vh, 20px);
+    padding: clamp(10px, 3vh, 28px) 16px;
+  }
+
+  .page-heading {
+    text-align: center;
+    max-width: 460px;
+  }
+
+  .page-heading h1 {
+    font-family: "Baloo 2", sans-serif;
+    font-weight: 700;
+    font-size: clamp(19px, 3vw, 26px);
+    margin: 0 0 4px;
+    text-wrap: balance;
+  }
+
+  .page-heading p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+
+  /* --- marco del juego: llena el espacio disponible (escritorio o móvil) --- */
+  .phone {
+    width: 100%;
+    max-width: 1100px;
+    height: 100%;
+    background: var(--bg);
+    border: clamp(6px, 1.6vw, 10px) solid var(--frame);
+    border-radius: clamp(20px, 3vw, 34px);
+    box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.6);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bpg-root {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.28);
+  }
+
+  /* Fondo tipo acuarela: manchas de color translúcidas con blur (como
+     pigmento diluido) más una capa de grano de papel — CSS puro. */
+  .bpg-root::before {
+    content: "";
+    position: absolute;
+    inset: -6%;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(26% 22% at 14% 12%, color-mix(in srgb, var(--c1) 65%, transparent), transparent 72%),
+      radial-gradient(22% 20% at 82% 8%, color-mix(in srgb, var(--c2) 55%, transparent), transparent 72%),
+      radial-gradient(30% 26% at 92% 60%, color-mix(in srgb, var(--c4) 55%, transparent), transparent 74%),
+      radial-gradient(26% 24% at 10% 68%, color-mix(in srgb, var(--c3) 55%, transparent), transparent 74%),
+      radial-gradient(24% 22% at 55% 88%, color-mix(in srgb, var(--c0) 55%, transparent), transparent 74%),
+      radial-gradient(20% 18% at 48% 40%, color-mix(in srgb, var(--c1) 40%, transparent), transparent 78%);
+    filter: blur(18px) saturate(1.15);
+    mix-blend-mode: screen;
+    opacity: 0.5;
+  }
+
+  .bpg-root::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    background-size: 160px 160px;
+    mix-blend-mode: overlay;
+    opacity: 0.35;
+  }
+
+  .bpg-sound-toggle {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 5;
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    border: 1px solid var(--surface-border);
+    background: var(--surface);
+    backdrop-filter: blur(6px);
+    font-size: 15px;
+    cursor: pointer;
+  }
+
+  .bpg-scene {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .bpg-panel {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(8px, 2vh, 16px);
+    max-width: 290px;
+    padding: clamp(12px, 3vh, 24px) 24px;
+    text-align: center;
+  }
+  .bpg-panel.is-active { display: flex; }
+
+  .bpg-eyebrow {
+    font-weight: 600;
+    font-size: 10.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .bpg-message {
+    font-family: "Baloo 2", sans-serif;
+    font-weight: 600;
+    font-size: clamp(16px, 2.6vh, 19px);
+    line-height: 1.4;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .bpg-submessage {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  .bpg-hold-button {
+    --hold: 0;
+    position: relative;
+    width: clamp(96px, 18vh, 128px);
+    height: clamp(96px, 18vh, 128px);
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: var(--surface);
+    box-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.55);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    touch-action: none;
+  }
+
+  .bpg-hold-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    padding: 5px;
+    background: conic-gradient(from -90deg, var(--accent) calc(var(--hold) * 360deg), transparent calc(var(--hold) * 360deg));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+
+  .bpg-hold-ring::after {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border-radius: 50%;
+    border: 2px dashed var(--frame-dim);
+  }
+
+  .bpg-hold-label {
+    position: relative;
+    z-index: 1;
+    font-family: "Baloo 2", sans-serif;
+    font-weight: 600;
+    font-size: 12.5px;
+    padding: 0 16px;
+    line-height: 1.3;
+  }
+
+  .bpg-hold-button.is-holding { animation: hold-pulse 1.1s ease-in-out infinite; }
+  @keyframes hold-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+
+  .bpg-play-area { position: absolute; inset: 0; display: none; }
+  .bpg-play-area.is-active { display: block; }
+
+  /*
+    Dos capas a propósito: .bpg-bubble-track sólo controla POSICIÓN
+    (sube desde abajo animando `bottom`, que es relativo a la altura del
+    contenedor — a diferencia de `transform: translateY(%)`, que es
+    relativo al tamaño de la propia burbuja y por eso casi no se movía).
+    .bpg-bubble (adentro) es la burbuja en sí y sólo anima el "pop".
+  */
+  .bpg-bubble-track {
+    position: absolute;
+    bottom: -18%;
+    animation-name: bpg-rise;
+    animation-timing-function: ease-in-out;
+    animation-fill-mode: forwards;
+    will-change: bottom, transform, opacity;
+  }
+
+  .bpg-bubble-track.is-paused {
+    animation-play-state: paused;
+  }
+
+  @keyframes bpg-rise {
+    0%   { bottom: -18%; transform: translateX(0) scale(.85); opacity: 0; }
+    6%   { opacity: 1; transform: translateX(0) scale(1); }
+    25%  { bottom: 26%; transform: translateX(16px) scale(1.02); }
+    50%  { bottom: 58%; transform: translateX(-12px) scale(1); }
+    75%  { bottom: 90%; transform: translateX(14px) scale(.99); }
+    92%  { opacity: 1; }
+    100% { bottom: 128%; transform: translateX(0) scale(.95); opacity: 0; }
+  }
+
+  .bpg-bubble {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    text-align: center;
+    font-family: "Baloo 2", sans-serif;
+    font-weight: 600;
+    color: var(--bubble-ink);
+    touch-action: none;
+  }
+
+  .bpg-bubble[data-c="0"] { background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--c0) 92%, white 8%), var(--c0) 55%, var(--c0-edge) 100%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c0-edge) 55%, transparent), 0 10px 20px -10px rgba(0,0,0,.45); }
+  .bpg-bubble[data-c="1"] { background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--c1) 92%, white 8%), var(--c1) 55%, var(--c1-edge) 100%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c1-edge) 55%, transparent), 0 10px 20px -10px rgba(0,0,0,.45); }
+  .bpg-bubble[data-c="2"] { background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--c2) 92%, white 8%), var(--c2) 55%, var(--c2-edge) 100%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c2-edge) 55%, transparent), 0 10px 20px -10px rgba(0,0,0,.45); }
+  .bpg-bubble[data-c="3"] { background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--c3) 92%, white 8%), var(--c3) 55%, var(--c3-edge) 100%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c3-edge) 55%, transparent), 0 10px 20px -10px rgba(0,0,0,.45); }
+  .bpg-bubble[data-c="4"] { background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--c4) 92%, white 8%), var(--c4) 55%, var(--c4-edge) 100%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c4-edge) 55%, transparent), 0 10px 20px -10px rgba(0,0,0,.45); }
+
+  .bpg-bubble.is-popping {
+    animation: bpg-pop 700ms cubic-bezier(.22,.61,.36,1) forwards !important;
+    pointer-events: none;
+  }
+
+  @keyframes bpg-pop {
+    0%   { transform: scale(1); opacity: 1; filter: blur(0); }
+    35%  { transform: scale(1.28); opacity: .85; filter: blur(.5px); }
+    100% { transform: scale(1.7); opacity: 0; filter: blur(3px); }
+  }
+
+  .bpg-floating-text {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    font-family: "Baloo 2", sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--positive);
+    text-shadow: 0 2px 14px color-mix(in srgb, var(--positive) 45%, transparent);
+    pointer-events: none;
+    animation: bpg-float-up 1900ms ease-out forwards;
+    white-space: nowrap;
+  }
+
+  @keyframes bpg-float-up {
+    0%   { opacity: 0; transform: translate(-50%, -40%) scale(.9); }
+    15%  { opacity: 1; transform: translate(-50%, -55%) scale(1.05); }
+    100% { opacity: 0; transform: translate(-50%, -160%) scale(1); }
+  }
+
+  .bpg-closing.is-active { animation: fade-in 900ms ease-out both; }
+  @keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .bpg-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+  .bpg-btn {
+    font-family: "Baloo 2", sans-serif;
+    font-weight: 600;
+    font-size: 13.5px;
+    padding: 10px 20px;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    transition: transform .15s ease, filter .15s ease;
+  }
+  .bpg-btn:hover { transform: translateY(-1px); filter: brightness(1.08); }
+  .bpg-btn.primary { background: var(--accent); color: var(--accent-ink); }
+  .bpg-btn.secondary { background: var(--surface); color: var(--ink); border: 1px solid var(--surface-border); }
+
+  .caption {
+    max-width: 380px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink-faint);
+    line-height: 1.6;
+  }
+  .caption b { color: var(--ink-soft); font-weight: 600; }
+
+  @media (max-height: 640px) {
+    .page-heading, .caption { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bpg-bubble-track { animation-name: bpg-rise-reduced; }
+    .bpg-hold-button.is-holding { animation: none; }
+    .bpg-closing.is-active { animation: none; }
+    @keyframes bpg-rise-reduced {
+      0% { bottom: -18%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { bottom: 60%; opacity: 0; }
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-heading">
+  <h1>Suelta la burbuja</h1>
+  <p>Vista previa del mini-juego de regulación emocional para KAHY. Mantén presionado el botón para empezar.</p>
+</div>
+
+<div class="phone">
+  <div class="bpg-root" id="bpgRoot">
+    <button class="bpg-sound-toggle" id="soundToggle" aria-label="Silenciar sonido" title="Silenciar sonido">🔊</button>
+
+    <div class="bpg-scene">
+      <div class="bpg-panel is-active" id="introPanel">
+        <span class="bpg-eyebrow">✿ Prepárate</span>
+        <p class="bpg-message">Piensa en algo que te abrume hoy. Vamos a soltarlo juntos.</p>
+        <button class="bpg-hold-button" id="holdButton">
+          <span class="bpg-hold-ring"></span>
+          <span class="bpg-hold-label">Mantén presionado para iniciar</span>
+        </button>
+        <p class="bpg-submessage">Acomoda tu cuerpo y respira profundo antes de comenzar.</p>
+      </div>
+
+      <div class="bpg-play-area" id="playArea"></div>
+
+      <div class="bpg-panel bpg-closing" id="closingPanel">
+        <span class="bpg-eyebrow">✿ Cierre</span>
+        <p class="bpg-message">Lo estás haciendo bien. Tómate un momento para notar cómo se siente tu cuerpo ahora.</p>
+        <div class="bpg-actions">
+          <button class="bpg-btn secondary" id="restartButton">Volver a empezar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="caption">Mismo motor que el componente <b>&lt;BubblePopGame /&gt;</b> (TypeScript), aquí reescrito en JS plano para esta vista previa. Sin puntuación visible — el conteo de burbujas es solo interno, para decidir cuándo cerrar la sesión.</p>
+
+<script>
+(function () {
+  "use strict";
+
+  var WORD_PAIRS = [
+    { heavy: "Miedo", light: "Seguridad" },
+    { heavy: "Ruido", light: "Calma" },
+    { heavy: "Control", light: "Confianza" },
+    { heavy: "Pasado", light: "Presente" },
+    { heavy: "Ansiedad", light: "Paz" },
+    { heavy: "Culpa", light: "Perdón" },
+    { heavy: "Duda", light: "Claridad" },
+    { heavy: "Cansancio", light: "Descanso" },
+    { heavy: "Presión", light: "Libertad" },
+    { heavy: "Soledad", light: "Compañía" },
+    { heavy: "Prisa", light: "Pausa" },
+    { heavy: "Caos", light: "Orden" }
+  ];
+
+  var CONFIG = {
+    maxConcurrentBubbles: 5,
+    spawnIntervalRangeS: [1.8, 3.4],
+    riseDurationRangeS: [16, 26],
+    bubbleSizeRangePx: [60, 90],
+    holdToStartMs: 2000,
+    popAnimationMs: 700,
+    floatingTextMs: 1900,
+    popsToCloseRange: [15, 20],
+    maxSessionDurationS: 120,
+    windDownDurationS: 8,
+    spawnRampPopsToMax: 12,
+    spawnRampMaxMultiplier: 2.4
+  };
+
+  function rand(min, max) { return min + Math.random() * (max - min); }
+  function randInt(min, max) { return Math.round(rand(min, max)); }
+  var idc = 0;
+  function nextId(p) { return p + "-" + Date.now() + "-" + idc++; }
+
+  var introPanel = document.getElementById("introPanel");
+  var playArea = document.getElementById("playArea");
+  var closingPanel = document.getElementById("closingPanel");
+  var holdButton = document.getElementById("holdButton");
+  var restartButton = document.getElementById("restartButton");
+  var soundToggle = document.getElementById("soundToggle");
+
+  var phase = "intro";
+  var popCount = 0;
+  var closeThreshold = randInt(CONFIG.popsToCloseRange[0], CONFIG.popsToCloseRange[1]);
+  var spawnRateMultiplier = 1;
+  var difficultyMultiplier = 1;
+  var bubbleEls = {};
+  var soundEnabled = true;
+
+  var spawnTimeout, sessionTimeout, windDownInterval, holdTimeout, holdInterval;
+
+  // ---- audio: tono suave sintetizado, sin archivos externos ----
+  var audioCtx = null;
+  function unlockAudio() {
+    if (!soundEnabled) return;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    if (!audioCtx) audioCtx = new AC();
+    if (audioCtx.state === "suspended") audioCtx.resume().catch(function () {});
+  }
+  function playPop() {
+    if (!soundEnabled || !audioCtx) return;
+    var now = audioCtx.currentTime;
+    var fundamental = 196;
+    var master = audioCtx.createGain();
+    master.gain.setValueAtTime(0, now);
+    master.connect(audioCtx.destination);
+    var lowpass = audioCtx.createBiquadFilter();
+    lowpass.type = "lowpass";
+    lowpass.frequency.setValueAtTime(900, now);
+    lowpass.Q.value = 0.4;
+    lowpass.connect(master);
+    [1, 1.503].forEach(function (ratio, i) {
+      var osc = audioCtx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(fundamental * ratio, now);
+      var gain = audioCtx.createGain();
+      var peak = i === 0 ? 0.22 : 0.09;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(peak, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0008, now + 1.1);
+      osc.connect(gain).connect(lowpass);
+      osc.start(now);
+      osc.stop(now + 1.2);
+    });
+    master.gain.linearRampToValueAtTime(0.6, now + 0.02);
+    master.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+  }
+
+  soundToggle.addEventListener("click", function () {
+    soundEnabled = !soundEnabled;
+    soundToggle.textContent = soundEnabled ? "🔊" : "🔈";
+    soundToggle.setAttribute("aria-label", soundEnabled ? "Silenciar sonido" : "Activar sonido");
+  });
+
+  function setPhase(next) {
+    phase = next;
+    introPanel.classList.toggle("is-active", phase === "intro");
+    playArea.classList.toggle("is-active", phase === "playing" || phase === "closing");
+    closingPanel.classList.toggle("is-active", phase === "done");
+  }
+
+  // ---- fase 1: mantener presionado ----
+  function beginHold() {
+    if (phase !== "intro" || holdTimeout) return;
+    unlockAudio();
+    var start = performance.now();
+    holdButton.classList.add("is-holding");
+    holdInterval = setInterval(function () {
+      var p = Math.min(1, (performance.now() - start) / CONFIG.holdToStartMs);
+      holdButton.style.setProperty("--hold", p);
+    }, 40);
+    holdTimeout = setTimeout(function () {
+      holdButton.style.setProperty("--hold", 1);
+      cancelHold();
+      startSession();
+    }, CONFIG.holdToStartMs);
+  }
+  function cancelHold() {
+    if (holdTimeout) { clearTimeout(holdTimeout); holdTimeout = null; }
+    if (holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+    holdButton.classList.remove("is-holding");
+    if (phase === "intro") holdButton.style.setProperty("--hold", 0);
+  }
+  holdButton.addEventListener("pointerdown", beginHold);
+  holdButton.addEventListener("pointerup", cancelHold);
+  holdButton.addEventListener("pointerleave", cancelHold);
+  holdButton.addEventListener("pointercancel", cancelHold);
+
+  // ---- fases 2-3: burbujas ----
+  function startSession() {
+    setPhase("playing");
+    popCount = 0;
+    closeThreshold = randInt(CONFIG.popsToCloseRange[0], CONFIG.popsToCloseRange[1]);
+    spawnRateMultiplier = 1;
+    difficultyMultiplier = 1;
+    sessionTimeout = setTimeout(beginClosing, CONFIG.maxSessionDurationS * 1000);
+    scheduleNextSpawn();
+  }
+
+  function scheduleNextSpawn() {
+    if (phase !== "playing" && phase !== "closing") return;
+    var base = rand(CONFIG.spawnIntervalRangeS[0], CONFIG.spawnIntervalRangeS[1]) * 1000;
+    var combinedRate = spawnRateMultiplier * difficultyMultiplier;
+    var delay = combinedRate > 0 ? base / combinedRate : Infinity;
+    spawnTimeout = setTimeout(function () {
+      trySpawnBubble();
+      scheduleNextSpawn();
+    }, delay);
+  }
+
+  function trySpawnBubble() {
+    if (phase !== "playing" && phase !== "closing") return;
+    if (spawnRateMultiplier <= 0) return;
+    if (Object.keys(bubbleEls).length >= CONFIG.maxConcurrentBubbles) return;
+
+    var pair = WORD_PAIRS[randInt(0, WORD_PAIRS.length - 1)];
+    var size = rand(CONFIG.bubbleSizeRangePx[0], CONFIG.bubbleSizeRangePx[1]);
+    // Dispersas por todo el ancho del área de juego, siempre naciendo
+    // desde abajo (ver bottom:-18% en el CSS de .bpg-bubble).
+    var x = rand(8, 92);
+    var riseS = rand(CONFIG.riseDurationRangeS[0], CONFIG.riseDurationRangeS[1]);
+    var swayDelay = rand(0, 4);
+    var colorVariant = randInt(0, 4);
+    var id = nextId("bubble");
+
+    // Dos elementos: el "track" exterior sólo sube (posición); el botón
+    // interior es la burbuja clicable y sólo anima el "pop". Así, tronarla
+    // nunca hace que salte de lugar — su vuelo sólo se pausa donde iba.
+    var track = document.createElement("div");
+    track.className = "bpg-bubble-track";
+    track.style.left = x + "%";
+    track.style.width = size + "px";
+    track.style.height = size + "px";
+    track.style.animationDuration = riseS + "s";
+    track.style.animationDelay = (-swayDelay) + "s";
+    track.addEventListener("animationend", function (e) {
+      if (e.animationName === "bpg-rise") removeBubble(id);
+    });
+
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "bpg-bubble";
+    btn.setAttribute("data-c", String(colorVariant));
+    btn.setAttribute("aria-label", "Soltar: " + pair.heavy);
+    btn.textContent = pair.heavy;
+    btn.style.fontSize = Math.max(11, size * 0.16) + "px";
+    btn.addEventListener("pointerdown", function () { popBubble(id); });
+
+    track.appendChild(btn);
+    bubbleEls[id] = { track: track, btn: btn, pair: pair, x: x };
+    playArea.appendChild(track);
+  }
+
+  function removeBubble(id) {
+    var entry = bubbleEls[id];
+    if (!entry) return;
+    entry.track.remove();
+    delete bubbleEls[id];
+  }
+
+  function popBubble(id) {
+    var entry = bubbleEls[id];
+    if (!entry || entry.popping) return;
+    entry.popping = true;
+    entry.track.classList.add("is-paused"); // congela el vuelo justo donde iba
+    entry.btn.classList.add("is-popping");
+    playPop();
+
+    var pair = entry.pair, x = entry.x;
+    setTimeout(function () {
+      removeBubble(id);
+      spawnFloatingText(pair, x);
+    }, CONFIG.popAnimationMs);
+
+    registerPop();
+  }
+
+  function spawnFloatingText(pair, x) {
+    var el = document.createElement("span");
+    el.className = "bpg-floating-text";
+    el.textContent = pair.light;
+    el.style.left = x + "%";
+    el.style.top = "50%";
+    playArea.appendChild(el);
+    setTimeout(function () { el.remove(); }, CONFIG.floatingTextMs);
+  }
+
+  function registerPop() {
+    popCount += 1;
+    updateDifficulty();
+    if (popCount >= closeThreshold && phase === "playing") beginClosing();
+  }
+
+  // Sube gradualmente la frecuencia de aparición según los pops de la sesión:
+  // empieza en x1 (ritmo lento normal) y llega a spawnRampMaxMultiplier al
+  // alcanzar spawnRampPopsToMax pops. No toca la velocidad de subida.
+  function updateDifficulty() {
+    var progress = Math.min(1, popCount / Math.max(1, CONFIG.spawnRampPopsToMax));
+    difficultyMultiplier = 1 + progress * (CONFIG.spawnRampMaxMultiplier - 1);
+  }
+
+  // ---- fase 5: cierre ----
+  function beginClosing() {
+    if (phase !== "playing") return;
+    setPhase("closing");
+    if (sessionTimeout) clearTimeout(sessionTimeout);
+
+    var steps = 6, step = 0;
+    windDownInterval = setInterval(function () {
+      step += 1;
+      spawnRateMultiplier = Math.max(0, 1 - step / steps);
+      if (step >= steps) {
+        spawnRateMultiplier = 0;
+        clearInterval(windDownInterval);
+      }
+    }, (CONFIG.windDownDurationS * 1000) / steps);
+
+    var waitedStart = performance.now();
+    var maxWaitMs = (CONFIG.windDownDurationS + 12) * 1000;
+    (function checkSettled() {
+      var noneLeft = Object.keys(bubbleEls).length === 0;
+      var timedOut = performance.now() - waitedStart > maxWaitMs;
+      if ((noneLeft && spawnRateMultiplier === 0) || timedOut) {
+        setPhase("done");
+        return;
+      }
+      setTimeout(checkSettled, 500);
+    })();
+  }
+
+  function restart() {
+    if (spawnTimeout) clearTimeout(spawnTimeout);
+    if (sessionTimeout) clearTimeout(sessionTimeout);
+    if (windDownInterval) clearInterval(windDownInterval);
+    Object.keys(bubbleEls).forEach(function (id) { removeBubble(id); });
+    Array.prototype.forEach.call(playArea.querySelectorAll(".bpg-floating-text"), function (n) { n.remove(); });
+    popCount = 0;
+    spawnRateMultiplier = 1;
+    difficultyMultiplier = 1;
+    setPhase("intro");
+  }
+  restartButton.addEventListener("click", restart);
+})();
+</script>
+</body>
+</html>
