@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ScreeningId, ScreeningResult } from "../types";
+import { fetchRemoteScreenings, saveRemoteScreening } from "../services/dataApi";
 
 const STORAGE_KEY = "kahy.screenings.v1";
 const SUPPORT_ACK_KEY = "kahy.screenings.support-ack.v1";
@@ -34,13 +35,23 @@ function readSupportAcknowledged(): boolean {
 }
 
 /**
- * Local, on-device history of self-report screening results (no backend — this app has none).
+ * History of self-report screening results, mirrored to Postgres by deviceId
+ * so it survives a cleared cache (localStorage stays the fast local read).
  * Deliberately does not compute a "risk level": it only ever surfaces the published band/cutoff
  * for the instrument itself, plus a support banner when the PHQ-9 safety item is endorsed.
  */
-export function useScreenings() {
+export function useScreenings(deviceId: string) {
   const [results, setResults] = useState<ScreeningResult[]>(readResults);
   const [supportAcknowledged, setSupportAcknowledged] = useState<boolean>(readSupportAcknowledged);
+
+  useEffect(() => {
+    fetchRemoteScreenings(deviceId).then((remote) => {
+      if (!remote || !remote.length) return;
+      writeResults(remote as ScreeningResult[]);
+      setResults(remote as ScreeningResult[]);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deviceId]);
 
   function saveResult(result: ScreeningResult) {
     setResults((current) => {
@@ -48,6 +59,7 @@ export function useScreenings() {
       writeResults(next);
       return next;
     });
+    saveRemoteScreening(deviceId, result);
     if (result.item9Positive) {
       setSupportAcknowledged(false);
       try {

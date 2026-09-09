@@ -15,11 +15,11 @@ export async function getAiStatus(): Promise<AiConnection> {
   }
 }
 
-export async function requestAiReply(messages: ApiChatMessage[]): Promise<{ reply: ConversationReply; provider: string }> {
+export async function requestAiReply(messages: ApiChatMessage[], context?: string): Promise<{ reply: ConversationReply; provider: string }> {
   const response = await fetch("/api/kahy/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, context }),
   });
   const data = await response.json().catch(() => ({})) as { reply?: ConversationReply; provider?: string; code?: string; error?: string };
   if (!response.ok || !data.reply) {

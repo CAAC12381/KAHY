@@ -11,6 +11,40 @@ export type MascotId = "vaca" | "pollito" | "camaleon" | "tortuga";
 export type FlowerId = "Clavel" | "Gerbera" | "Orquidea" | "Tulipan";
 export type PetMood = "feliz" | "triste";
 
+export type EmotionName =
+  | "alegría"
+  | "calma"
+  | "alivio"
+  | "esperanza"
+  | "tristeza"
+  | "ansiedad"
+  | "miedo"
+  | "enojo"
+  | "frustración"
+  | "culpa"
+  | "soledad"
+  | "cansancio"
+  | "confusión"
+  | "agobio"
+  | "neutral"
+  | "no_clara";
+
+export type EmotionIntensity = "suave" | "media" | "intensa" | "no_clara";
+export type EmotionalProgress = "expresó" | "identificó" | "reflexionó" | "decidió" | "actuó" | "pidió_apoyo" | "sin_señal";
+
+export interface EmotionInsight {
+  primary: EmotionName;
+  detail: string;
+  intensity: EmotionIntensity;
+  progress: EmotionalProgress;
+  confidence: "baja" | "media" | "alta";
+}
+
+export interface EmotionEntry extends EmotionInsight {
+  id: string;
+  at: number;
+}
+
 export type TextScale = "normal" | "large";
 
 export interface Preferences {
@@ -20,6 +54,8 @@ export interface Preferences {
   showMascot: boolean;
   textScale: TextScale;
   rememberConversations: boolean;
+  /** Full chat transcripts, kept only in this browser (never sent to the server) — separate from rememberConversations, which is topic-only and may sync. */
+  saveChatHistory: boolean;
 }
 
 export type CompanionType = "mascota" | "planta";

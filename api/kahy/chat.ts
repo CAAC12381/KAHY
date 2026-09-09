@@ -27,12 +27,12 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
   }
 
   // Vercel's Node runtime parses a JSON request body onto req.body for us.
-  const body = req.body as { messages?: unknown } | undefined
+  const body = req.body as { messages?: unknown; context?: unknown } | undefined
   const forwardedFor = req.headers['x-forwarded-for']
   const clientId = (Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor)
     || req.socket?.remoteAddress
     || 'vercel'
 
-  const { status, body: responseBody } = await getChatReply(body?.messages, clientId)
+  const { status, body: responseBody } = await getChatReply(body?.messages, clientId, body?.context)
   res.status(status).json(responseBody)
 }

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ChatTopic } from "../mock/conversation";
+import { fetchRemoteChatMemory, saveRemoteChatMemory, clearRemoteChatMemory } from "../services/dataApi";
 
 export type ChatMemoryEntry = { topic: ChatTopic; at: number };
 
@@ -26,15 +27,35 @@ function writeMemory(entries: ChatMemoryEntry[]) {
   }
 }
 
-export function useChatMemory(enabled: boolean) {
+/**
+ * Topic-only memory of recent conversations, opt-in via rememberConversations.
+ * localStorage is read immediately so the UI never waits on a network round
+ * trip; the database (keyed by deviceId, no account needed) is a durable
+ * mirror consulted once on mount so memory survives a cleared cache or a
+ * different browser on the same person's data.
+ */
+export function useChatMemory(enabled: boolean, deviceId: string) {
   const [entries, setEntries] = useState<ChatMemoryEntry[]>(() => (enabled ? readMemory() : []));
 
+  useEffect(() => {
+    if (!enabled) return;
+    fetchRemoteChatMemory(deviceId).then((remote) => {
+      if (!remote || !remote.length) return;
+      const merged = remote as ChatMemoryEntry[];
+      writeMemory(merged);
+      setEntries(merged);
+    });
+    // Solo al activarse o cambiar de dispositivo — remember() ya mantiene el estado local al día después de esto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, deviceId]);
+
   function remember(topic: ChatTopic) {
-    if (!enabled || topic === "inicio") return;
+    if (!enabled || topic === "inicio" || topic === "conversación") return;
     setEntries((current) => {
       if (current.length && current[current.length - 1].topic === topic) return current;
       const next = [...current, { topic, at: Date.now() }].slice(-MAX_ENTRIES);
       writeMemory(next);
+      saveRemoteChatMemory(deviceId, topic);
       return next;
     });
   }
@@ -42,6 +63,7 @@ export function useChatMemory(enabled: boolean) {
   function clear() {
     writeMemory([]);
     setEntries([]);
+    clearRemoteChatMemory(deviceId);
   }
 
   return { entries, remember, clear };
