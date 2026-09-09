@@ -182,7 +182,8 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
     const minimumDelay = detectSafetySignal(clean) ? 250 : 650;
     const remaining = Math.max(0, minimumDelay - (Date.now() - started));
     if (remaining) await new Promise((resolve) => window.setTimeout(resolve, remaining));
-    const emotion = reply.emotion ?? inferLocalEmotion(clean);
+    const localEmotion = inferLocalEmotion(clean);
+    const emotion = !reply.emotion || (reply.emotion.primary === "no_clara" && localEmotion.primary !== "no_clara") ? localEmotion : reply.emotion;
     reply = { ...reply, emotion };
     setMessages((current) => [...current, { id: Date.now() + 1, role: "assistant", reply }]);
     setCurrentTopic(reply.topic);
