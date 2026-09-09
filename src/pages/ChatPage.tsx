@@ -34,7 +34,7 @@ import type { ChatHistoryApi, ChatHistorySession } from "../hooks/useChatHistory
 import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
 import { stageForGrowth, type PetGardenApi } from "../hooks/usePetGarden";
 import type { ScreeningsState } from "../hooks/useScreenings";
-import { createReply, detectSafetySignal, type ChatTopic, type ConversationReply } from "../mock/conversation";
+import { createReply, detectSafetySignal, getTopic, type ChatTopic, type ConversationReply } from "../mock/conversation";
 import { flowers, mascots, trustedSources } from "../mock/data";
 import { emotionLabels, inferLocalEmotion } from "../lib/emotionLexicon";
 import type { DemoProfile, MainView, Preferences } from "../types";
@@ -183,8 +183,10 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
     const remaining = Math.max(0, minimumDelay - (Date.now() - started));
     if (remaining) await new Promise((resolve) => window.setTimeout(resolve, remaining));
     const localEmotion = inferLocalEmotion(clean);
-    const emotion = !reply.emotion || (reply.emotion.primary === "no_clara" && localEmotion.primary !== "no_clara") ? localEmotion : reply.emotion;
-    reply = { ...reply, emotion };
+    const modelEmotionUsable = reply.emotion && reply.emotion.primary !== "no_clara" && reply.emotion.confidence !== "baja" && reply.emotion.progress !== "sin_señal";
+    const emotion = !modelEmotionUsable && localEmotion.primary !== "no_clara" ? localEmotion : reply.emotion ?? localEmotion;
+    const localTopic = getTopic(clean);
+    reply = { ...reply, topic: reply.topic === "conversación" && localTopic !== "conversación" ? localTopic : reply.topic, emotion };
     setMessages((current) => [...current, { id: Date.now() + 1, role: "assistant", reply }]);
     setCurrentTopic(reply.topic);
     if (reply.steps.length) setPlan(reply.steps.map((step) => ({ text: `${step.horizon}: ${step.text}`, done: false })));
