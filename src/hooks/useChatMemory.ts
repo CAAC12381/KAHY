@@ -30,7 +30,7 @@ export function useChatMemory(enabled: boolean) {
   const [entries, setEntries] = useState<ChatMemoryEntry[]>(() => (enabled ? readMemory() : []));
 
   function remember(topic: ChatTopic) {
-    if (!enabled || topic === "inicio") return;
+    if (!enabled || topic === "inicio" || topic === "conversación") return;
     setEntries((current) => {
       if (current.length && current[current.length - 1].topic === topic) return current;
       const next = [...current, { topic, at: Date.now() }].slice(-MAX_ENTRIES);

@@ -1,7 +1,15 @@
 {
-  "description": "Offers a calming, user-friendly platform for emotional support and mental wellness with guided chats, relaxation exercises, and helpful resources.",
+  "title": "KAHY · Orientación y acompañamiento",
+  "description": "KAHY ofrece conversación y herramientas de orientación emocional con rutas de apoyo para personas adultas en México.",
+  "language": "es-MX",
   "robots": {
-    "index": false
+    "index": true
+  },
+  "icons": {
+    "icon": "/assets/kahy-logo.png"
+  },
+  "openGraph": {
+    "image": "/assets/kahy-logo.png"
   },
   "accessibility": {
     "addBypassLinks": false,
