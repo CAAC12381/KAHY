@@ -144,19 +144,24 @@ flowchart TB
   HCM -.->|persiste| LS
   HDH -.->|persiste| LS
 
-  subgraph SERVIDOR["Funciones serverless — Vercel"]
+  subgraph SERVIDOR["Funciones serverless — Vercel (producción)"]
     APICH["api/kahy/chat.ts"]
     APIST["api/kahy/status.ts"]
-    KAHYAI["server/kahyAi.ts<br/>elige proveedor + modera contenido"]
-    APICH --> KAHYAI
-    APIST --> KAHYAI
+    LIBAI["api/_lib/kahyAi.ts<br/>elige proveedor + modera contenido"]
+    APICH --> LIBAI
+    APIST --> LIBAI
   end
+
+  DEVMW["vite.config.ts<br/>middleware de desarrollo"]
+  DEVAI["server/kahyAi.ts<br/>copia usada solo en dev local"]
+  DEVMW --> DEVAI
 
   SVC -->|"POST /api/kahy/chat<br/>GET /api/kahy/status"| APICH
 
   EXT[["Groq / OpenAI"]]
-  KAHYAI -->|petición HTTP| EXT
-  EXT -->|respuesta generada| KAHYAI
+  LIBAI -->|petición HTTP| EXT
+  DEVAI -.->|petición HTTP<br/>solo en dev| EXT
+  EXT -->|respuesta generada| LIBAI
 ```
 
 **Notas**
@@ -164,10 +169,15 @@ flowchart TB
 - Cinco claves distintas de `localStorage` — `kahy.registration.v1`, `kahy.pet-garden.v1`,
   `kahy.screenings.v1`, `kahy.chat-memory.v1`, `kahy.daily-habits.v1` — cada una detrás de su propio hook,
   ninguna compartida directamente entre componentes.
-- `server/kahyAi.ts` prioriza **Groq** sobre **OpenAI** según qué variable de entorno exista, y añade una capa
-  de moderación antes de responder.
-- El mismo módulo `mock/conversation.ts` sirve dos rutas: es el *fallback* del cliente cuando la IA falla, y
-  la fuente de la que se nutre el propio servidor al construir el contexto de seguridad.
+- ⚠️ **Duplicación conocida:** existen dos copias casi idénticas de la lógica de IA —
+  `server/kahyAi.ts` (usada solo por el middleware de `vite dev`) y `api/_lib/kahyAi.ts` (la que de verdad
+  corre en producción). Se separaron porque el *bundler* de funciones de Vercel no lograba empaquetar un
+  import fuera de `api/`; el propio código lo señala como duplicado en un comentario de
+  `src/mock/conversation.ts`. Cualquier cambio a la lógica de IA debe aplicarse en ambos archivos.
+- Ambas copias priorizan **Groq** sobre **OpenAI** según qué variable de entorno exista, y añaden una capa de
+  moderación antes de responder.
+- El módulo `mock/conversation.ts` sirve dos rutas: es el *fallback* del cliente cuando la IA falla, y la
+  fuente de la que se nutren ambas copias del servidor al construir el contexto de seguridad.
 
 ---
 
