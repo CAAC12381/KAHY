@@ -17,10 +17,12 @@ export type ChatTopic =
   | "medicación"
   | "diagnóstico"
   | "apoyo"
-  | "autocuidado";
+  | "autocuidado"
+  | "conversación";
 
 export type ConversationReply = {
   mode: ReplyMode;
+  presentation?: "conversation" | "guided";
   topic: ChatTopic;
   label: string;
   title: string;
@@ -47,6 +49,8 @@ const safetyPatterns = [
   /me quiero morir ya/i,
   /suicid/i,
   /matarme/i,
+  /(me quiero|quiero|voy a|planeo|pienso) (matar|matarme|suicidarme)/i,
+  /quitarme la vida/i,
   /me voy a matar/i,
   /acabar con mi vida/i,
   /terminar con todo esto/i,
@@ -78,6 +82,7 @@ const safetyPatterns = [
   /tomé demasiadas pastillas/i,
   /me tome todas las pastillas/i,
   /no (está|esta) respirando/i,
+  /no puedo respirar/i,
   /está inconsciente/i,
   /violencia.*ahora/i,
   /me están golpeando/i,
@@ -172,7 +177,7 @@ export function getTopic(input: string): ChatTopic {
     "me esta llevando la fregada", "esta bien cabron esto", "esta bien gacho todo", "no mames ya no aguanto",
     "puta madre ya no puedo", "chingado ya no se que hacer", "estoy jodido", "estoy jodida", "valio madres todo",
   ])) return "estrés";
-  return "inicio";
+  return "conversación";
 }
 
 type FaqKey = "saludo" | "gracias" | "despedida" | "queEsKahy" | "costo" | "privacidad" | "humano" | "capacidades" | "numeroEmergencia";
@@ -814,36 +819,17 @@ export function createReply(input: string, previousTopic: ChatTopic = "inicio"):
     choices: ["Sensaciones físicas", "Pensamientos repetitivos", "Problema concreto"], sourceIds: ["nice-panic-anxiety", "who-ai-health"],
   };
 
-  // Tema no identificado por palabra clave: si veníamos de otro tema, damos continuidad genérica en vez de reiniciar.
-  if (previousTopic !== "inicio") {
-    return {
-      mode: "standard",
-      topic: previousTopic,
-      label: "Seguimos en la conversación",
-      title: "No identifiqué una palabra clave nueva, pero seguimos en esto",
-      introduction: `Leo lo que compartes: “${truncateQuote(input)}”. No reconozco un tema nuevo específico, así que seguimos con lo que veníamos hablando para no perder el hilo.`,
-      insight: "Puedes describirlo con otras palabras o elegir una opción de abajo si prefieres cambiar de tema.",
-      steps: [
-        { horizon: "Seguir", text: "Cuéntame un poco más sobre esta parte, con tus propias palabras." },
-        { horizon: "Cambiar de tema", text: "O dime directamente qué tipo de apoyo necesitas ahora." },
-      ],
-      question: "¿Seguimos con esto o prefieres cambiar de tema?",
-      choices: ["Seguir con esto", "Cambiar de tema", "Buscar atención"],
-      sourceIds: ["who-ai-health"],
-    };
-  }
-
   return {
-    mode: "standard", topic, label: "Conversación guiada", title: "Podemos ordenar esto sin asumir un diagnóstico",
-    introduction: "Para ayudarte de forma más útil, necesito ubicar qué tipo de apoyo buscas ahora. Este motor usa rutas escritas y no interpreta clínicamente tu historia.",
-    insight: "Puedes compartir solo lo que te resulte cómodo. Evita nombres completos, direcciones u otros datos identificables.",
-    steps: [
-      { horizon: "1 · Situación", text: "Describe en una frase qué está pasando, sin explicar toda la historia." },
-      { horizon: "2 · Impacto", text: "Indica qué está afectando más: seguridad, cuerpo, sueño, tareas, consumo, relaciones o acceso a atención." },
-      { horizon: "3 · Objetivo", text: "Elige qué necesitas de esta conversación: ordenar, hacer un plan, practicar una herramienta o buscar apoyo humano." },
-    ],
-    question: "¿Por dónde prefieres comenzar?",
-    choices: ["Estrés o ansiedad", "Ánimo bajo", "Sobrecarga neurodivergente", "Consumo", "Buscar atención"],
-    sourceIds: ["who-ai-health", "mexico-privacy"],
+    mode: "standard",
+    presentation: "conversation",
+    topic: "conversación",
+    label: "Conversación abierta",
+    title: "Te sigo leyendo",
+    introduction: `Leí esta parte: “${truncateQuote(input)}”. En este momento está activo el respaldo local, que es más limitado para temas abiertos, pero podemos seguir conversando sin forzar lo que dices dentro de una categoría que no corresponde.`,
+    insight: "Si me cuentas qué te gustaría obtener de esta conversación, puedo orientarte mejor mientras se recupera la respuesta generativa.",
+    steps: [],
+    question: "¿Quieres que te escuche, que pensemos opciones o que resolvamos una duda concreta?",
+    choices: ["Solo quiero contarlo", "Pensemos opciones", "Tengo una duda concreta"],
+    sourceIds: [],
   };
 }
