@@ -104,7 +104,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
   const [aiConnection, setAiConnection] = useState<AiConnection>("checking");
   const [activePrompt, setActivePrompt] = useState<ConversationReply | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
   const sendingRef = useRef(false);
 
   useEffect(() => {
@@ -119,15 +119,9 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
     return () => window.clearTimeout(timer);
   }, [garden.pulse]);
 
+  // Ancla siempre al último elemento: se dispara al enviar, al recibir la respuesta y mientras "escribe…" está visible.
   useEffect(() => {
-    const scroll = scrollRef.current;
-    if (!scroll) return;
-    const messageNodes = scroll.querySelectorAll<HTMLElement>("[data-chat-message]");
-    const latestMessage = messageNodes.item(messageNodes.length - 1);
-    const top = typing || !latestMessage
-      ? scroll.scrollHeight
-      : Math.max(0, latestMessage.offsetTop - 12);
-    scroll.scrollTo({ top, behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, typing]);
 
   async function send(text = value) {
@@ -223,11 +217,12 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
         </aside>
 
         <section className="conversation-panel" aria-label="Conversación de orientación">
-          <div className="conversation-scroll" ref={scrollRef} role="log" aria-live="polite" aria-relevant="additions" aria-busy={typing}>
+          <div className="conversation-scroll" role="log" aria-live="polite" aria-relevant="additions" aria-busy={typing}>
             <div className="conversation-day"><Sparkles size={13} /> {preferences.rememberConversations ? "Conversación nueva · recuerda temas en este dispositivo" : "Conversación nueva · no se guarda"}</div>
             {memory.entries.length > 0 && <div className="memory-banner"><MessageCircle size={14} /><span>La última vez hablamos de: {memory.entries.slice(-3).map((entry) => topicNames[entry.topic]).join(", ")}.</span></div>}
             {messages.map((message) => message.role === "user" ? <div className="studio-message user" data-chat-message key={message.id}><div className="user-message">{message.text}</div></div> : <AssistantReply key={message.id} reply={message.reply} onChoice={send} onHelp={onHelp} navigate={navigate} disabled={typing} onReopenPrompt={() => setActivePrompt(message.reply)} />)}
             {typing && <div className="studio-message assistant" data-chat-message><BrandMark size="small" /><div className="thinking-card" role="status"><div className="thinking-dots"><i /><i /><i /></div><span>Organizando una respuesta segura y útil…</span></div></div>}
+            <div ref={bottomRef} aria-hidden="true" />
           </div>
 
           {screeningSuggestions.length > 0 && (
