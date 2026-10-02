@@ -11,3 +11,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </React.StrictMode>,
 )
+
+// Conserva la aplicación y su motor conversacional local para que, después
+// de una primera visita con conexión, KAHY pueda abrir y responder sin red.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // El chat sigue funcionando en línea aunque el navegador bloquee SW.
+    })
+  })
+}
