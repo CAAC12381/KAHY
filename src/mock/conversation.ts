@@ -1,5 +1,5 @@
 import type { EmotionInsight } from "../types";
-import { emotionLabels, inferLocalEmotion } from "../lib/emotionLexicon";
+import { createAdaptiveOfflineReply, type LocalConversationContext } from "../lib/offlineConversation";
 
 export type ReplyMode = "standard" | "support" | "safety";
 export type ChatTopic =
@@ -710,7 +710,7 @@ const initialTopicReplies: Partial<Record<ChatTopic, () => ConversationReply>> =
   }),
 };
 
-export function createReply(input: string, previousTopic: ChatTopic = "inicio"): ConversationReply {
+export function createReply(input: string, previousTopic: ChatTopic = "inicio", context: LocalConversationContext = {}): ConversationReply {
   const faqKey = detectFaq(input);
   if (faqKey && !detectSafetySignal(input)) return faqReply(faqKey, previousTopic);
 
@@ -750,36 +750,6 @@ export function createReply(input: string, previousTopic: ChatTopic = "inicio"):
     openHelp: true,
     emotion: { primary: "agobio", detail: "malestar intenso que requiere apoyo humano", intensity: "intensa", progress: "pidió_apoyo", confidence: "media" },
   };
-
-  const localEmotion = inferLocalEmotion(input);
-  if (localEmotion.primary !== "no_clara" && ["conversación", "estrés", "ánimo", "soledad", "relaciones", "organización"].includes(topic)) {
-    const openings: Partial<Record<EmotionInsight["primary"], string>> = {
-      tristeza: "Eso que no salió o que se perdió parece haberte pegado de verdad. No tienes que minimizarlo ni resolverlo de inmediato; podemos quedarnos un momento con lo que más pesa.",
-      ansiedad: "Parece que tu mente y tu cuerpo están intentando adelantarse a demasiadas cosas a la vez. Antes de buscar una solución completa, podemos ubicar cuál preocupación está haciendo más ruido.",
-      miedo: "Hay algo ahí que se siente amenazante o incierto. Podemos mirarlo sin obligarte a contar más de lo que quieras y separar lo que está pasando ahora de lo que temes que pase.",
-      enojo: "Ese coraje probablemente no apareció de la nada. A veces señala un límite cruzado, una injusticia o algo que ya cansó; podemos entenderlo sin dejar que te arrastre.",
-      frustración: "Cuando intentas y no sale, es fácil convertir un tropiezo en “no doy una”. Pero una cosa que falló no dice todo sobre ti ni borra lo que sí has sostenido.",
-      culpa: "La culpa puede servir para reparar algo, pero también puede volverse un castigo que no arregla nada. Podemos distinguir qué sí está en tus manos y qué estás cargando de más.",
-      soledad: "Sentirse fuera del radar de los demás duele de una forma muy particular. Aquí no tienes que fingir que no importa; podemos pensar en qué clase de compañía necesitas, aunque sea pequeña.",
-      cansancio: "Suena a que vienes sosteniendo más de lo que tu energía alcanza. Quizá el siguiente paso no sea exigirte más, sino decidir qué puede esperar y qué cuidado sí necesitas hoy.",
-      confusión: "Tener sentimientos mezclados no significa que estés haciendo algo mal. Podemos desenredarlos de uno en uno, sin forzar una respuesta rápida.",
-      agobio: "Cuando todo llega junto, hasta elegir por dónde empezar se vuelve otra carga. Vamos a reducir el campo: no hace falta resolver el día completo en este momento.",
-      alegría: "Qué bueno que también trajiste algo que se siente bien. Podemos disfrutarlo sin buscarle un problema ni convertirlo enseguida en una tarea.",
-      calma: "Se nota un momento de calma, y vale la pena reconocerlo. No siempre hay que usarlo para producir algo; también puede ser simplemente un respiro.",
-      alivio: "Ese alivio importa. A veces, después de tanta tensión, cuesta incluso permitir que el cuerpo baje la guardia; podemos darle espacio.",
-      esperanza: "Hay una parte de ti que todavía ve una posibilidad. No tiene que ser una certeza enorme para servir como punto de apoyo.",
-      neutral: "No estar especialmente bien ni mal también es una respuesta válida. Podemos conversar sin obligar al día a tener una etiqueta más intensa.",
-    };
-    return {
-      mode: "standard", presentation: "conversation", topic,
-      label: "Conversación cercana", title: emotionLabels[localEmotion.primary],
-      introduction: openings[localEmotion.primary] || "Gracias por ponerlo en palabras. Podemos verlo con calma y sin convertirlo en una etiqueta fija.",
-      insight: "", steps: [],
-      question: "¿Qué parte de esto es la que más te está pesando ahora?",
-      choices: ["Quiero desahogarme", "Ayúdame a entenderlo", "Pensemos qué sigue"],
-      sourceIds: [], openHelp: false, emotion: localEmotion,
-    };
-  }
 
   // Si el tema no cambió respecto al turno anterior, damos continuidad en vez de repetir la tarjeta inicial.
   if (topic === previousTopic && topic !== "inicio") {
@@ -883,17 +853,5 @@ export function createReply(input: string, previousTopic: ChatTopic = "inicio"):
     choices: ["Sensaciones físicas", "Pensamientos repetitivos", "Problema concreto"], sourceIds: ["nice-panic-anxiety", "who-ai-health"],
   };
 
-  return {
-    mode: "standard",
-    presentation: "conversation",
-    topic: "conversación",
-    label: "Conversación abierta",
-    title: "Te sigo leyendo",
-    introduction: `Leí esta parte: “${truncateQuote(input)}”. En este momento está activo el respaldo local, que es más limitado para temas abiertos, pero podemos seguir conversando sin forzar lo que dices dentro de una categoría que no corresponde.`,
-    insight: "Si me cuentas qué te gustaría obtener de esta conversación, puedo orientarte mejor mientras se recupera la respuesta generativa.",
-    steps: [],
-    question: "¿Quieres que te escuche, que pensemos opciones o que resolvamos una duda concreta?",
-    choices: ["Solo quiero contarlo", "Pensemos opciones", "Tengo una duda concreta"],
-    sourceIds: [],
-  };
+  return createAdaptiveOfflineReply(input, previousTopic, context);
 }

@@ -137,7 +137,17 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
   const sendingRef = useRef(false);
 
   useEffect(() => {
-    getAiStatus().then(setAiConnection);
+    const refreshConnection = () => {
+      if (!navigator.onLine) setAiConnection("offline");
+      else getAiStatus().then(setAiConnection);
+    };
+    refreshConnection();
+    window.addEventListener("online", refreshConnection);
+    window.addEventListener("offline", refreshConnection);
+    return () => {
+      window.removeEventListener("online", refreshConnection);
+      window.removeEventListener("offline", refreshConnection);
+    };
   }, []);
 
   useEffect(() => {
@@ -176,8 +186,10 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
       reply = result.reply;
       setAiConnection(result.provider === "openai" || result.provider === "groq" ? "live" : "local");
     } catch (error) {
-      reply = createReply(clean, currentTopic);
-      setAiConnection((error as Error & { code?: string }).code === "AI_NOT_CONFIGURED" ? "local" : "error");
+      const earlierUserMessages = messages.filter((message): message is Extract<ChatMessage, { role: "user" }> => message.role === "user").slice(-3).map((message) => message.text);
+      reply = createReply(clean, currentTopic, { recentUserMessages: earlierUserMessages, turnCount: earlierUserMessages.length + 1 });
+      const errorCode = (error as Error & { code?: string }).code;
+      setAiConnection(errorCode === "OFFLINE" ? "offline" : errorCode === "AI_NOT_CONFIGURED" ? "local" : "error");
     }
     const minimumDelay = detectSafetySignal(clean) ? 250 : 650;
     const remaining = Math.max(0, minimumDelay - (Date.now() - started));
@@ -257,7 +269,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
       <section className="chat-command-bar">
         <div className="chat-brand-persona">
           <BrandMark size="medium" />
-          <div><span className="eyebrow">Centro de orientación</span><h1>Conversación con KAHY</h1><p className={`ai-connection ${aiConnection}`}><span className="status-dot" /> {aiConnection === "live" ? "IA generativa conectada" : aiConnection === "checking" ? "Comprobando conexión…" : aiConnection === "error" ? "Respuesta local activa · conexión temporalmente no disponible" : "Motor local activo · IA generativa pendiente"}</p></div>
+          <div><span className="eyebrow">Centro de orientación</span><h1>Conversación con KAHY</h1><p className={`ai-connection ${aiConnection}`}><span className="status-dot" /> {aiConnection === "live" ? "IA generativa conectada" : aiConnection === "checking" ? "Comprobando conexión…" : aiConnection === "offline" ? "Modo privado sin conexión · motor local activo" : aiConnection === "error" ? "Motor local activo · conexión temporalmente no disponible" : "Motor local activo · listo para conversar"}</p></div>
         </div>
         {!lowData && preferences.showMascot && <ChatCompanionChip profile={profile} garden={garden} gaining={companionGaining} />}
         <div className="chat-command-actions">
@@ -270,7 +282,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
 
       {detailsOpen && <section className="chat-disclosure"><div><BookOpenCheck size={21} /><span><strong>Conversación adaptable</strong><small>Responde con naturalidad y solo crea un plan cuando realmente ayuda.</small></span></div><div><ShieldCheck size={21} /><span><strong>Detección preventiva</strong><small>Moderación y frases explícitas activan ayuda; no se predice ni puntúa riesgo clínico.</small></span></div><div><Database size={21} /><span><strong>Fuentes pertinentes</strong><small>Solo muestra fuentes cuando respaldan el tema de la respuesta.</small></span></div></section>}
 
-      <section className="chat-safety-strip"><ShieldCheck size={18} /><p><strong>{aiConnection === "live" ? "IA activa:" : "Orientación local activa:"}</strong> {aiConnection === "live" ? "el texto se procesa para generar una respuesta; KAHY no crea expediente. Evita datos identificables." : "el chat responde con una biblioteca segura y contextual dentro del navegador; no envía tu texto."}</p><span>{lowData ? <><CloudOff size={15} /> Pocos datos</> : <><Sparkles size={15} /> Visual completo</>}</span></section>
+      <section className="chat-safety-strip"><ShieldCheck size={18} /><p><strong>{aiConnection === "live" ? "IA activa:" : aiConnection === "offline" ? "Modo sin conexión:" : "Orientación local activa:"}</strong> {aiConnection === "live" ? "el texto se procesa para generar una respuesta; KAHY no crea expediente. Evita datos identificables." : aiConnection === "offline" ? "las respuestas se crean en este dispositivo y tu texto no sale del navegador." : "el chat responde con un motor contextual dentro del navegador; no envía tu texto."}</p><span>{lowData ? <><CloudOff size={15} /> Pocos datos</> : <><Sparkles size={15} /> Visual completo</>}</span></section>
 
       <div className="chat-workspace">
         <section className="conversation-panel" aria-label="Conversación de orientación">
@@ -331,12 +343,13 @@ function AssistantReply({ reply, onChoice, onHelp, navigate, disabled, onOpenPla
     <div className="assistant-response">
       <div className={`assistant-card ${conversational ? "conversational" : "guided"}`}>
         {!conversational && <div className="assistant-label"><span>{reply.mode === "safety" ? <AlertTriangle size={15} /> : <Sparkles size={15} />}{reply.label}</span>{reply.mode === "safety" && <DemoBadge>Activación preventiva</DemoBadge>}</div>}
-        {!conversational && <h2>{reply.title}</h2>}
+        {reply.title && <h2 className={conversational ? "conversation-title" : undefined}>{reply.title}</h2>}
         <p className="assistant-intro">{reply.introduction}</p>
         {conversational && reply.insight && <p className="assistant-insight">{reply.insight}</p>}
         {reply.emotion && reply.emotion.primary !== "no_clara" && reply.emotion.confidence !== "baja" && <div className="emotion-signal"><Sparkles size={14} /><span>Señal tentativa: <strong>{emotionLabels[reply.emotion.primary]}</strong> · {reply.emotion.progress.replace("_", " ")}</span><small>No es diagnóstico</small></div>}
         {reply.mode === "safety" && <div className="expanded-safety-guidance">{reply.insight && <div className="context-reading"><CircleHelp size={18} /><div><strong>Por qué se activó esta ayuda</strong><p>{reply.insight}</p></div></div>}<div className="response-steps">{reply.steps.map((step) => <div key={`${step.horizon}-${step.text}`}><span>{step.horizon}</span><p>{step.text}</p></div>)}</div></div>}
       </div>
+      {conversational && reply.steps.length > 0 && <button className="inline-plan-summary" disabled={disabled} onClick={onOpenPlan}><ListChecks size={17} /><span><strong>{reply.steps.length} acciones preparadas</strong><small>{reply.steps[0].horizon}: {reply.steps[0].text}</small></span><ArrowRight size={17} /></button>}
       {reply.mode === "safety" ? <div className="assistant-question"><strong>{reply.question}</strong><div>{reply.choices.map((choice) => <button key={choice} disabled={disabled} onClick={() => reply.openHelp && choice.includes("Abrir") ? onHelp() : onChoice(choice)}>{choice}<ArrowRight size={15} /></button>)}</div></div> : conversational ? (reply.question || reply.choices.length > 0) && <div className="assistant-question conversational-followup">{reply.question && <strong>{reply.question}</strong>}<div>{reply.choices.map((choice) => <button key={choice} disabled={disabled} onClick={() => onChoice(choice)}>{choice}<ArrowRight size={15} /></button>)}</div></div> : hasGuidance && <button className="reopen-prompt" disabled={disabled} onClick={onOpenPlan}><ListChecks size={14} /> Abrir Plan de ahora</button>}
       {sources.length > 0 && <div className="reply-footer"><button onClick={() => navigate("resources")}><BookOpenCheck size={15} /> {sources.length} {sources.length === 1 ? "fuente verificada" : "fuentes verificadas"}</button><span>{sources.map((source) => source?.organization).join(" · ")}</span></div>}
     </div>

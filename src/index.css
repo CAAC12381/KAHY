@@ -406,6 +406,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .assistant-label > span { display: flex; align-items: center; gap: 6px; color: var(--purple-deep); font-size: .7rem; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
 .studio-message.safety .assistant-label > span { color: var(--danger); }
 .assistant-card h2 { margin: 0 0 10px; font-size: clamp(1.05rem, 2vw, 1.32rem); line-height: 1.25; }
+.assistant-card .conversation-title { margin-bottom: 8px; color: var(--ink); font-size: clamp(.98rem, 1.8vw, 1.16rem); }
 .assistant-intro { margin-bottom: 0; color: #565850; font-size: .84rem; line-height: 1.6; }
 .assistant-insight { margin: 9px 0 0; color: #686961; font-size: .82rem; line-height: 1.58; }
 .emotion-signal { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: 11px; padding-top: 9px; border-top: 1px solid #ede9df; color: var(--purple-deep); font-size: .69rem; }
@@ -428,6 +429,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .assistant-question { padding: 13px 16px; border: 1px solid #e5e2d8; border-radius: 16px; background: rgba(255,255,255,.72); }
 .studio-message.safety .assistant-question { border-color: #e6c9c9; background: rgba(255,255,255,.6); }
 .assistant-question.conversational-followup { max-width: 740px; padding: 11px 14px; border-color: transparent; background: var(--cream); }
+.inline-plan-summary { width: min(740px, 100%); display: grid; grid-template-columns: 19px 1fr 18px; align-items: center; gap: 9px; padding: 10px 12px; border: 1px solid #d9cce0; border-radius: 14px; background: linear-gradient(100deg, var(--purple-soft), #fffaf0); color: var(--purple-deep); text-align: left; }
+.inline-plan-summary:hover:not(:disabled) { border-color: var(--purple); background: #eee3f1; }
+.inline-plan-summary > span { min-width: 0; display: grid; gap: 2px; }.inline-plan-summary strong { font-size: .72rem; }.inline-plan-summary small { overflow: hidden; color: var(--muted); font-size: .66rem; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
 .assistant-question > strong { display: block; margin-bottom: 9px; font-size: .8rem; }
 .assistant-question > div { display: flex; flex-wrap: wrap; gap: 7px; }
 .assistant-question button { min-height: 38px; display: inline-flex; align-items: center; gap: 5px; padding: 7px 10px; border: 1px solid #cdbed2; border-radius: 999px; background: var(--purple-soft); color: var(--purple-deep); font-size: .69rem; font-weight: 760; }
