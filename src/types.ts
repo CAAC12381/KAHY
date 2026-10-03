@@ -70,7 +70,8 @@ export interface TaskPlan {
   steps: TaskStep[];
 }
 
-export type TextScale = "normal" | "large";
+export type TextScale = "normal" | "large" | "extra-large";
+export type ColorMode = "standard" | "high-contrast" | "grayscale" | "warm";
 
 export interface Preferences {
   reducedMotion: boolean;
@@ -78,6 +79,9 @@ export interface Preferences {
   simplified: boolean;
   showMascot: boolean;
   textScale: TextScale;
+  colorMode: ColorMode;
+  readableFont: boolean;
+  underlineLinks: boolean;
   rememberConversations: boolean;
   /** Uses saved wellbeing signals (never full archived transcripts) to tailor suggestions across KAHY. */
   adaptivePersonalization: boolean;

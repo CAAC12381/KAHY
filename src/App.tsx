@@ -10,6 +10,7 @@ import ResourcesPage from "./pages/ResourcesPage";
 import ScreeningPage from "./pages/ScreeningPage";
 import SpecialistsPage from "./pages/SpecialistsPage";
 import { Button, DemoBadge, Modal } from "./components/ui";
+import AccessibilityMenu from "./components/AccessibilityMenu";
 import { usePetGarden } from "./hooks/usePetGarden";
 import { useScreenings } from "./hooks/useScreenings";
 import { useChatHistory } from "./hooks/useChatHistory";
@@ -24,6 +25,7 @@ type Stage = "splash" | "access" | "onboarding" | "app";
 type PersistedRegistration = { version: 1; profile: DemoProfile; preferences: Preferences };
 
 const REGISTRATION_KEY = "kahy.registration.v1";
+const ACCESSIBILITY_KEY = "kahy.accessibility.v1";
 
 const defaultPreferences: Preferences = {
   reducedMotion: false,
@@ -31,10 +33,52 @@ const defaultPreferences: Preferences = {
   simplified: false,
   showMascot: true,
   textScale: "normal",
+  colorMode: "standard",
+  readableFont: false,
+  underlineLinks: false,
   rememberConversations: false,
   adaptivePersonalization: true,
   saveChatHistory: true,
 };
+
+const accessibilityKeys = ["reducedMotion", "lowStimuli", "simplified", "textScale", "colorMode", "readableFont", "underlineLinks"] as const;
+
+function readAccessibilityPreferences(): Partial<Preferences> {
+  try {
+    const data = JSON.parse(window.localStorage.getItem(ACCESSIBILITY_KEY) || "{}") as Partial<Preferences>;
+    return accessibilityKeys.reduce<Partial<Preferences>>((result, key) => {
+      if (data[key] !== undefined) Object.assign(result, { [key]: data[key] });
+      return result;
+    }, {});
+  } catch {
+    return {};
+  }
+}
+
+function saveAccessibilityPreferences(preferences: Preferences) {
+  try {
+    const data = accessibilityKeys.reduce<Record<string, unknown>>((result, key) => ({ ...result, [key]: preferences[key] }), {});
+    window.localStorage.setItem(ACCESSIBILITY_KEY, JSON.stringify(data));
+  } catch {
+    // Los ajustes siguen aplicados durante la sesión si el navegador bloquea el almacenamiento.
+  }
+}
+
+function preferenceClasses(preferences: Preferences) {
+  return [
+    "kahy-app",
+    preferences.reducedMotion && "reduce-motion",
+    preferences.lowStimuli && "low-stimuli",
+    preferences.simplified && "simplified",
+    preferences.textScale === "large" && "large-text",
+    preferences.textScale === "extra-large" && "extra-large-text",
+    preferences.colorMode === "high-contrast" && "high-contrast",
+    preferences.colorMode === "grayscale" && "grayscale-colors",
+    preferences.colorMode === "warm" && "warm-colors",
+    preferences.readableFont && "readable-font",
+    preferences.underlineLinks && "underline-links",
+  ].filter(Boolean).join(" ");
+}
 
 const defaultProfile: DemoProfile = {
   name: "Invitado",
@@ -89,7 +133,7 @@ export default function App() {
   const [pendingName, setPendingName] = useState("Invitado");
   const [view, setView] = useState<MainView>("home");
   const [profile, setProfile] = useState(restoredRegistration?.profile ?? defaultProfile);
-  const [preferences, setPreferences] = useState(restoredRegistration?.preferences ?? defaultPreferences);
+  const [preferences, setPreferences] = useState<Preferences>(() => ({ ...defaultPreferences, ...(restoredRegistration?.preferences ?? {}), ...readAccessibilityPreferences() }));
   const [isRegistered, setIsRegistered] = useState(Boolean(restoredRegistration));
   const [showHelp, setShowHelp] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
@@ -126,7 +170,7 @@ export default function App() {
         city: remote.city,
         goals: remote.goals,
       }));
-      setPreferences((current) => ({ ...current, ...(remote.preferences as Partial<Preferences>) }));
+      setPreferences((current) => ({ ...current, ...(remote.preferences as Partial<Preferences>), ...readAccessibilityPreferences() }));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -169,12 +213,14 @@ export default function App() {
     const stored = readRegistration();
     if (stored) {
       setProfile(stored.profile);
-      setPreferences(stored.preferences);
+      setPreferences({ ...stored.preferences, ...readAccessibilityPreferences() });
     } else {
       const nextProfile = { ...defaultProfile, name: name || "Invitado" };
+      const nextPreferences = { ...defaultPreferences, ...readAccessibilityPreferences() };
       setProfile(nextProfile);
-      saveRegistration(nextProfile, defaultPreferences);
-      syncProfile(deviceId, nextProfile, defaultPreferences);
+      setPreferences(nextPreferences);
+      saveRegistration(nextProfile, nextPreferences);
+      syncProfile(deviceId, nextProfile, nextPreferences);
     }
     setIsRegistered(true);
     setView("home");
@@ -187,6 +233,7 @@ export default function App() {
     setIsRegistered(true);
     saveRegistration(nextProfile, nextPreferences);
     syncProfile(deviceId, nextProfile, nextPreferences);
+    saveAccessibilityPreferences(nextPreferences);
     setView("home");
     setStage("app");
   }
@@ -201,6 +248,7 @@ export default function App() {
 
   function updatePreferences(nextPreferences: Preferences) {
     setPreferences(nextPreferences);
+    saveAccessibilityPreferences(nextPreferences);
     if (isRegistered) {
       saveRegistration(profile, nextPreferences);
       syncProfile(deviceId, profile, nextPreferences);
@@ -218,18 +266,20 @@ export default function App() {
     taskPlans.clear();
     habits.clear();
     setProfile(defaultProfile);
-    setPreferences(defaultPreferences);
+    setPreferences({ ...defaultPreferences, ...readAccessibilityPreferences() });
     setIsRegistered(false);
     setView("home");
     setStage("access");
   }
 
-  if (stage === "splash") return <SplashScreen />;
-  if (stage === "access") return <AccessFlow onExplore={() => { setIsRegistered(false); setStage("app"); }} onLogin={login} onRegister={startRegistration} />;
-  if (stage === "onboarding") return <Onboarding initialName={pendingName} preferences={preferences} onFinish={finishOnboarding} />;
+  const accessibilityMenu = <AccessibilityMenu preferences={preferences} onChange={updatePreferences} />;
+
+  if (stage === "splash") return <div className={preferenceClasses(preferences)}><SplashScreen />{accessibilityMenu}</div>;
+  if (stage === "access") return <div className={preferenceClasses(preferences)}><AccessFlow onExplore={() => { setIsRegistered(false); setStage("app"); }} onLogin={login} onRegister={startRegistration} />{accessibilityMenu}</div>;
+  if (stage === "onboarding") return <div className={preferenceClasses(preferences)}><Onboarding initialName={pendingName} preferences={preferences} onFinish={finishOnboarding} />{accessibilityMenu}</div>;
 
   return (
-    <div className={`kahy-app ${preferences.reducedMotion ? "reduce-motion" : ""} ${preferences.lowStimuli ? "low-stimuli" : ""} ${preferences.simplified ? "simplified" : ""} ${preferences.textScale === "large" ? "large-text" : ""}`}>
+    <div className={preferenceClasses(preferences)}>
       <a className="skip-link" href="#main-content">Saltar al contenido</a>
       <AppShell currentView={view} onNavigate={navigate} onHelp={() => setShowHelp(true)} mascot={profile.mascot} preferences={preferences}>
         {view === "home" && <HomePage profile={profile} preferences={preferences} navigate={navigate} notify={notify} screenings={screenings} onHelp={() => setShowHelp(true)} garden={garden} emotionCalendar={emotionCalendar} taskPlans={taskPlans} habits={habits} onOpenTask={openTaskBreakdown} />}
@@ -243,6 +293,7 @@ export default function App() {
 
       {showHelp && <Modal title="Ayuda inmediata" onClose={() => setShowHelp(false)}><div className="help-modal"><DemoBadge>Información oficial · sin llamada automática</DemoBadge><div className="urgent-note"><ShieldAlert size={28} /><div><h3>Si hay peligro inmediato</h3><p>Contacta al 911 o acude al servicio de urgencias más cercano. Este prototipo no puede detectar, atender ni monitorear una emergencia.</p></div></div><div className="help-option"><Phone size={22} /><div><strong>Línea de la Vida</strong><p>800 911 2000 · orientación nacional 24 horas, todos los días.</p></div></div><a className="button button--secondary full-width" href="https://www.gob.mx/conasama/es/articulos/linea-de-la-vida-800-911-2000?idiom=es" target="_blank" rel="noreferrer">Ver fuente oficial <ExternalLink size={17} /></a><p className="fine-print">No se realiza ninguna llamada desde KAHY. En una implementación real, este flujo requeriría revisión profesional, pruebas y protocolos operativos.</p><Button className="full-width" onClick={() => setShowHelp(false)}>Entendido</Button></div></Modal>}
       {toast && <div className="toast" role="status" key={toast.id}><CheckCircle2 size={19} />{toast.text}</div>}
+      {accessibilityMenu}
     </div>
   );
 }
