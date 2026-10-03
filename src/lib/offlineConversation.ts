@@ -1,9 +1,11 @@
 import { emotionLabels, inferLocalEmotion } from "./emotionLexicon";
 import type { ChatTopic, ConversationReply } from "../mock/conversation";
+import type { AdaptiveHighlights } from "./personalization";
 
 export type LocalConversationContext = {
   recentUserMessages?: string[];
   turnCount?: number;
+  personalization?: AdaptiveHighlights;
 };
 
 type LocalIntent = "listen" | "understand" | "decide" | "plan" | "write" | "regulate" | "question" | "open";
@@ -44,6 +46,24 @@ function continuity(context: LocalConversationContext) {
   return ` También tengo presente que antes mencionaste “${shortReference(previous)}”; podemos conectarlo sin empezar de cero.`;
 }
 
+function adaptiveNote(intent: LocalIntent, context: LocalConversationContext) {
+  const saved = context.personalization;
+  if (!saved) return "";
+  if ((intent === "plan" || intent === "open") && saved.activeTask) {
+    return ` Ya tienes “${shortReference(saved.activeTask)}” en curso (${saved.activeTaskProgress || "con avance guardado"}); podemos retomar eso o trabajar algo distinto.`;
+  }
+  if (intent === "regulate" && saved.lowStimuli) {
+    return " Mantendré esto breve y con pocos estímulos, como prefieres.";
+  }
+  if ((intent === "understand" || intent === "listen") && saved.recentEmotion) {
+    return ` También tendré presente que últimamente apareció ${saved.recentEmotion.toLowerCase()}, sin asumir que hoy te sientes igual.`;
+  }
+  if (intent === "open" && saved.completedHabits > 0) {
+    return ` Hoy ya registraste ${saved.completedHabits} de ${saved.totalHabits} hábitos; no estás empezando desde cero.`;
+  }
+  return "";
+}
+
 function emotionalOpening(input: string, turnCount: number) {
   const emotion = inferLocalEmotion(input);
   if (emotion.primary === "no_clara") {
@@ -62,7 +82,7 @@ function emotionalOpening(input: string, turnCount: number) {
   ]);
 }
 
-function baseReply(input: string, previousTopic: ChatTopic, context: LocalConversationContext) {
+function baseReply(input: string, previousTopic: ChatTopic, context: LocalConversationContext, intent: LocalIntent) {
   const turnCount = context.turnCount ?? 0;
   const emotion = inferLocalEmotion(input);
   const topic = previousTopic !== "inicio" && previousTopic !== "seguridad" ? previousTopic : "conversación";
@@ -71,7 +91,7 @@ function baseReply(input: string, previousTopic: ChatTopic, context: LocalConver
     presentation: "conversation" as const,
     topic,
     label: "Orientación local",
-    introduction: `${emotionalOpening(input, turnCount)}${continuity(context)}`,
+    introduction: `${emotionalOpening(input, turnCount)}${continuity(context)}${adaptiveNote(intent, context)}`,
     sourceIds: [] as string[],
     openHelp: false,
     emotion,
@@ -88,7 +108,7 @@ export function createAdaptiveOfflineReply(input: string, previousTopic: ChatTop
   const previousIntent = context.recentUserMessages?.length ? detectIntent(context.recentUserMessages.at(-1) ?? "") : "open";
   const continuedIntent = directIntent === "open" && !["open", "question", "listen"].includes(previousIntent);
   const intent = continuedIntent ? previousIntent : directIntent;
-  const base = baseReply(input, previousTopic, context);
+  const base = baseReply(input, previousTopic, context, intent);
 
   if (intent === "listen") return {
     ...base,

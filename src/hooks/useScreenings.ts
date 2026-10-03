@@ -40,7 +40,7 @@ function readSupportAcknowledged(): boolean {
  * Deliberately does not compute a "risk level": it only ever surfaces the published band/cutoff
  * for the instrument itself, plus a support banner when the PHQ-9 safety item is endorsed.
  */
-export function useScreenings(deviceId: string) {
+export function useScreenings(deviceId: string, onCompleted?: (result: ScreeningResult) => void) {
   const [results, setResults] = useState<ScreeningResult[]>(readResults);
   const [supportAcknowledged, setSupportAcknowledged] = useState<boolean>(readSupportAcknowledged);
 
@@ -60,6 +60,7 @@ export function useScreenings(deviceId: string) {
       return next;
     });
     saveRemoteScreening(deviceId, result);
+    onCompleted?.(result);
     if (result.item9Positive) {
       setSupportAcknowledged(false);
       try {

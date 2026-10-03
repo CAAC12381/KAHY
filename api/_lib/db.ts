@@ -82,13 +82,24 @@ function createSchema() {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )
     `,
+    sql`
+      CREATE TABLE IF NOT EXISTS habit_days (
+        device_id TEXT NOT NULL,
+        day DATE NOT NULL,
+        completed JSONB NOT NULL DEFAULT '[]'::jsonb,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (device_id, day)
+      )
+    `,
   ]).then(() => {
     // Index creation kept separate from CREATE TABLE for older Postgres compatibility.
     return Promise.all([
+      sql`ALTER TABLE pet_garden ADD COLUMN IF NOT EXISTS rewarded_milestones JSONB NOT NULL DEFAULT '[]'::jsonb`,
       sql`CREATE INDEX IF NOT EXISTS idx_screening_device ON screening_results(device_id)`,
       sql`CREATE INDEX IF NOT EXISTS idx_memory_device ON chat_memory(device_id)`,
       sql`CREATE INDEX IF NOT EXISTS idx_emotion_device_at ON emotion_entries(device_id, at DESC)`,
       sql`CREATE INDEX IF NOT EXISTS idx_task_plans_device ON task_plans(device_id)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_habit_days_device ON habit_days(device_id, day DESC)`,
     ])
   }).then(() => undefined)
 }
@@ -185,6 +196,7 @@ export async function deleteAllDataForDevice(deviceId: string): Promise<void> {
     sql`DELETE FROM pet_garden WHERE device_id = ${deviceId}`,
     sql`DELETE FROM emotion_entries WHERE device_id = ${deviceId}`,
     sql`DELETE FROM task_plans WHERE device_id = ${deviceId}`,
+    sql`DELETE FROM habit_days WHERE device_id = ${deviceId}`,
   ])
 }
 
@@ -214,6 +226,7 @@ export type StoredPetGarden = {
   progress: number
   careCounts: Record<string, number>
   lastCare: number
+  rewardedMilestones: string[]
 }
 
 export async function getPetGarden(deviceId: string): Promise<StoredPetGarden | null> {
@@ -226,19 +239,21 @@ export async function getPetGarden(deviceId: string): Promise<StoredPetGarden | 
     progress: row.progress,
     careCounts: row.care_counts || {},
     lastCare: new Date(row.last_care).getTime(),
+    rewardedMilestones: row.rewarded_milestones || [],
   }
 }
 
 export async function upsertPetGarden(deviceId: string, state: StoredPetGarden): Promise<void> {
   await sql`
-    INSERT INTO pet_garden (device_id, happiness, bond, progress, care_counts, last_care)
-    VALUES (${deviceId}, ${state.happiness}, ${state.bond}, ${state.progress}, ${JSON.stringify(state.careCounts)}::jsonb, ${new Date(state.lastCare).toISOString()})
+    INSERT INTO pet_garden (device_id, happiness, bond, progress, care_counts, last_care, rewarded_milestones)
+    VALUES (${deviceId}, ${state.happiness}, ${state.bond}, ${state.progress}, ${JSON.stringify(state.careCounts)}::jsonb, ${new Date(state.lastCare).toISOString()}, ${JSON.stringify(state.rewardedMilestones)}::jsonb)
     ON CONFLICT (device_id) DO UPDATE SET
       happiness = EXCLUDED.happiness,
       bond = EXCLUDED.bond,
       progress = EXCLUDED.progress,
       care_counts = EXCLUDED.care_counts,
-      last_care = EXCLUDED.last_care
+      last_care = EXCLUDED.last_care,
+      rewarded_milestones = EXCLUDED.rewarded_milestones
   `
 }
 
@@ -312,6 +327,33 @@ export async function upsertTaskPlan(deviceId: string, planId: string, data: Rec
 export async function deleteTaskPlans(deviceId: string, planId?: string): Promise<void> {
   if (planId) await sql`DELETE FROM task_plans WHERE device_id = ${deviceId} AND plan_id = ${planId}`
   else await sql`DELETE FROM task_plans WHERE device_id = ${deviceId}`
+}
+
+export type StoredHabitDay = { date: string; completed: string[] }
+
+export async function listHabitDays(deviceId: string): Promise<StoredHabitDay[]> {
+  const { rows } = await sql`
+    SELECT day, completed FROM habit_days
+    WHERE device_id = ${deviceId}
+    ORDER BY day ASC LIMIT 60
+  `
+  return rows.map((row) => ({
+    date: new Date(row.day).toISOString().slice(0, 10),
+    completed: Array.isArray(row.completed) ? row.completed.filter((id) => typeof id === 'string') : [],
+  }))
+}
+
+export async function upsertHabitDay(deviceId: string, day: StoredHabitDay): Promise<void> {
+  await sql`
+    INSERT INTO habit_days (device_id, day, completed, updated_at)
+    VALUES (${deviceId}, ${day.date}, ${JSON.stringify(day.completed)}::jsonb, now())
+    ON CONFLICT (device_id, day) DO UPDATE SET completed = EXCLUDED.completed, updated_at = now()
+  `
+  await sql`
+    DELETE FROM habit_days WHERE device_id = ${deviceId} AND day NOT IN (
+      SELECT day FROM habit_days WHERE device_id = ${deviceId} ORDER BY day DESC LIMIT 60
+    )
+  `
 }
 
 const taskEmotions = new Set(['alegría', 'calma', 'alivio', 'esperanza', 'tristeza', 'ansiedad', 'miedo', 'enojo', 'frustración', 'culpa', 'soledad', 'cansancio', 'confusión', 'agobio', 'neutral'])

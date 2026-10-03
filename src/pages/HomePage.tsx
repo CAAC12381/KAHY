@@ -1,11 +1,11 @@
 import { ArrowRight, BookOpen, CalendarDays, Check, ClipboardList, Leaf, ListChecks, MessageCircle, Sparkles } from "lucide-react";
 import EmotionCalendar from "../components/EmotionCalendar";
-import Mascot from "../components/Mascot";
+import Mascot, { Flower } from "../components/Mascot";
 import PetGarden from "../components/PetGarden";
 import SupportBanner from "../components/SupportBanner";
 import { Button, Card, DemoBadge } from "../components/ui";
-import { dailyHabits, useDailyHabits } from "../hooks/useDailyHabits";
-import type { PetGardenApi } from "../hooks/usePetGarden";
+import { dailyHabits, type DailyHabitsApi } from "../hooks/useDailyHabits";
+import { stageForGrowth, type PetGardenApi } from "../hooks/usePetGarden";
 import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
 import type { TaskPlansApi } from "../hooks/useTaskPlans";
 import type { ScreeningsState } from "../hooks/useScreenings";
@@ -22,6 +22,7 @@ export default function HomePage({
   garden,
   emotionCalendar,
   taskPlans,
+  habits,
   onOpenTask,
 }: {
   profile: DemoProfile;
@@ -33,15 +34,24 @@ export default function HomePage({
   garden: PetGardenApi;
   emotionCalendar: EmotionCalendarApi;
   taskPlans: TaskPlansApi;
+  habits: DailyHabitsApi;
   onOpenTask: (planId?: string) => void;
 }) {
-  const habits = useDailyHabits(garden.gainFromHabit);
   const currentTask = [...taskPlans.active].sort((a, b) => b.updatedAt - a.updatedAt)[0];
   const currentNext = currentTask?.steps.find((step) => !step.done && step.text.trim());
   const displayName = profile.name === "Invitado" ? "" : `, ${profile.name}`;
   const companionName = profile.companionType === "mascota"
     ? mascots.find((item) => item.id === profile.mascot)?.name
     : flowers.find((item) => item.id === profile.flower)?.name;
+  const companionData = profile.companionType === "mascota" ? mascots.find((item) => item.id === profile.mascot) : flowers.find((item) => item.id === profile.flower);
+  const companionStage = stageForGrowth(garden.growth, companionData?.stages.length || 3);
+  const companionMessage = currentTask && currentNext
+    ? `Seguimos con un paso de ${currentTask.title}.`
+    : habits.completed.length
+      ? `Hoy ya llevas ${habits.completed.length} avance${habits.completed.length === 1 ? "" : "s"}.`
+      : emotionCalendar.latest
+        ? "Lo que sentiste también cuenta como avance."
+        : "Vamos paso a paso.";
 
   return (
     <div className="page home-page">
@@ -56,13 +66,13 @@ export default function HomePage({
             <Button variant="secondary" onClick={() => navigate("activities")}><Leaf size={19} /> Hacer una pausa</Button>
           </div>
         </div>
-        {preferences.showMascot && <div className="hero-mascot"><span className="speech-note">Vamos paso a paso.</span><Mascot id={profile.mascot} size="large" /></div>}
+        {preferences.showMascot && <div className="hero-mascot"><span className="speech-note">{companionMessage}</span>{profile.companionType === "mascota" ? <Mascot id={profile.mascot} size="large" mood={garden.mood} stage={companionStage} /> : <Flower id={profile.flower} size="large" stage={companionStage} neglected={garden.isNeglected} />}</div>}
       </section>
 
       <div className="section-heading"><div><span className="eyebrow">Calendario emocional</span><h2>Lo que ha aparecido en tus conversaciones</h2></div><small>Se guardan etiquetas y fechas, no el texto</small></div>
       <Card className="emotion-calendar-card"><EmotionCalendar entries={emotionCalendar.entries} /></Card>
 
-      <div className="section-heading"><div><span className="eyebrow">Hábitos de hoy</span><h2>Pequeñas acciones que también cuentan</h2></div><small>Se reinicia cada día · en este dispositivo</small></div>
+      <div className="section-heading"><div><span className="eyebrow">Hábitos de hoy</span><h2>Pequeñas acciones que también cuentan</h2></div><small>{habits.streak > 1 ? `Racha de ${habits.streak} días` : "Tu avance se guarda y personaliza KAHY"}</small></div>
       <Card className="habits-card">
         <div className="habits-list">
           {dailyHabits.map((habit) => {

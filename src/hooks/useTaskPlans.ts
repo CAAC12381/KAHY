@@ -37,7 +37,7 @@ export function makeStep(text: string, minutes?: number): TaskStep {
  * localStorage es la fuente de verdad inmediata y la base de datos es un
  * respaldo en segundo plano (si no está configurada, todo sigue funcionando).
  */
-export function useTaskPlans(deviceId: string) {
+export function useTaskPlans(deviceId: string, rewards?: { onStepCompleted?: (plan: TaskPlan, step: TaskStep) => void; onPlanCompleted?: (plan: TaskPlan) => void }) {
   const [plans, setPlans] = useState<TaskPlan[]>(readPlans);
   const pendingSaves = useRef(new Map<string, number>());
 
@@ -83,6 +83,11 @@ export function useTaskPlans(deviceId: string) {
       const written = next.steps.filter((step) => step.text.trim());
       const allDone = written.length > 0 && written.every((step) => step.done);
       const updated: TaskPlan = { ...next, steps: next.steps.slice(0, MAX_STEPS), updatedAt: Date.now(), completedAt: allDone ? next.completedAt ?? Date.now() : undefined };
+      updated.steps.forEach((step) => {
+        const previous = plan.steps.find((item) => item.id === step.id);
+        if (step.done && !previous?.done) rewards?.onStepCompleted?.(updated, step);
+      });
+      if (updated.completedAt && !plan.completedAt) rewards?.onPlanCompleted?.(updated);
       scheduleRemoteSave(updated);
       return updated;
     }));

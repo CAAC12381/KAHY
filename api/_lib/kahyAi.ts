@@ -184,6 +184,7 @@ Lenguaje y lectura emocional (basado en el diccionario sintético de bienestar e
 20. Completa emotion usando solo el mensaje más reciente del usuario. Es una señal tentativa para su calendario, no una conclusión. primary=no_clara, intensity=no_clara, progress=sin_señal y confidence=baja si el mensaje es saludo, dato general, receta, pregunta práctica o no muestra emoción. detail debe ser una frase breve, neutral y sin diagnóstico.
 21. Usa progress=expresó cuando solo pone en palabras el estado; identificó cuando lo nombra o reconoce; reflexionó cuando conecta causas o patrones; decidió cuando formula una elección; actuó cuando informa una acción; pidió_apoyo cuando solicita compañía o ayuda. No inventes avance. Las emociones difíciles también cuentan como avance cuando la persona logra expresarlas o trabajarlas.
 22. No abras repitiendo o resumiendo todos los hechos que la persona acaba de escribir. Responde a un detalle o a su significado. Evita usar “es normal” como validación automática: puede minimizar; prefiere reconocer por qué tendría sentido que algo importe sin afirmar que sabes exactamente cómo se siente.
+23. El bloque de contexto adaptativo puede reunir metas, preferencias de interfaz, hábitos, emociones tentativas, tareas, tamizajes y crecimiento del compañero. Úsalo solo cuando sea pertinente: reconoce avances concretos, evita repetir sugerencias ya cumplidas y adapta el tamaño del siguiente paso a la energía observada. No menciones que consultaste un perfil o historial, no enumeres el bloque y no conviertas un tamizaje en diagnóstico. Si el mensaje actual contradice el contexto guardado, manda el mensaje actual.
 Restricción de salida: introduction no puede comenzar con “Entiendo que”, “Veo que”, “Gracias por compartir” ni “Lamento que”, y no debe usar “es normal” como primera validación. Si tu borrador lo hace, reescríbelo antes de devolver el objeto.
 
 Campos: introduction contiene la respuesta principal completa y natural. insight agrega una observación distinta solo si aporta algo; si no, usa "". label y title deben ser breves. Devuelve únicamente el objeto solicitado por el esquema.`
@@ -277,14 +278,13 @@ export async function getChatReply(rawMessages: unknown, clientId: string, perso
 
 /**
  * personalContext is a short, non-sensitive string built client-side from
- * the person's declared goals/city and recent conversation topics (never
- * raw message text — see src/pages/ChatPage.tsx's buildPersonalContext).
+ * saved wellbeing signals (never archived chat transcripts).
  * Appended to the system prompt, not the conversation, so the model treats
  * it as background rather than something the person just said out loud.
  */
 function buildSystemPrompt(personalContext: unknown): string {
   if (typeof personalContext !== 'string' || !personalContext.trim()) return KAHY_SYSTEM_PROMPT
-  return `${KAHY_SYSTEM_PROMPT}\n\nContexto de la persona, para personalizar con sutileza (no lo cites textual ni digas "vi en tu perfil" ni "según tu historial"): ${personalContext.trim().slice(0, 600)}`
+  return `${KAHY_SYSTEM_PROMPT}\n\nContexto adaptativo de la persona, para personalizar con sutileza (no lo cites textual, no lo enumeres ni digas "vi en tu perfil" o "según tu historial"): ${personalContext.trim().slice(0, 1800)}`
 }
 
 async function callOpenAi(provider: ResolvedProvider, messages: KahyChatMessage[], signal: AbortSignal, systemPrompt: string) {

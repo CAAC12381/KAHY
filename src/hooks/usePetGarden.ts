@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { EmotionInsight, PetMood } from "../types";
 import { fetchRemotePetGarden, saveRemotePetGarden } from "../services/dataApi";
 
@@ -11,6 +11,8 @@ type PetGardenState = {
   lastCare: number;
   /** Unified growth progress, in points, shared by care actions, daily habits and chat. */
   progress: number;
+  /** Stable event ids already rewarded, so reopening or remote hydration never farms growth. */
+  rewardedMilestones: string[];
 };
 
 const STORAGE_KEY = "kahy.pet-garden.v1";
@@ -31,6 +33,7 @@ const defaultState: PetGardenState = {
   careCounts: { food: 0, play: 0, love: 0, water: 0, sun: 0, prune: 0 },
   lastCare: Date.now(),
   progress: 0,
+  rewardedMilestones: [],
 };
 
 function readState(): PetGardenState {
@@ -43,7 +46,7 @@ function readState(): PetGardenState {
     // Perfiles guardados antes de que existiera `progress`: lo reconstruimos desde el cuidado ya acumulado, para no reiniciar el crecimiento de nadie.
     const totalCare = Object.values(careCounts).reduce((sum, count) => sum + count, 0);
     const progress = typeof data.progress === "number" ? data.progress : totalCare * PROGRESS_POINTS.care;
-    return { ...defaultState, ...data, careCounts, progress: Math.min(GROWTH_TARGET_POINTS, progress) };
+    return { ...defaultState, ...data, careCounts, progress: Math.min(GROWTH_TARGET_POINTS, progress), rewardedMilestones: Array.isArray(data.rewardedMilestones) ? data.rewardedMilestones.filter((item): item is string => typeof item === "string").slice(-160) : [] };
   } catch {
     return defaultState;
   }
@@ -96,11 +99,13 @@ export function stageForGrowth(growthPercent: number, stageCount: number): numbe
 
 export function usePetGarden(deviceId: string) {
   const [state, setState] = useState<PetGardenState>(readState);
+  const rewardedRef = useRef(new Set(state.rewardedMilestones));
   const [message, setMessage] = useState("Aquí estoy para acompañarte un ratito.");
   /** Bumped on every point gained, so any screen can trigger a one-off gain animation by watching it. */
   const [pulse, setPulse] = useState(0);
 
   useEffect(() => persist(state), [state]);
+  useEffect(() => { rewardedRef.current = new Set(state.rewardedMilestones); }, [state.rewardedMilestones]);
 
   useEffect(() => {
     fetchRemotePetGarden(deviceId).then((remote) => {
@@ -112,6 +117,7 @@ export function usePetGarden(deviceId: string) {
         progress: remote.progress,
         lastCare: remote.lastCare,
         careCounts: { ...current.careCounts, ...remote.careCounts },
+        rewardedMilestones: [...new Set([...(current.rewardedMilestones || []), ...(remote.rewardedMilestones || [])])].slice(-160),
       }));
     });
     // Una sola vez al montar: después de esto, este mismo estado local es la fuente de verdad para el resto de la sesión.
@@ -160,6 +166,24 @@ export function usePetGarden(deviceId: string) {
     setMessage("¡Un hábito cumplido! Eso también me ayuda a crecer.");
   }
 
+  /** Rewards an app-wide achievement exactly once (screening, task step or completed plan). */
+  function rewardMilestone(id: string, points: number, nextMessage: string) {
+    if (!id || rewardedRef.current.has(id)) return;
+    rewardedRef.current.add(id);
+    setState((current) => {
+      if (current.rewardedMilestones.includes(id)) return current;
+      return {
+        ...current,
+        happiness: Math.min(100, current.happiness + 3),
+        bond: Math.min(100, current.bond + 2),
+        progress: Math.min(GROWTH_TARGET_POINTS, current.progress + points),
+        rewardedMilestones: [...current.rewardedMilestones, id].slice(-160),
+      };
+    });
+    setPulse((current) => current + 1);
+    setMessage(nextMessage);
+  }
+
   /** Call when the user sends or receives a message in the chat de acompañamiento. */
   function gainFromChat(emotion: EmotionInsight) {
     if (emotion.primary === "no_clara" || emotion.progress === "sin_señal") return;
@@ -181,6 +205,7 @@ export function usePetGarden(deviceId: string) {
     reactToEmotion,
     gainFromHabit,
     gainFromChat,
+    rewardMilestone,
   };
 }
 

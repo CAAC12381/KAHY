@@ -25,15 +25,17 @@ import BrandMark from "../components/BrandMark";
 import Mascot, { Flower } from "../components/Mascot";
 import SupportBanner from "../components/SupportBanner";
 import { Button, DemoBadge, Modal } from "../components/ui";
-import { useChatMemory, type ChatMemoryEntry } from "../hooks/useChatMemory";
+import { useChatMemory } from "../hooks/useChatMemory";
 import type { ChatHistoryApi, ChatHistorySession } from "../hooks/useChatHistory";
 import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
+import type { DailyHabitsApi } from "../hooks/useDailyHabits";
 import { stageForGrowth, type PetGardenApi } from "../hooks/usePetGarden";
 import type { ScreeningsState } from "../hooks/useScreenings";
 import { makeStep, type TaskPlansApi } from "../hooks/useTaskPlans";
 import { createReply, detectSafetySignal, getTopic, type ChatTopic, type ConversationReply } from "../mock/conversation";
 import { flowers, mascots, trustedSources } from "../mock/data";
 import { emotionLabels, inferLocalEmotion } from "../lib/emotionLexicon";
+import { buildAdaptiveContext } from "../lib/personalization";
 import type { DemoProfile, MainView, Preferences } from "../types";
 import { getAiStatus, requestAiReply, type AiConnection, type ApiChatMessage } from "../services/chatApi";
 
@@ -92,23 +94,6 @@ const topicNames: Record<ChatTopic, string> = {
   conversación: "Conversación general",
 };
 
-/**
- * Short, non-sensitive summary sent alongside the chat request so the AI can
- * personalize without KAHY ever sending raw message history as "profile
- * data" — only declared goals/city and recent topic labels, never message
- * text. Server side (api/_lib/kahyAi.ts, server/kahyAi.ts) appends it to the
- * system prompt rather than the conversation itself.
- */
-function buildPersonalContext(profile: DemoProfile, memory: ChatMemoryEntry[]): string | undefined {
-  const parts: string[] = [];
-  if (profile.goals.length) parts.push(`metas declaradas: ${profile.goals.join(", ")}`);
-  if (memory.length) {
-    const recentTopics = [...new Set(memory.slice(-4).map((entry) => topicNames[entry.topic]))];
-    if (recentTopics.length) parts.push(`temas recientes de conversación: ${recentTopics.join(", ")}`);
-  }
-  return parts.length ? parts.join(". ") : undefined;
-}
-
 function formatSessionDate(timestamp: number): string {
   const date = new Date(timestamp);
   const sameDay = date.toDateString() === new Date().toDateString();
@@ -116,8 +101,21 @@ function formatSessionDate(timestamp: number): string {
   return date.toLocaleDateString("es-MX", { day: "numeric", month: "short" });
 }
 
-export default function ChatPage({ onHelp, navigate, preferences, screenings, garden, profile, deviceId, chatHistory, emotionCalendar, taskPlans, onOpenTask, initialDraft }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences; screenings: ScreeningsState; garden: PetGardenApi; profile: DemoProfile; deviceId: string; chatHistory: ChatHistoryApi; emotionCalendar: EmotionCalendarApi; taskPlans: TaskPlansApi; onOpenTask: (planId?: string) => void; initialDraft?: string }) {
+export default function ChatPage({ onHelp, navigate, preferences, screenings, garden, profile, deviceId, chatHistory, emotionCalendar, taskPlans, habits, onOpenTask, initialDraft }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences; screenings: ScreeningsState; garden: PetGardenApi; profile: DemoProfile; deviceId: string; chatHistory: ChatHistoryApi; emotionCalendar: EmotionCalendarApi; taskPlans: TaskPlansApi; habits: DailyHabitsApi; onOpenTask: (planId?: string) => void; initialDraft?: string }) {
   const memory = useChatMemory(preferences.rememberConversations, deviceId);
+  const companionName = profile.companionType === "mascota" ? mascots.find((item) => item.id === profile.mascot)?.name : flowers.find((item) => item.id === profile.flower)?.name;
+  const adaptive = buildAdaptiveContext({
+    profile,
+    preferences,
+    recentTopics: memory.entries.slice(-4).map((entry) => topicNames[entry.topic]),
+    screenings: screenings.results,
+    emotions: emotionCalendar.entries,
+    tasks: taskPlans.plans,
+    habitDays: habits.days,
+    habitStreak: habits.streak,
+    companionGrowth: garden.growth,
+    companionName,
+  });
   const [historyOpen, setHistoryOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
   const [showPlanHint, setShowPlanHint] = useState(false);
@@ -184,12 +182,12 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
       const apiMessages: ApiChatMessage[] = nextMessages.slice(-16).map((message) => message.role === "user"
         ? { role: "user", content: message.text }
         : { role: "assistant", content: summarizeReply(message.reply) });
-      const result = await requestAiReply(apiMessages, buildPersonalContext(profile, memory.entries));
+      const result = await requestAiReply(apiMessages, adaptive.summary);
       reply = result.reply;
       setAiConnection(result.provider === "openai" || result.provider === "groq" ? "live" : "local");
     } catch (error) {
       const earlierUserMessages = messages.filter((message): message is Extract<ChatMessage, { role: "user" }> => message.role === "user").slice(-3).map((message) => message.text);
-      reply = createReply(clean, currentTopic, { recentUserMessages: earlierUserMessages, turnCount: earlierUserMessages.length + 1 });
+      reply = createReply(clean, currentTopic, { recentUserMessages: earlierUserMessages, turnCount: earlierUserMessages.length + 1, personalization: preferences.adaptivePersonalization ? adaptive.highlights : undefined });
       const errorCode = (error as Error & { code?: string }).code;
       setAiConnection(errorCode === "OFFLINE" ? "offline" : errorCode === "AI_NOT_CONFIGURED" ? "local" : "error");
     }
@@ -317,6 +315,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
           <div className="conversation-scroll" ref={scrollRef} role="log" aria-live="polite" aria-relevant="additions" aria-busy={typing}>
             <div className="conversation-day"><Sparkles size={13} /> {preferences.saveChatHistory ? "Conversación nueva · se guarda en este navegador" : preferences.rememberConversations ? "Conversación nueva · recuerda solo temas" : "Conversación nueva · no se guarda"}</div>
             {memory.entries.length > 0 && <div className="memory-banner"><MessageCircle size={14} /><span>La última vez hablamos de: {memory.entries.slice(-3).map((entry) => topicNames[entry.topic]).join(", ")}.</span></div>}
+            {messages.length === 1 && preferences.adaptivePersonalization && adaptive.connectedSignals > 0 && <div className="memory-banner adaptive"><Sparkles size={14} /><span>KAHY conectará tus avances en hábitos, tareas, emociones y tamizajes para personalizar esta charla.</span></div>}
             {messages.map((message) => message.role === "user" ? <div className="studio-message user" data-chat-message key={message.id}><div className="user-message">{message.text}</div></div> : <AssistantReply key={message.id} reply={message.reply} onChoice={send} onHelp={onHelp} navigate={navigate} disabled={typing} onOpenPlan={() => setPlanOpen(true)} />)}
             {typing && <div className="studio-message assistant" data-chat-message><BrandMark size="small" /><div className="thinking-card" role="status"><div className="thinking-dots"><i /><i /><i /></div><span>Organizando una respuesta segura y útil…</span></div></div>}
             {showPlanHint && <div className="plan-first-hint" role="status"><ListChecks size={19} /><div><strong>Tu respuesta incluye un plan</strong><span>Puedes revisarlo y marcar avances en <b>Plan de ahora</b>.</span></div><button onClick={() => { setShowPlanHint(false); setPlanOpen(true); }}>Ver plan <ArrowRight size={15} /></button><button className="plan-hint-close" onClick={() => setShowPlanHint(false)} aria-label="Cerrar aviso"><X size={15} /></button></div>}

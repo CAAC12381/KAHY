@@ -12,6 +12,7 @@ import {
   listChatMemory, addChatMemory, clearChatMemory,
   getPetGarden, upsertPetGarden,
   listTaskPlans, upsertTaskPlan, deleteTaskPlans, sanitizeTaskPlan,
+  listHabitDays, upsertHabitDay,
 } from './api/_lib/db'
 import { getTaskBreakdown } from './api/_lib/taskBreakdown'
 
@@ -245,6 +246,7 @@ function kahyDataApi(): Plugin {
           await upsertPetGarden(body.deviceId, {
             happiness: state.happiness, bond: state.bond, progress: state.progress,
             careCounts: (state.careCounts as Record<string, number>) || {}, lastCare: state.lastCare,
+            rewardedMilestones: Array.isArray(state.rewardedMilestones) ? state.rewardedMilestones.filter((item): item is string => typeof item === 'string').slice(-160) : [],
           })
           return res.end(JSON.stringify({ ok: true }))
         }
@@ -269,6 +271,27 @@ function kahyDataApi(): Plugin {
           const plan = sanitizeTaskPlan(body.plan)
           if (!body.deviceId || !plan) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Plan inválido.' })) }
           await upsertTaskPlan(body.deviceId, plan.id as string, plan)
+          return res.end(JSON.stringify({ ok: true }))
+        }
+        res.statusCode = 405
+        res.end(JSON.stringify({ error: 'Método no permitido.' }))
+      }))
+
+      server.middlewares.use('/api/data/habits', withDbErrorHandling(async (req, res) => {
+        if (req.method === 'GET') {
+          const deviceId = getDeviceIdFromQuery(req.url)
+          if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
+          return res.end(JSON.stringify({ days: await listHabitDays(deviceId) }))
+        }
+        if (req.method === 'PUT') {
+          const body = await readJsonBody(req) as { deviceId?: string; day?: { date?: string; completed?: unknown } }
+          const date = body.day?.date
+          const completed = body.day?.completed
+          if (!body.deviceId || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Array.isArray(completed)) {
+            res.statusCode = 400
+            return res.end(JSON.stringify({ error: 'Registro de hábitos inválido.' }))
+          }
+          await upsertHabitDay(body.deviceId, { date, completed: completed.filter((item): item is string => typeof item === 'string').slice(0, 20) })
           return res.end(JSON.stringify({ ok: true }))
         }
         res.statusCode = 405

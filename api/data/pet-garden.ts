@@ -33,6 +33,7 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
         progress: state.progress,
         careCounts: state.careCounts || {},
         lastCare: state.lastCare,
+        rewardedMilestones: Array.isArray(state.rewardedMilestones) ? state.rewardedMilestones.filter((item): item is string => typeof item === 'string').slice(-160) : [],
       })
       return res.status(200).json({ ok: true })
     }

@@ -15,6 +15,7 @@ import { useScreenings } from "./hooks/useScreenings";
 import { useChatHistory } from "./hooks/useChatHistory";
 import { useEmotionCalendar } from "./hooks/useEmotionCalendar";
 import { useTaskPlans } from "./hooks/useTaskPlans";
+import { useDailyHabits } from "./hooks/useDailyHabits";
 import { getDeviceId } from "./lib/deviceId";
 import { fetchRemoteProfile, saveRemoteProfile, deleteRemoteData } from "./services/dataApi";
 import type { DemoProfile, MainView, Preferences, ToastMessage } from "./types";
@@ -31,6 +32,7 @@ const defaultPreferences: Preferences = {
   showMascot: true,
   textScale: "normal",
   rememberConversations: false,
+  adaptivePersonalization: true,
   saveChatHistory: true,
 };
 
@@ -91,11 +93,15 @@ export default function App() {
   const [isRegistered, setIsRegistered] = useState(Boolean(restoredRegistration));
   const [showHelp, setShowHelp] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
-  const screenings = useScreenings(deviceId);
   const garden = usePetGarden(deviceId);
+  const habits = useDailyHabits(deviceId, (habitId, date) => garden.rewardMilestone(`habit:${date}:${habitId}`, 4, "¡Un hábito cumplido! Eso también me ayuda a crecer."));
+  const screenings = useScreenings(deviceId, (result) => garden.rewardMilestone(`screening:${result.id}:${result.completedAt}`, 3, "Conocerte un poco mejor también fortalece nuestro camino."));
   const chatHistory = useChatHistory(preferences.saveChatHistory);
   const emotionCalendar = useEmotionCalendar(deviceId);
-  const taskPlans = useTaskPlans(deviceId);
+  const taskPlans = useTaskPlans(deviceId, {
+    onStepCompleted: (plan, step) => garden.rewardMilestone(`task-step:${plan.id}:${step.id}`, 2, "Ese paso completado cuenta. Vamos creciendo con avances reales."),
+    onPlanCompleted: (plan) => garden.rewardMilestone(`task-plan:${plan.id}`, 4, "¡Terminaste una tarea completa! Tu constancia también se refleja aquí."),
+  });
   // Navegación con intención: abrir una actividad concreta o llegar al chat con un mensaje ya escrito.
   const [activityIntent, setActivityIntent] = useState<{ key: number; activity: Activity; planId?: string } | null>(null);
   const [chatDraft, setChatDraft] = useState<{ key: number; text: string } | null>(null);
@@ -210,6 +216,7 @@ export default function App() {
     chatHistory.clear();
     emotionCalendar.clear();
     taskPlans.clear();
+    habits.clear();
     setProfile(defaultProfile);
     setPreferences(defaultPreferences);
     setIsRegistered(false);
@@ -225,8 +232,8 @@ export default function App() {
     <div className={`kahy-app ${preferences.reducedMotion ? "reduce-motion" : ""} ${preferences.lowStimuli ? "low-stimuli" : ""} ${preferences.simplified ? "simplified" : ""} ${preferences.textScale === "large" ? "large-text" : ""}`}>
       <a className="skip-link" href="#main-content">Saltar al contenido</a>
       <AppShell currentView={view} onNavigate={navigate} onHelp={() => setShowHelp(true)} mascot={profile.mascot} preferences={preferences}>
-        {view === "home" && <HomePage profile={profile} preferences={preferences} navigate={navigate} notify={notify} screenings={screenings} onHelp={() => setShowHelp(true)} garden={garden} emotionCalendar={emotionCalendar} taskPlans={taskPlans} onOpenTask={openTaskBreakdown} />}
-        {view === "chat" && <ChatPage key={chatDraft?.key ?? "chat"} initialDraft={chatDraft?.text} onHelp={() => setShowHelp(true)} navigate={navigate} preferences={preferences} screenings={screenings} garden={garden} profile={profile} deviceId={deviceId} chatHistory={chatHistory} emotionCalendar={emotionCalendar} taskPlans={taskPlans} onOpenTask={openTaskBreakdown} />}
+        {view === "home" && <HomePage profile={profile} preferences={preferences} navigate={navigate} notify={notify} screenings={screenings} onHelp={() => setShowHelp(true)} garden={garden} emotionCalendar={emotionCalendar} taskPlans={taskPlans} habits={habits} onOpenTask={openTaskBreakdown} />}
+        {view === "chat" && <ChatPage key={chatDraft?.key ?? "chat"} initialDraft={chatDraft?.text} onHelp={() => setShowHelp(true)} navigate={navigate} preferences={preferences} screenings={screenings} garden={garden} profile={profile} deviceId={deviceId} chatHistory={chatHistory} emotionCalendar={emotionCalendar} taskPlans={taskPlans} habits={habits} onOpenTask={openTaskBreakdown} />}
         {view === "activities" && <ActivitiesPage key={activityIntent?.key ?? "activities"} preferences={preferences} notify={notify} taskPlans={taskPlans} emotionCalendar={emotionCalendar} onHelp={() => setShowHelp(true)} onTalkToKahy={talkToKahy} initialActivity={activityIntent?.activity} initialPlanId={activityIntent?.planId} />}
         {view === "screening" && <ScreeningPage screenings={screenings} onHelp={() => setShowHelp(true)} navigate={navigate} />}
         {view === "specialists" && <SpecialistsPage notify={notify} />}

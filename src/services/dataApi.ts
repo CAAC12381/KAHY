@@ -8,6 +8,7 @@
  */
 
 import type { TaskPlan } from "../types";
+import type { HabitDay } from "../hooks/useDailyHabits";
 
 async function safeFetch<T>(input: string, init?: RequestInit): Promise<T | null> {
   try {
@@ -94,6 +95,7 @@ export type RemotePetGarden = {
   progress: number;
   careCounts: Record<string, number>;
   lastCare: number;
+  rewardedMilestones: string[];
 };
 
 export async function fetchRemotePetGarden(deviceId: string): Promise<RemotePetGarden | null> {
@@ -153,4 +155,17 @@ export function saveRemoteTaskPlan(deviceId: string, plan: TaskPlan): void {
 export function deleteRemoteTaskPlan(deviceId: string, planId?: string): void {
   const plan = planId ? `&planId=${encodeURIComponent(planId)}` : "";
   void safeFetch(`/api/data/task-plans?deviceId=${encodeURIComponent(deviceId)}${plan}`, { method: "DELETE" });
+}
+
+export async function fetchRemoteHabitDays(deviceId: string): Promise<HabitDay[] | null> {
+  const data = await safeFetch<{ days: HabitDay[] }>(`/api/data/habits?deviceId=${encodeURIComponent(deviceId)}`);
+  return data?.days ?? null;
+}
+
+export function saveRemoteHabitDay(deviceId: string, day: HabitDay): void {
+  void safeFetch("/api/data/habits", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ deviceId, day }),
+  });
 }
