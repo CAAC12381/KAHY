@@ -45,6 +45,31 @@ export interface EmotionEntry extends EmotionInsight {
   at: number;
 }
 
+export type TaskEnergy = "poca" | "media" | "bastante";
+export type TaskPlanSource = "manual" | "ia" | "local" | "chat";
+
+export interface TaskStep {
+  id: string;
+  text: string;
+  /** Estimación amable en minutos; nunca una meta obligatoria. */
+  minutes?: number;
+  done: boolean;
+  doneAt?: number;
+}
+
+export interface TaskPlan {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  completedAt?: number;
+  energy: TaskEnergy;
+  source: TaskPlanSource;
+  feelingBefore?: EmotionName;
+  feelingAfter?: EmotionName;
+  steps: TaskStep[];
+}
+
 export type TextScale = "normal" | "large";
 
 export interface Preferences {

@@ -30,6 +30,7 @@ import type { ChatHistoryApi, ChatHistorySession } from "../hooks/useChatHistory
 import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
 import { stageForGrowth, type PetGardenApi } from "../hooks/usePetGarden";
 import type { ScreeningsState } from "../hooks/useScreenings";
+import { makeStep, type TaskPlansApi } from "../hooks/useTaskPlans";
 import { createReply, detectSafetySignal, getTopic, type ChatTopic, type ConversationReply } from "../mock/conversation";
 import { flowers, mascots, trustedSources } from "../mock/data";
 import { emotionLabels, inferLocalEmotion } from "../lib/emotionLexicon";
@@ -115,7 +116,7 @@ function formatSessionDate(timestamp: number): string {
   return date.toLocaleDateString("es-MX", { day: "numeric", month: "short" });
 }
 
-export default function ChatPage({ onHelp, navigate, preferences, screenings, garden, profile, deviceId, chatHistory, emotionCalendar }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences; screenings: ScreeningsState; garden: PetGardenApi; profile: DemoProfile; deviceId: string; chatHistory: ChatHistoryApi; emotionCalendar: EmotionCalendarApi }) {
+export default function ChatPage({ onHelp, navigate, preferences, screenings, garden, profile, deviceId, chatHistory, emotionCalendar, taskPlans, onOpenTask, initialDraft }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences; screenings: ScreeningsState; garden: PetGardenApi; profile: DemoProfile; deviceId: string; chatHistory: ChatHistoryApi; emotionCalendar: EmotionCalendarApi; taskPlans: TaskPlansApi; onOpenTask: (planId?: string) => void; initialDraft?: string }) {
   const memory = useChatMemory(preferences.rememberConversations, deviceId);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
@@ -125,7 +126,8 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
   const [messages, setMessages] = useState<ChatMessage[]>([{ id: 1, role: "assistant", reply: initialReply }]);
   const [companionGaining, setCompanionGaining] = useState(false);
   const mountedPulse = useRef(garden.pulse);
-  const [value, setValue] = useState("");
+  // Un borrador que llega desde otra sección (p. ej. "Hablar con KAHY sobre esta tarea") se deja escrito, nunca se envía solo.
+  const [value, setValue] = useState(initialDraft ?? "");
   const [typing, setTyping] = useState(false);
   const [currentTopic, setCurrentTopic] = useState<ChatTopic>("inicio");
   const [lowData, setLowData] = useState(true);
@@ -222,6 +224,32 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
     if (reply.openHelp) window.setTimeout(onHelp, 350);
   }
 
+  useEffect(() => {
+    if (!initialDraft || !inputRef.current) return;
+    const input = inputRef.current;
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+    input.style.height = `${Math.min(input.scrollHeight, 132)}px`;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function savePlanAsTask() {
+    const lastReply = [...messages].reverse().find((message): message is Extract<ChatMessage, { role: "assistant" }> => message.role === "assistant");
+    const title = lastReply?.reply.title?.trim() || "Plan de la conversación";
+    const created = taskPlans.create({
+      title,
+      energy: "media",
+      source: "chat",
+      // Quita el horizonte ("Corto plazo: …") que el plan del chat antepone a cada acción.
+      steps: plan.map((item) => {
+        const text = item.text.replace(/^[^:]{1,30}:\s*/, "");
+        return { ...makeStep(text.charAt(0).toUpperCase() + text.slice(1)), done: item.done, doneAt: item.done ? Date.now() : undefined };
+      }),
+    });
+    setPlanOpen(false);
+    onOpenTask(created.id);
+  }
+
   function resetChat() {
     chatHistory.archive(messages, currentTopic);
     setMessages([{ id: Date.now(), role: "assistant", reply: initialReply }]);
@@ -316,7 +344,8 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
       {planOpen && <><div className="plan-backdrop" onClick={() => setPlanOpen(false)} /><aside className="action-plan-panel">
           <div className="plan-heading"><ListChecks size={20} /><span><strong>Plan de ahora</strong><small>Para esta conversación</small></span><button onClick={() => setPlanOpen(false)} aria-label="Cerrar Plan de ahora"><X size={18} /></button></div>
           {!plan.length ? <div className="plan-empty"><Leaf size={28} /><p>Cuando conversemos, aquí aparecerán acciones concretas para este momento y el siguiente paso.</p></div> : <div className="plan-list">{plan.map((item, index) => <label className={item.done ? "done" : ""} key={`${item.text}-${index}`}><input type="checkbox" checked={item.done} onChange={(event) => setPlan(plan.map((entry, itemIndex) => itemIndex === index ? { ...entry, done: event.target.checked } : entry))} /><span>{item.text}</span></label>)}</div>}
-          <div className="plan-links"><button onClick={() => navigate("activities")}><Leaf size={17} /> Abrir herramientas <ArrowRight size={16} /></button><button onClick={() => navigate("specialists")}><UserRoundSearch size={17} /> Explorar atención <ArrowRight size={16} /></button><button onClick={() => navigate("resources")}><Database size={17} /> Ver evidencia <ArrowRight size={16} /></button></div>
+          {plan.length > 0 && <button className="plan-save-task" onClick={savePlanAsTask}><ListChecks size={17} /> Guardar como tarea desglosada <ArrowRight size={16} /></button>}
+          <div className="plan-links"><button onClick={() => onOpenTask()}><ListChecks size={17} /> Desglosar una tarea {taskPlans.active.length > 0 && `(${taskPlans.active.length} en curso)`} <ArrowRight size={16} /></button><button onClick={() => navigate("activities")}><Leaf size={17} /> Abrir herramientas <ArrowRight size={16} /></button><button onClick={() => navigate("specialists")}><UserRoundSearch size={17} /> Explorar atención <ArrowRight size={16} /></button><button onClick={() => navigate("resources")}><Database size={17} /> Ver evidencia <ArrowRight size={16} /></button></div>
           <button className="reset-chat" onClick={resetChat}><RotateCcw size={16} /> Iniciar conversación nueva</button>
       </aside></>}
 

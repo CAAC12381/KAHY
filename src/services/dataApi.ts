@@ -7,6 +7,8 @@
  * yet, the app should keep working exactly as it did before this existed.
  */
 
+import type { TaskPlan } from "../types";
+
 async function safeFetch<T>(input: string, init?: RequestInit): Promise<T | null> {
   try {
     const response = await fetch(input, init);
@@ -132,4 +134,23 @@ export function saveRemoteEmotion(deviceId: string, entry: RemoteEmotionEntry): 
 
 export function clearRemoteEmotions(deviceId: string): void {
   void safeFetch(`/api/data/emotions?deviceId=${encodeURIComponent(deviceId)}`, { method: "DELETE" });
+}
+
+export async function fetchRemoteTaskPlans(deviceId: string): Promise<TaskPlan[] | null> {
+  const data = await safeFetch<{ plans: TaskPlan[] }>(`/api/data/task-plans?deviceId=${encodeURIComponent(deviceId)}`);
+  return data?.plans ?? null;
+}
+
+export function saveRemoteTaskPlan(deviceId: string, plan: TaskPlan): void {
+  void safeFetch("/api/data/task-plans", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ deviceId, plan }),
+  });
+}
+
+/** Sin planId borra todos los planes de este dispositivo. */
+export function deleteRemoteTaskPlan(deviceId: string, planId?: string): void {
+  const plan = planId ? `&planId=${encodeURIComponent(planId)}` : "";
+  void safeFetch(`/api/data/task-plans?deviceId=${encodeURIComponent(deviceId)}${plan}`, { method: "DELETE" });
 }

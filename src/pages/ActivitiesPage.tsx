@@ -1,27 +1,40 @@
 import { Bubbles, CirclePause, Cloud, HeartPulse, ListChecks, Play, RotateCcw, Wind } from "lucide-react";
 import { useEffect, useState } from "react";
+import TaskBreakdown from "../components/TaskBreakdown";
 import { Button, Card, DemoBadge } from "../components/ui";
+import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
+import type { TaskPlansApi } from "../hooks/useTaskPlans";
 import type { Preferences } from "../types";
 
-type Activity = "breathing" | "task" | "clouds" | "body" | "bubbles";
+export type Activity = "breathing" | "task" | "clouds" | "body" | "bubbles";
 const phases = [
   { label: "Inhala", seconds: 4 },
   { label: "Pausa", seconds: 2 },
   { label: "Exhala", seconds: 6 },
 ];
 
-export default function ActivitiesPage({ preferences, notify }: { preferences: Preferences; notify: (text: string) => void }) {
-  const [activity, setActivity] = useState<Activity | null>(null);
+export default function ActivitiesPage({ preferences, notify, taskPlans, emotionCalendar, onHelp, onTalkToKahy, initialActivity, initialPlanId }: {
+  preferences: Preferences;
+  notify: (text: string) => void;
+  taskPlans: TaskPlansApi;
+  emotionCalendar: EmotionCalendarApi;
+  onHelp: () => void;
+  onTalkToKahy: (draft: string) => void;
+  initialActivity?: Activity;
+  initialPlanId?: string;
+}) {
+  const [activity, setActivity] = useState<Activity | null>(initialActivity ?? null);
+  const activeTasks = taskPlans.active.length;
   return (
     <div className="page">
       <div className="page-heading"><div><span className="eyebrow">A tu ritmo</span><h1>Actividades breves</h1><p>Herramientas de demostración para probar calma, organización y registro emocional.</p></div><DemoBadge>Sin evaluación clínica</DemoBadge></div>
       {!activity ? <div className="activity-grid">
         <button className="activity-card breath" onClick={() => setActivity("breathing")}><span className="activity-illustration"><Wind /></span><span className="pill">1–3 min</span><h2>Respiración guiada</h2><p>Un ritmo visual de inhalar, pausar y exhalar.</p><span className="text-link">Comenzar <Play size={17} /></span></button>
-        <button className="activity-card task" onClick={() => setActivity("task")}><span className="activity-illustration"><ListChecks /></span><span className="pill">2 min</span><h2>Desglosar una tarea</h2><p>Convierte algo grande en un siguiente paso posible.</p><span className="text-link">Desglosar <ListChecks size={17} /></span></button>
+        <button className="activity-card task" onClick={() => setActivity("task")}><span className="activity-illustration"><ListChecks /></span><span className="pill">{activeTasks ? `${activeTasks} ${activeTasks === 1 ? "tarea en curso" : "tareas en curso"}` : "Con ayuda de IA"}</span><h2>Desglosar una tarea</h2><p>Convierte algo grande en pasos pequeños, márcalos al avanzar y retómalos cuando quieras.</p><span className="text-link">{activeTasks ? "Continuar" : "Desglosar"} <ListChecks size={17} /></span></button>
         <button className="activity-card clouds" onClick={() => setActivity("clouds")}><span className="activity-illustration"><Cloud /></span><span className="pill">Juego tranquilo</span><h2>Un paseo entre nubes</h2><p>Guía un globo despacito entre las nubes, a tu propio ritmo.</p><span className="text-link">Jugar <Play size={17} /></span></button>
         <button className="activity-card body" onClick={() => setActivity("body")}><span className="activity-illustration"><HeartPulse /></span><span className="pill">Juego educativo</span><h2>El Inspector del Cuerpo</h2><p>Explora qué le pasa a tu cuerpo con la ansiedad y ayúdalo a calmarse.</p><span className="text-link">Explorar <Play size={17} /></span></button>
         <button className="activity-card bubbles" onClick={() => setActivity("bubbles")}><span className="activity-illustration"><Bubbles /></span><span className="pill">Regulación emocional</span><h2>Suelta la burbuja</h2><p>Piensa en algo que te abrume y suéltalo, una burbuja a la vez.</p><span className="text-link">Jugar <Play size={17} /></span></button>
-      </div> : <div className="activity-detail"><button className="back-link" onClick={() => setActivity(null)}>← Todas las actividades</button>{activity === "breathing" && <Breathing reducedMotion={preferences.reducedMotion} />}{activity === "task" && <TaskBreakdown notify={notify} />}{activity === "clouds" && <CloudWalk />}{activity === "body" && <BodyInspector />}{activity === "bubbles" && <BubblePop />}</div>}
+      </div> : <div className="activity-detail"><button className="back-link" onClick={() => setActivity(null)}>← Todas las actividades</button>{activity === "breathing" && <Breathing reducedMotion={preferences.reducedMotion} />}{activity === "task" && <TaskBreakdown taskPlans={taskPlans} emotionCalendar={emotionCalendar} notify={notify} onHelp={onHelp} onTalkToKahy={onTalkToKahy} reducedMotion={preferences.reducedMotion} initialPlanId={initialPlanId} />}{activity === "clouds" && <CloudWalk />}{activity === "body" && <BodyInspector />}{activity === "bubbles" && <BubblePop />}</div>}
     </div>
   );
 }
@@ -61,10 +74,4 @@ function BodyInspector() {
 
 function BubblePop() {
   return <Card className="bubbles-panel"><div className="activity-title"><span className="activity-illustration"><Bubbles /></span><div><DemoBadge>Juego de demostración</DemoBadge><h1>Suelta la burbuja</h1><p>Mantén presionado para empezar y suelta cada burbuja a tu propio ritmo.</p></div></div><div className="game-frame"><iframe src="/games/suelta-la-burbuja/index.html" title="Suelta la burbuja" loading="lazy" /></div></Card>;
-}
-
-function TaskBreakdown({ notify }: { notify: (text: string) => void }) {
-  const [task, setTask] = useState("");
-  const [steps, setSteps] = useState([""]);
-  return <Card className="task-panel"><div className="activity-title"><span className="activity-illustration"><ListChecks /></span><div><DemoBadge>Herramienta local</DemoBadge><h1>Haz más pequeño el siguiente paso</h1><p>Trabaja con acciones observables y breves.</p></div></div><label className="field plain"><span>Tarea grande</span><input value={task} onChange={(event) => setTask(event.target.value)} placeholder="Ej. preparar una exposición" /></label><div className="step-builder"><h3>Siguientes pasos pequeños</h3>{steps.map((step, index) => <label key={index}><span>{index + 1}</span><input value={step} onChange={(event) => setSteps(steps.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} placeholder={index === 0 ? "Ej. abrir el documento" : "Otro paso opcional"} /></label>)}{steps.length < 4 && <Button variant="ghost" onClick={() => setSteps([...steps, ""])}>+ Añadir otro paso</Button>}</div><Button onClick={() => notify(task && steps.some(Boolean) ? "Plan listo en esta sesión. Nada se guardó." : "Escribe una tarea y al menos un paso.")}>Terminar plan de prueba</Button></Card>;
 }

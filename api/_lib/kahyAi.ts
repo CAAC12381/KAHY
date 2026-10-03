@@ -74,7 +74,7 @@ const safetyPatterns = [
   /estoy en peligro/i,
 ]
 
-function detectSafetySignal(input: string) {
+export function detectSafetySignal(input: string) {
   const contextual = input.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
     .replace(/\bno me quiero morir\b/g, '')
     .replace(/\bno quiero (morir|matarme|hacerme dano|lastimarme)\b/g, '')
@@ -189,7 +189,7 @@ Restricción de salida: introduction no puede comenzar con “Entiendo que”, �
 Campos: introduction contiene la respuesta principal completa y natural. insight agrega una observación distinta solo si aporta algo; si no, usa "". label y title deben ser breves. Devuelve únicamente el objeto solicitado por el esquema.`
 
 type AiProviderName = 'groq' | 'openai'
-type ResolvedProvider = { name: AiProviderName; apiKey: string; model: string }
+export type ResolvedProvider = { name: AiProviderName; apiKey: string; model: string }
 
 /**
  * Groq is checked first: it's the free tier, so it's the sensible default
@@ -220,7 +220,7 @@ export function getStatusPayload() {
 // hard guarantee. A durable store (e.g. Vercel KV) would be needed for that.
 const requestLog = new Map<string, number[]>()
 
-function isRateLimited(clientId: string): boolean {
+export function isRateLimited(clientId: string): boolean {
   const now = Date.now()
   const recent = (requestLog.get(clientId) || []).filter((time) => now - time < 60_000)
   if (recent.length >= 12) return true

@@ -11,7 +11,9 @@ import {
   listScreenings, addScreening,
   listChatMemory, addChatMemory, clearChatMemory,
   getPetGarden, upsertPetGarden,
+  listTaskPlans, upsertTaskPlan, deleteTaskPlans, sanitizeTaskPlan,
 } from './api/_lib/db'
+import { getTaskBreakdown } from './api/_lib/taskBreakdown'
 
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -85,6 +87,20 @@ function kahyAiApi(): Plugin {
         const body = await readJsonBody(req) as { messages?: unknown; context?: unknown }
         const clientId = req.socket.remoteAddress || 'local'
         const { status, body: responseBody } = await getChatReply(body?.messages, clientId, body?.context)
+        res.statusCode = status
+        res.end(JSON.stringify(responseBody))
+      })
+
+      server.middlewares.use('/api/kahy/breakdown', async (req, res) => {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-store')
+        if (req.method !== 'POST') {
+          res.statusCode = 405
+          return res.end(JSON.stringify({ error: 'Método no permitido.' }))
+        }
+
+        const body = await readJsonBody(req)
+        const { status, body: responseBody } = await getTaskBreakdown(body, req.socket.remoteAddress || 'local')
         res.statusCode = status
         res.end(JSON.stringify(responseBody))
       })
@@ -230,6 +246,29 @@ function kahyDataApi(): Plugin {
             happiness: state.happiness, bond: state.bond, progress: state.progress,
             careCounts: (state.careCounts as Record<string, number>) || {}, lastCare: state.lastCare,
           })
+          return res.end(JSON.stringify({ ok: true }))
+        }
+        res.statusCode = 405
+        res.end(JSON.stringify({ error: 'Método no permitido.' }))
+      }))
+
+      server.middlewares.use('/api/data/task-plans', withDbErrorHandling(async (req, res) => {
+        const deviceId = getDeviceIdFromQuery(req.url)
+        if (req.method === 'GET') {
+          if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
+          return res.end(JSON.stringify({ plans: await listTaskPlans(deviceId) }))
+        }
+        if (req.method === 'DELETE') {
+          if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
+          const planId = new URLSearchParams((req.url || '').split('?')[1] || '').get('planId') || undefined
+          await deleteTaskPlans(deviceId, planId)
+          return res.end(JSON.stringify({ ok: true }))
+        }
+        if (req.method === 'PUT') {
+          const body = await readJsonBody(req) as { deviceId?: string; plan?: unknown }
+          const plan = sanitizeTaskPlan(body.plan)
+          if (!body.deviceId || !plan) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Plan inválido.' })) }
+          await upsertTaskPlan(body.deviceId, plan.id as string, plan)
           return res.end(JSON.stringify({ ok: true }))
         }
         res.statusCode = 405

@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpen, CalendarDays, Check, ClipboardList, Leaf, MessageCircle, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, CalendarDays, Check, ClipboardList, Leaf, ListChecks, MessageCircle, Sparkles } from "lucide-react";
 import EmotionCalendar from "../components/EmotionCalendar";
 import Mascot from "../components/Mascot";
 import PetGarden from "../components/PetGarden";
@@ -7,6 +7,7 @@ import { Button, Card, DemoBadge } from "../components/ui";
 import { dailyHabits, useDailyHabits } from "../hooks/useDailyHabits";
 import type { PetGardenApi } from "../hooks/usePetGarden";
 import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
+import type { TaskPlansApi } from "../hooks/useTaskPlans";
 import type { ScreeningsState } from "../hooks/useScreenings";
 import { flowers, mascots } from "../mock/data";
 import type { DemoProfile, MainView, Preferences } from "../types";
@@ -20,6 +21,8 @@ export default function HomePage({
   onHelp,
   garden,
   emotionCalendar,
+  taskPlans,
+  onOpenTask,
 }: {
   profile: DemoProfile;
   preferences: Preferences;
@@ -29,8 +32,12 @@ export default function HomePage({
   onHelp: () => void;
   garden: PetGardenApi;
   emotionCalendar: EmotionCalendarApi;
+  taskPlans: TaskPlansApi;
+  onOpenTask: (planId?: string) => void;
 }) {
   const habits = useDailyHabits(garden.gainFromHabit);
+  const currentTask = [...taskPlans.active].sort((a, b) => b.updatedAt - a.updatedAt)[0];
+  const currentNext = currentTask?.steps.find((step) => !step.done && step.text.trim());
   const displayName = profile.name === "Invitado" ? "" : `, ${profile.name}`;
   const companionName = profile.companionType === "mascota"
     ? mascots.find((item) => item.id === profile.mascot)?.name
@@ -87,7 +94,9 @@ export default function HomePage({
         <button className="quick-card lilac" onClick={() => navigate("screening")}><span className="quick-icon"><ClipboardList /></span><strong>Quiero un autorreporte</strong><p>Cuestionarios de ánimo, ansiedad, atención o estrés postraumático. No diagnostican.</p><span className="text-link">Ir a Tamizaje <ArrowRight size={17} /></span></button>
       </div>
 
-      <Card className="daily-card"><div><span className="eyebrow"><Sparkles size={15} /> Idea para hoy</span><h2>Haz visible el primer paso</h2><p>En lugar de “terminar el proyecto”, prueba “abrir el archivo y escribir un título”.</p></div><Button variant="secondary" onClick={() => navigate("activities")}>Desglosar una tarea</Button></Card>
+      {currentTask && currentNext
+        ? <Card className="daily-card"><div><span className="eyebrow"><ListChecks size={15} /> Tarea en curso · {currentTask.steps.filter((step) => step.done).length} de {currentTask.steps.length} pasos</span><h2>{currentTask.title}</h2><p>Tu siguiente paso: “{currentNext.text}”.</p></div><Button variant="secondary" onClick={() => onOpenTask(currentTask.id)}>Continuar tarea</Button></Card>
+        : <Card className="daily-card"><div><span className="eyebrow"><Sparkles size={15} /> Idea para hoy</span><h2>Haz visible el primer paso</h2><p>En lugar de “terminar el proyecto”, prueba “abrir el archivo y escribir un título”.</p></div><Button variant="secondary" onClick={() => onOpenTask()}>Desglosar una tarea</Button></Card>}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { CheckCircle2, ExternalLink, Phone, ShieldAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import AppShell from "./layouts/AppShell";
 import { AccessFlow, Onboarding, SplashScreen } from "./pages/AccessFlow";
-import ActivitiesPage from "./pages/ActivitiesPage";
+import ActivitiesPage, { type Activity } from "./pages/ActivitiesPage";
 import ChatPage from "./pages/ChatPage";
 import HomePage from "./pages/HomePage";
 import ProfilePage from "./pages/ProfilePage";
@@ -14,6 +14,7 @@ import { usePetGarden } from "./hooks/usePetGarden";
 import { useScreenings } from "./hooks/useScreenings";
 import { useChatHistory } from "./hooks/useChatHistory";
 import { useEmotionCalendar } from "./hooks/useEmotionCalendar";
+import { useTaskPlans } from "./hooks/useTaskPlans";
 import { getDeviceId } from "./lib/deviceId";
 import { fetchRemoteProfile, saveRemoteProfile, deleteRemoteData } from "./services/dataApi";
 import type { DemoProfile, MainView, Preferences, ToastMessage } from "./types";
@@ -94,6 +95,10 @@ export default function App() {
   const garden = usePetGarden(deviceId);
   const chatHistory = useChatHistory(preferences.saveChatHistory);
   const emotionCalendar = useEmotionCalendar(deviceId);
+  const taskPlans = useTaskPlans(deviceId);
+  // Navegación con intención: abrir una actividad concreta o llegar al chat con un mensaje ya escrito.
+  const [activityIntent, setActivityIntent] = useState<{ key: number; activity: Activity; planId?: string } | null>(null);
+  const [chatDraft, setChatDraft] = useState<{ key: number; text: string } | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setStage(restoredRegistration ? "app" : "access"), 950);
@@ -125,6 +130,24 @@ export default function App() {
     const timer = window.setTimeout(() => setToast(null), 3500);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  function navigate(nextView: MainView) {
+    setActivityIntent(null);
+    setChatDraft(null);
+    setView(nextView);
+  }
+
+  function openTaskBreakdown(planId?: string) {
+    setChatDraft(null);
+    setActivityIntent({ key: Date.now(), activity: "task", planId });
+    setView("activities");
+  }
+
+  function talkToKahy(text: string) {
+    setActivityIntent(null);
+    setChatDraft({ key: Date.now(), text });
+    setView("chat");
+  }
 
   function notify(text: string) {
     setToast({ id: Date.now(), text });
@@ -186,6 +209,7 @@ export default function App() {
     screenings.reset();
     chatHistory.clear();
     emotionCalendar.clear();
+    taskPlans.clear();
     setProfile(defaultProfile);
     setPreferences(defaultPreferences);
     setIsRegistered(false);
@@ -200,14 +224,14 @@ export default function App() {
   return (
     <div className={`kahy-app ${preferences.reducedMotion ? "reduce-motion" : ""} ${preferences.lowStimuli ? "low-stimuli" : ""} ${preferences.simplified ? "simplified" : ""} ${preferences.textScale === "large" ? "large-text" : ""}`}>
       <a className="skip-link" href="#main-content">Saltar al contenido</a>
-      <AppShell currentView={view} onNavigate={setView} onHelp={() => setShowHelp(true)} mascot={profile.mascot} preferences={preferences}>
-        {view === "home" && <HomePage profile={profile} preferences={preferences} navigate={setView} notify={notify} screenings={screenings} onHelp={() => setShowHelp(true)} garden={garden} emotionCalendar={emotionCalendar} />}
-        {view === "chat" && <ChatPage onHelp={() => setShowHelp(true)} navigate={setView} preferences={preferences} screenings={screenings} garden={garden} profile={profile} deviceId={deviceId} chatHistory={chatHistory} emotionCalendar={emotionCalendar} />}
-        {view === "activities" && <ActivitiesPage preferences={preferences} notify={notify} />}
-        {view === "screening" && <ScreeningPage screenings={screenings} onHelp={() => setShowHelp(true)} navigate={setView} />}
+      <AppShell currentView={view} onNavigate={navigate} onHelp={() => setShowHelp(true)} mascot={profile.mascot} preferences={preferences}>
+        {view === "home" && <HomePage profile={profile} preferences={preferences} navigate={navigate} notify={notify} screenings={screenings} onHelp={() => setShowHelp(true)} garden={garden} emotionCalendar={emotionCalendar} taskPlans={taskPlans} onOpenTask={openTaskBreakdown} />}
+        {view === "chat" && <ChatPage key={chatDraft?.key ?? "chat"} initialDraft={chatDraft?.text} onHelp={() => setShowHelp(true)} navigate={navigate} preferences={preferences} screenings={screenings} garden={garden} profile={profile} deviceId={deviceId} chatHistory={chatHistory} emotionCalendar={emotionCalendar} taskPlans={taskPlans} onOpenTask={openTaskBreakdown} />}
+        {view === "activities" && <ActivitiesPage key={activityIntent?.key ?? "activities"} preferences={preferences} notify={notify} taskPlans={taskPlans} emotionCalendar={emotionCalendar} onHelp={() => setShowHelp(true)} onTalkToKahy={talkToKahy} initialActivity={activityIntent?.activity} initialPlanId={activityIntent?.planId} />}
+        {view === "screening" && <ScreeningPage screenings={screenings} onHelp={() => setShowHelp(true)} navigate={navigate} />}
         {view === "specialists" && <SpecialistsPage notify={notify} />}
         {view === "resources" && <ResourcesPage />}
-        {view === "profile" && <ProfilePage profile={profile} preferences={preferences} setProfile={updateProfile} setPreferences={updatePreferences} navigate={setView} notify={notify} isRegistered={isRegistered} onResetRegistration={resetRegistration} screenings={screenings} deviceId={deviceId} chatHistory={chatHistory} emotionCalendar={emotionCalendar} />}
+        {view === "profile" && <ProfilePage profile={profile} preferences={preferences} setProfile={updateProfile} setPreferences={updatePreferences} navigate={navigate} notify={notify} isRegistered={isRegistered} onResetRegistration={resetRegistration} screenings={screenings} deviceId={deviceId} chatHistory={chatHistory} emotionCalendar={emotionCalendar} />}
       </AppShell>
 
       {showHelp && <Modal title="Ayuda inmediata" onClose={() => setShowHelp(false)}><div className="help-modal"><DemoBadge>Información oficial · sin llamada automática</DemoBadge><div className="urgent-note"><ShieldAlert size={28} /><div><h3>Si hay peligro inmediato</h3><p>Contacta al 911 o acude al servicio de urgencias más cercano. Este prototipo no puede detectar, atender ni monitorear una emergencia.</p></div></div><div className="help-option"><Phone size={22} /><div><strong>Línea de la Vida</strong><p>800 911 2000 · orientación nacional 24 horas, todos los días.</p></div></div><a className="button button--secondary full-width" href="https://www.gob.mx/conasama/es/articulos/linea-de-la-vida-800-911-2000?idiom=es" target="_blank" rel="noreferrer">Ver fuente oficial <ExternalLink size={17} /></a><p className="fine-print">No se realiza ninguna llamada desde KAHY. En una implementación real, este flujo requeriría revisión profesional, pruebas y protocolos operativos.</p><Button className="full-width" onClick={() => setShowHelp(false)}>Entendido</Button></div></Modal>}

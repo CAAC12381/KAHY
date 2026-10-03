@@ -74,12 +74,21 @@ function createSchema() {
         confidence TEXT NOT NULL
       )
     `,
+    sql`
+      CREATE TABLE IF NOT EXISTS task_plans (
+        plan_id TEXT PRIMARY KEY,
+        device_id TEXT NOT NULL,
+        data JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `,
   ]).then(() => {
     // Index creation kept separate from CREATE TABLE for older Postgres compatibility.
     return Promise.all([
       sql`CREATE INDEX IF NOT EXISTS idx_screening_device ON screening_results(device_id)`,
       sql`CREATE INDEX IF NOT EXISTS idx_memory_device ON chat_memory(device_id)`,
       sql`CREATE INDEX IF NOT EXISTS idx_emotion_device_at ON emotion_entries(device_id, at DESC)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_task_plans_device ON task_plans(device_id)`,
     ])
   }).then(() => undefined)
 }
@@ -175,6 +184,7 @@ export async function deleteAllDataForDevice(deviceId: string): Promise<void> {
     sql`DELETE FROM chat_memory WHERE device_id = ${deviceId}`,
     sql`DELETE FROM pet_garden WHERE device_id = ${deviceId}`,
     sql`DELETE FROM emotion_entries WHERE device_id = ${deviceId}`,
+    sql`DELETE FROM task_plans WHERE device_id = ${deviceId}`,
   ])
 }
 
@@ -274,4 +284,64 @@ export async function addEmotionEntry(deviceId: string, entry: StoredEmotionEntr
 
 export async function clearEmotionEntries(deviceId: string): Promise<void> {
   await sql`DELETE FROM emotion_entries WHERE device_id = ${deviceId}`
+}
+
+/** Planes de "Desglosar una tarea": se guardan como JSON completo porque el cliente siempre los envía enteros. */
+export async function listTaskPlans(deviceId: string): Promise<Record<string, unknown>[]> {
+  const { rows } = await sql`
+    SELECT data FROM task_plans WHERE device_id = ${deviceId}
+    ORDER BY updated_at ASC LIMIT 30
+  `
+  return rows.map((row) => row.data)
+}
+
+export async function upsertTaskPlan(deviceId: string, planId: string, data: Record<string, unknown>): Promise<void> {
+  await sql`
+    INSERT INTO task_plans (plan_id, device_id, data, updated_at)
+    VALUES (${planId}, ${deviceId}, ${JSON.stringify(data)}::jsonb, now())
+    ON CONFLICT (plan_id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()
+    WHERE task_plans.device_id = EXCLUDED.device_id
+  `
+  await sql`
+    DELETE FROM task_plans WHERE device_id = ${deviceId} AND plan_id NOT IN (
+      SELECT plan_id FROM task_plans WHERE device_id = ${deviceId} ORDER BY updated_at DESC LIMIT 30
+    )
+  `
+}
+
+export async function deleteTaskPlans(deviceId: string, planId?: string): Promise<void> {
+  if (planId) await sql`DELETE FROM task_plans WHERE device_id = ${deviceId} AND plan_id = ${planId}`
+  else await sql`DELETE FROM task_plans WHERE device_id = ${deviceId}`
+}
+
+const taskEmotions = new Set(['alegría', 'calma', 'alivio', 'esperanza', 'tristeza', 'ansiedad', 'miedo', 'enojo', 'frustración', 'culpa', 'soledad', 'cansancio', 'confusión', 'agobio', 'neutral'])
+
+/** Valida y recorta un plan recibido del cliente; devuelve null si no tiene la forma esperada. */
+export function sanitizeTaskPlan(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object') return null
+  const plan = value as Record<string, unknown>
+  if (typeof plan.id !== 'string' || typeof plan.title !== 'string' || typeof plan.createdAt !== 'number' || typeof plan.updatedAt !== 'number' || !Array.isArray(plan.steps)) return null
+  const steps = plan.steps.slice(0, 12).flatMap((item) => {
+    const step = item as Record<string, unknown>
+    if (!step || typeof step.id !== 'string' || typeof step.text !== 'string') return []
+    return [{
+      id: step.id.slice(0, 80),
+      text: step.text.slice(0, 200),
+      minutes: typeof step.minutes === 'number' ? Math.min(240, Math.max(1, Math.round(step.minutes))) : undefined,
+      done: step.done === true,
+      doneAt: typeof step.doneAt === 'number' ? step.doneAt : undefined,
+    }]
+  })
+  return {
+    id: plan.id.slice(0, 80),
+    title: plan.title.slice(0, 240),
+    createdAt: plan.createdAt,
+    updatedAt: plan.updatedAt,
+    completedAt: typeof plan.completedAt === 'number' ? plan.completedAt : undefined,
+    energy: plan.energy === 'poca' || plan.energy === 'bastante' ? plan.energy : 'media',
+    source: ['manual', 'ia', 'local', 'chat'].includes(plan.source as string) ? plan.source : 'manual',
+    feelingBefore: taskEmotions.has(plan.feelingBefore as string) ? plan.feelingBefore : undefined,
+    feelingAfter: taskEmotions.has(plan.feelingAfter as string) ? plan.feelingAfter : undefined,
+    steps,
+  }
 }
