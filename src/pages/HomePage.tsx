@@ -10,11 +10,11 @@ import { stageForGrowth, type PetGardenApi } from "../hooks/usePetGarden";
 import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
 import type { TaskPlansApi } from "../hooks/useTaskPlans";
 import type { ScreeningsState } from "../hooks/useScreenings";
-import { flowers, mascots } from "../mock/data";
+import { closedBoxImage, flowers, mascots } from "../mock/data";
 import type { DemoProfile, MainView, Preferences } from "../types";
 
-// El parpadeo de bienvenida se muestra solo la primera vez que se abre Inicio tras cargar la plataforma.
-let welcomeBlinkPlayed = false;
+// La bienvenida (caja cerrada que se abre con un clic y luego el parpadeo) se muestra una sola vez tras cargar la plataforma.
+let welcomePlayed = false;
 
 export default function HomePage({
   profile,
@@ -41,10 +41,8 @@ export default function HomePage({
   habits: DailyHabitsApi;
   onOpenTask: (planId?: string) => void;
 }) {
-  const [welcomeBlink] = useState(() => !welcomeBlinkPlayed);
-  useEffect(() => {
-    welcomeBlinkPlayed = true;
-  }, []);
+  const [welcome] = useState(() => !welcomePlayed);
+  const [boxState, setBoxState] = useState<"closed" | "opening" | "open">("closed");
   const currentTask = [...taskPlans.active].sort((a, b) => b.updatedAt - a.updatedAt)[0];
   const currentNext = currentTask?.steps.find((step) => !step.done && step.text.trim());
   const displayName = profile.name === "Invitado" ? "" : `, ${profile.name}`;
@@ -53,7 +51,26 @@ export default function HomePage({
     : flowers.find((item) => item.id === profile.flower)?.name;
   const companionData = profile.companionType === "mascota" ? mascots.find((item) => item.id === profile.mascot) : flowers.find((item) => item.id === profile.flower);
   const companionStage = stageForGrowth(garden.growth, companionData?.stages.length || 3);
-  const companionMessage = currentTask && currentNext
+  // Solo el animalito bebé (el que vive en la caja) y contento tiene caja que abrir.
+  const hasBox = welcome && profile.companionType === "mascota" && companionStage === 1 && garden.mood !== "triste";
+  const boxVisible = hasBox && boxState !== "open";
+
+  function openBox() {
+    if (boxState !== "closed") return;
+    welcomePlayed = true;
+    setBoxState("opening");
+  }
+
+  // Respaldo por si la animación no llega a avisar que terminó.
+  useEffect(() => {
+    if (boxState !== "opening") return;
+    const timer = window.setTimeout(() => setBoxState("open"), 1600);
+    return () => window.clearTimeout(timer);
+  }, [boxState]);
+
+  const companionMessage = boxVisible
+    ? "Toca la caja para ver quién está dentro."
+    : currentTask && currentNext
     ? `Seguimos con un paso de ${currentTask.title}.`
     : habits.completed.length
       ? `Hoy ya llevas ${habits.completed.length} avance${habits.completed.length === 1 ? "" : "s"}.`
@@ -74,7 +91,22 @@ export default function HomePage({
             <Button variant="secondary" onClick={() => navigate("activities")}><Leaf size={19} /> Hacer una pausa</Button>
           </div>
         </div>
-        {preferences.showMascot && <div className="hero-mascot"><span className="speech-note">{companionMessage}</span>{profile.companionType === "mascota" ? <Mascot id={profile.mascot} size="large" mood={garden.mood} stage={companionStage} blink={welcomeBlink} /> : <Flower id={profile.flower} size="large" stage={companionStage} neglected={garden.isNeglected} />}</div>}
+        {preferences.showMascot && <div className="hero-mascot"><span className="speech-note">{companionMessage}</span>{profile.companionType === "mascota" ? (
+          <span className="mascot-box-wrap">
+            <Mascot id={profile.mascot} size="large" mood={garden.mood} stage={companionStage} blink={hasBox && boxState === "open"} />
+            {boxVisible && (
+              <button
+                type="button"
+                className={`mascot mascot--large mascot-box ${boxState === "opening" ? "mascot-box--opening" : ""}`}
+                onClick={openBox}
+                onAnimationEnd={(event) => { if (event.animationName === "mascot-box-open") setBoxState("open"); }}
+                aria-label={`Abrir la caja de ${companionName}`}
+              >
+                <img src={closedBoxImage} alt="" />
+              </button>
+            )}
+          </span>
+        ) : <Flower id={profile.flower} size="large" stage={companionStage} neglected={garden.isNeglected} />}</div>}
       </section>
 
       <div className="section-heading"><div><span className="eyebrow">Calendario emocional</span><h2>Lo que ha aparecido en tus conversaciones</h2></div><small>Se guardan etiquetas y fechas, no el texto</small></div>
