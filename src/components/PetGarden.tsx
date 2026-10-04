@@ -21,6 +21,19 @@ const plantCareLabels: CareButton[] = [
   { action: "prune", label: "Nutrir / Podar", icon: Sprout },
 ];
 
+const hoverMessages = [
+  "Me alegra que estés aquí.",
+  "Hoy también lo estás haciendo lo mejor que puedes.",
+  "Vamos paso a paso, sin prisa.",
+  "Gracias por venir a verme.",
+  "Lo que sientes importa.",
+  "Está bien tomarte una pausa.",
+  "Cada pequeño paso cuenta.",
+  "Mereces tratarte con cariño.",
+  "Estoy contigo, a tu ritmo.",
+  "Respira hondo, aquí no hay apuro.",
+];
+
 function stageLabel(stage: number, stageCount: number): string {
   if (stage <= 1) return "Bebé";
   if (stage >= stageCount) return "Adulto";
@@ -43,6 +56,8 @@ export default function PetGarden({
   const [speaking, setSpeaking] = useState(false);
   const [gaining, setGaining] = useState(false);
   const [evolving, setEvolving] = useState(false);
+  const [hoverMessage, setHoverMessage] = useState<string | null>(null);
+  const hoverIndex = useRef(Math.floor(Math.random() * hoverMessages.length));
   const animal = mascots.find((item) => item.id === mascotId) ?? mascots[0];
   const flower = flowers.find((item) => item.id === flowerId) ?? flowers[0];
   const isMascot = companionType === "mascota";
@@ -84,6 +99,12 @@ export default function PetGarden({
     window.setTimeout(() => setSpeaking(false), 2600);
   }
 
+  // Un mensaje positivo distinto cada vez que el cursor entra sobre el compañero.
+  function greet() {
+    hoverIndex.current = (hoverIndex.current + 1) % hoverMessages.length;
+    setHoverMessage(hoverMessages[hoverIndex.current]);
+  }
+
   return (
     <Card className="pet-garden">
       <div className="pet-garden-heading">
@@ -97,14 +118,22 @@ export default function PetGarden({
 
       <div className="pet-garden-single">
         <div className={`pet-slot-frame ${isMascot ? "" : "pet-slot-frame--plant"} ${gaining ? "pet-slot-frame--gain" : ""} ${evolving ? "pet-slot-frame--evolve" : ""}`}>
-          <div className={`pet-idle ${isMascot ? "pet-idle--breathe" : "pet-idle--sway"}`}>
+          <div
+            className={`pet-idle ${isMascot ? "pet-idle--breathe" : "pet-idle--sway"}`}
+            onMouseEnter={greet}
+            onMouseLeave={() => setHoverMessage(null)}
+          >
             {isMascot ? (
               <Mascot id={mascotId} size="large" mood={garden.mood} stage={stage} className="pet-slot-image" />
             ) : (
               <Flower id={flowerId} stage={stage} neglected={garden.isNeglected} size="large" className="pet-slot-image" />
             )}
           </div>
-          {speaking && <span className="pet-bubble">{garden.message}</span>}
+          {speaking ? (
+            <span className="pet-bubble">{garden.message}</span>
+          ) : (
+            hoverMessage && <span className="pet-bubble pet-bubble--hover">{hoverMessage}</span>
+          )}
           {gaining && (
             <span className="pet-sparkles" aria-hidden="true">
               <i /><i /><i /><i />

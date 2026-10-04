@@ -91,6 +91,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 /* Mascot photos */
 .mascot { flex: 0 0 auto; display: inline-block; overflow: hidden; border-radius: 26%; background: linear-gradient(160deg, var(--sage-soft), var(--pink-soft)); box-shadow: inset 0 0 0 1px rgba(63,65,57,.06); }
 .mascot img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 30%; }
+/* Parpadeo de bienvenida: la versión con ojos cerrados aparece dos veces sobre la imagen y se queda oculta. */
+.mascot--blink { position: relative; }
+.mascot .mascot-eyes-closed { position: absolute; inset: 0; opacity: 0; animation: mascot-blink 6s ease-in-out 1s 1 both; }
+@keyframes mascot-blink { 0%, 5% { opacity: 0; } 14%, 28% { opacity: 1; } 38%, 56% { opacity: 0; } 65%, 80% { opacity: 1; } 90%, 100% { opacity: 0; } }
 .mascot--tiny { width: 46px; height: 46px; border-radius: 50%; }
 .mascot--small { width: 92px; height: 92px; }
 .mascot--medium { width: 150px; height: 150px; }
@@ -285,6 +289,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .flower-pot.pet-slot-image { box-shadow: none; background: transparent; }
 .pet-stage-tag { padding: 5px 13px; border-radius: 999px; background: var(--purple-soft); color: var(--purple-deep); font-size: .72rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 .pet-bubble { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); max-width: min(240px, 90%); padding: 9px 13px; border-radius: 14px 14px 14px 3px; background: white; box-shadow: var(--shadow-sm); color: var(--ink); font-size: .74rem; line-height: 1.4; text-align: center; animation: fade-up .2s ease both; }
+.pet-bubble--hover { pointer-events: none; }
 .pet-meters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 22px 0 16px; }
 .pet-meter { display: grid; gap: 6px; }
 .pet-meter span { color: var(--ink); font-size: .74rem; font-weight: 760; }

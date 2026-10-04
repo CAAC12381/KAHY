@@ -20,38 +20,44 @@ export const mascots: Array<{
   stages: string[];
   /** Shown instead of the current stage when the companion has been neglected. */
   sadImage: string;
+  /** Same art as the first stage with the eyes closed, used for the welcome blink. */
+  blinkImage: string;
 }> = [
   {
     id: "vaca",
     name: "Moka",
     animal: "vaquita",
     description: "Tierna y juguetona",
-    stages: [petAsset("animales/vaca/vaca.jpg"), petAsset("animales/vaca/vaca-2.jpg"), petAsset("animales/vaca/vaca-3.jpg")],
+    stages: [petAsset("animales/vaca/vaca-caja.jpg"), petAsset("animales/vaca/vaca-2.jpg"), petAsset("animales/vaca/vaca-3.jpg")],
     sadImage: petAsset("animales/tristes/vaca-triste.png"),
+    blinkImage: petAsset("animales/vaca/vaca-caja-ojos-cerrados.jpg"),
   },
   {
     id: "pollito",
     name: "Pío",
     animal: "pollito",
     description: "Curioso y alegre",
-    stages: [petAsset("animales/pollito/pollito.jpg"), petAsset("animales/pollito/pollito-2.jpg"), petAsset("animales/pollito/pollito-3.jpg"), petAsset("animales/pollito/pollito-4.jpg")],
+    stages: [petAsset("animales/pollito/pollito-caja.jpg"), petAsset("animales/pollito/pollito-2.jpg"), petAsset("animales/pollito/pollito-3.jpg"), petAsset("animales/pollito/pollito-4.jpg")],
     sadImage: petAsset("animales/tristes/pollito-triste.png"),
+    blinkImage: petAsset("animales/pollito/pollito-caja-ojos-cerrados.jpg"),
   },
   {
     id: "camaleon",
     name: "Lima",
     animal: "camaleón",
     description: "Sereno y creativo",
-    stages: [petAsset("animales/camaleon/camaleon.jpg"), petAsset("animales/camaleon/camaleon-1.jpg"), petAsset("animales/camaleon/camaleon-2.jpg"), petAsset("animales/camaleon/camaleon-3.jpg"), petAsset("animales/camaleon/camaleon-4.jpg")],
+    stages: [petAsset("animales/camaleon/camaleon-caja.jpg"), petAsset("animales/camaleon/camaleon-1.jpg"), petAsset("animales/camaleon/camaleon-2.jpg"), petAsset("animales/camaleon/camaleon-3.jpg"), petAsset("animales/camaleon/camaleon-4.jpg")],
     sadImage: petAsset("animales/tristes/camaleon-triste.png"),
+    blinkImage: petAsset("animales/camaleon/camaleon-caja-ojos-cerrados.jpg"),
   },
   {
     id: "tortuga",
     name: "Tita",
     animal: "tortuguita",
     description: "Tranquila y dulce",
-    stages: [petAsset("animales/tortuga/tortuga.png"), petAsset("animales/tortuga/tortuga-1.jpg"), petAsset("animales/tortuga/tortuga-2.jpg"), petAsset("animales/tortuga/tortuga-3.jpg")],
+    stages: [petAsset("animales/tortuga/tortuga-caja.jpg"), petAsset("animales/tortuga/tortuga-1.jpg"), petAsset("animales/tortuga/tortuga-2.jpg"), petAsset("animales/tortuga/tortuga-3.jpg")],
     sadImage: petAsset("animales/tristes/tortuga-triste.png"),
+    blinkImage: petAsset("animales/tortuga/tortuga-caja-ojos-cerrados.jpg"),
   },
 ];
 
