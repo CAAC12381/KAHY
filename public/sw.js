@@ -1,4 +1,6 @@
-const CACHE_NAME = "kahy-offline-v1";
+// v2: la v1 podía guardar la página de un juego como si fuera la app (ver "navigate" más abajo).
+// Cambiar el nombre hace que al activarse se borre la copia anterior.
+const CACHE_NAME = "kahy-offline-v2";
 const APP_SHELL = ["/", "/index.html"];
 
 self.addEventListener("install", (event) => {
@@ -22,14 +24,20 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
 
   if (request.mode === "navigate") {
+    // Los juegos de /games/ también llegan como navegaciones (dentro de un iframe o en otra pestaña).
+    // Cada juego se guarda bajo su propia dirección; solo la app se guarda como "/", que es lo que
+    // se muestra sin conexión. Las respuestas con error no se guardan.
+    const isGame = url.pathname.startsWith("/games/");
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put("/", copy));
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(isGame ? request : "/", copy));
+          }
           return response;
         })
-        .catch(async () => (await caches.match(request)) || (await caches.match("/")) || Response.error()),
+        .catch(async () => (await caches.match(request)) || (!isGame && (await caches.match("/"))) || Response.error()),
     );
     return;
   }
