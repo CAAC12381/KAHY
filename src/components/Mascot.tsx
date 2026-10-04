@@ -6,6 +6,7 @@ export default function Mascot({
   size = "medium",
   mood = "feliz",
   stage = 1,
+  blink = false,
   className = "",
 }: {
   id?: MascotId;
@@ -13,18 +14,22 @@ export default function Mascot({
   mood?: PetMood;
   /** 1-indexed growth stage, clamped to this mascot's available stages. */
   stage?: number;
+  /** Plays a short blink once. Only the first (in-the-box) stage has closed-eyes art. */
+  blink?: boolean;
   className?: string;
 }) {
   const mascot = mascots.find((item) => item.id === id) ?? mascots[0];
   const stageIndex = Math.min(mascot.stages.length - 1, Math.max(0, stage - 1));
   const src = mood === "triste" ? mascot.sadImage : mascot.stages[stageIndex];
+  const canBlink = blink && mood !== "triste" && stageIndex === 0;
   return (
     <span
-      className={`mascot mascot--${size} ${className}`}
+      className={`mascot mascot--${size} ${canBlink ? "mascot--blink" : ""} ${className}`}
       role="img"
       aria-label={`${mascot.name}, ${mascot.animal} acompañante${mood === "triste" ? " (extraña un poco de atención)" : ""}`}
     >
       <img src={src} alt="" loading="lazy" />
+      {canBlink && <img className="mascot-eyes-closed" src={mascot.blinkImage} alt="" />}
     </span>
   );
 }

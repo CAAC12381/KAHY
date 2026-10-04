@@ -91,6 +91,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 /* Mascot photos */
 .mascot { flex: 0 0 auto; display: inline-block; overflow: hidden; border-radius: 26%; background: linear-gradient(160deg, var(--sage-soft), var(--pink-soft)); box-shadow: inset 0 0 0 1px rgba(63,65,57,.06); }
 .mascot img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 30%; }
+/* Parpadeo de bienvenida: la versión con ojos cerrados aparece dos veces sobre la imagen y se queda oculta. */
+.mascot--blink { position: relative; }
+.mascot .mascot-eyes-closed { position: absolute; inset: 0; opacity: 0; animation: mascot-blink 3s ease-in-out .9s 1 both; }
+@keyframes mascot-blink { 0%, 8% { opacity: 0; } 15%, 27% { opacity: 1; } 34%, 58% { opacity: 0; } 65%, 77% { opacity: 1; } 84%, 100% { opacity: 0; } }
 .mascot--tiny { width: 46px; height: 46px; border-radius: 50%; }
 .mascot--small { width: 92px; height: 92px; }
 .mascot--medium { width: 150px; height: 150px; }

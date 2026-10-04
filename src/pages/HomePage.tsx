@@ -1,4 +1,5 @@
 import { ArrowRight, BookOpen, CalendarDays, Check, ClipboardList, Leaf, ListChecks, MessageCircle, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
 import EmotionCalendar from "../components/EmotionCalendar";
 import Mascot, { Flower } from "../components/Mascot";
 import PetGarden from "../components/PetGarden";
@@ -11,6 +12,9 @@ import type { TaskPlansApi } from "../hooks/useTaskPlans";
 import type { ScreeningsState } from "../hooks/useScreenings";
 import { flowers, mascots } from "../mock/data";
 import type { DemoProfile, MainView, Preferences } from "../types";
+
+// El parpadeo de bienvenida se muestra solo la primera vez que se abre Inicio tras cargar la plataforma.
+let welcomeBlinkPlayed = false;
 
 export default function HomePage({
   profile,
@@ -37,6 +41,10 @@ export default function HomePage({
   habits: DailyHabitsApi;
   onOpenTask: (planId?: string) => void;
 }) {
+  const [welcomeBlink] = useState(() => !welcomeBlinkPlayed);
+  useEffect(() => {
+    welcomeBlinkPlayed = true;
+  }, []);
   const currentTask = [...taskPlans.active].sort((a, b) => b.updatedAt - a.updatedAt)[0];
   const currentNext = currentTask?.steps.find((step) => !step.done && step.text.trim());
   const displayName = profile.name === "Invitado" ? "" : `, ${profile.name}`;
@@ -66,7 +74,7 @@ export default function HomePage({
             <Button variant="secondary" onClick={() => navigate("activities")}><Leaf size={19} /> Hacer una pausa</Button>
           </div>
         </div>
-        {preferences.showMascot && <div className="hero-mascot"><span className="speech-note">{companionMessage}</span>{profile.companionType === "mascota" ? <Mascot id={profile.mascot} size="large" mood={garden.mood} stage={companionStage} /> : <Flower id={profile.flower} size="large" stage={companionStage} neglected={garden.isNeglected} />}</div>}
+        {preferences.showMascot && <div className="hero-mascot"><span className="speech-note">{companionMessage}</span>{profile.companionType === "mascota" ? <Mascot id={profile.mascot} size="large" mood={garden.mood} stage={companionStage} blink={welcomeBlink} /> : <Flower id={profile.flower} size="large" stage={companionStage} neglected={garden.isNeglected} />}</div>}
       </section>
 
       <div className="section-heading"><div><span className="eyebrow">Calendario emocional</span><h2>Lo que ha aparecido en tus conversaciones</h2></div><small>Se guardan etiquetas y fechas, no el texto</small></div>
