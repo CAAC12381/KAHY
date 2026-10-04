@@ -9,10 +9,17 @@
 
 import type { TaskPlan } from "../types";
 import type { HabitDay } from "../hooks/useDailyHabits";
+import { authHeaders, clearSession, SESSION_EXPIRED_EVENT } from "./authApi";
 
 async function safeFetch<T>(input: string, init?: RequestInit): Promise<T | null> {
   try {
-    const response = await fetch(input, init);
+    // Con cuenta, el servidor identifica los datos por la sesión y no por el deviceId que viaja en la petición.
+    const session = authHeaders();
+    const response = await fetch(input, { ...init, headers: { ...(init?.headers as Record<string, string> | undefined), ...session } });
+    if (response.status === 401 && session.Authorization) {
+      clearSession();
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+    }
     if (!response.ok) return null;
     return (await response.json()) as T;
   } catch {

@@ -1,4 +1,5 @@
 import { ensureSchema, getProfile, upsertProfile, deleteAllDataForDevice, type StoredProfile } from '../_lib/db.js'
+import { withDataAccess } from '../_lib/auth.js'
 
 type VercelLikeRequest = { method?: string; query: Record<string, string | string[] | undefined>; body?: unknown }
 type VercelLikeResponse = { setHeader: (name: string, value: string) => void; status: (code: number) => { json: (body: unknown) => void } }
@@ -8,12 +9,13 @@ type VercelLikeResponse = { setHeader: (name: string, value: string) => void; st
  * PUT  /api/data/profile               -> body: { deviceId, profile } -> { ok: true }
  * DELETE /api/data/profile?deviceId=... -> deletes every table's rows for this device -> { ok: true }
  *
- * No login: deviceId is an anonymous id generated client-side
- * (src/lib/deviceId.ts). This mirrors what the app already stored in
- * localStorage's kahy.registration.v1 — the database just makes it durable
- * across a cleared cache or a fresh browser profile.
+ * deviceId is the anonymous id generated client-side (src/lib/deviceId.ts)
+ * or, with an account, the id that account claimed — withDataAccess (see
+ * ../_lib/auth.ts) decides which one a request may use. This mirrors what
+ * the app stores in localStorage's kahy.registration.v1; the database makes
+ * it durable and, with an account, reachable from another device.
  */
-export default async function handler(req: VercelLikeRequest, res: VercelLikeResponse) {
+async function handler(req: VercelLikeRequest, res: VercelLikeResponse) {
   res.setHeader('Cache-Control', 'no-store')
 
   try {
@@ -59,3 +61,5 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
     res.status(503).json({ code: 'DB_NOT_CONFIGURED', error: 'La base de datos todavía no está disponible en el servidor.' })
   }
 }
+
+export default withDataAccess(handler)

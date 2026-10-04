@@ -1,4 +1,5 @@
 import { ensureSchema, listScreenings, addScreening, type StoredScreeningResult } from '../_lib/db.js'
+import { withDataAccess } from '../_lib/auth.js'
 
 type VercelLikeRequest = { method?: string; query: Record<string, string | string[] | undefined>; body?: unknown }
 type VercelLikeResponse = { setHeader: (name: string, value: string) => void; status: (code: number) => { json: (body: unknown) => void } }
@@ -7,7 +8,7 @@ type VercelLikeResponse = { setHeader: (name: string, value: string) => void; st
  * GET  /api/data/screenings?deviceId=... -> { results: StoredScreeningResult[] }
  * POST /api/data/screenings              -> body: { deviceId, result } -> { ok: true }
  */
-export default async function handler(req: VercelLikeRequest, res: VercelLikeResponse) {
+async function handler(req: VercelLikeRequest, res: VercelLikeResponse) {
   res.setHeader('Cache-Control', 'no-store')
 
   try {
@@ -44,3 +45,5 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
     res.status(503).json({ code: 'DB_NOT_CONFIGURED', error: 'La base de datos todavía no está disponible en el servidor.' })
   }
 }
+
+export default withDataAccess(handler)

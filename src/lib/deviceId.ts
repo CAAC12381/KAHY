@@ -1,10 +1,11 @@
 const STORAGE_KEY = "kahy.device-id.v1";
 
 /**
- * Anonymous, per-browser identifier used to link this device's data
- * (profile, screenings, chat memory, pet garden) to rows in the database.
- * There is no account system — this is not tied to a name, email or
- * password, and switching devices or clearing site data starts fresh.
+ * Identifier used to link this browser's data (profile, screenings, chat
+ * memory, pet garden…) to rows in the database. It starts as an anonymous,
+ * per-browser id. When someone creates an account, the account claims that
+ * id; when they sign in on another device, setDeviceId() switches this
+ * browser to the account's id so the same data loads there too.
  */
 export function getDeviceId(): string {
   try {
@@ -17,4 +18,15 @@ export function getDeviceId(): string {
     // Sin almacenamiento local disponible: identificador de un solo uso para esta sesión.
     return crypto.randomUUID();
   }
+}
+
+export function setDeviceId(id: string): void {
+  try { window.localStorage.setItem(STORAGE_KEY, id); } catch { /* almacenamiento opcional */ }
+}
+
+/** New anonymous id — after signing out or deleting an account, so this browser stops pointing at that account's data. */
+export function resetDeviceId(): string {
+  const fresh = crypto.randomUUID();
+  setDeviceId(fresh);
+  return fresh;
 }

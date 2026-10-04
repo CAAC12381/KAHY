@@ -1,8 +1,9 @@
-import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, LockKeyhole, Mail, MapPin, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CloudOff, Eye, EyeOff, LockKeyhole, Mail, MapPin, UserRound } from "lucide-react";
 import { useState } from "react";
 import Mascot, { Flower } from "../components/Mascot";
 import { Button, Card, DemoBadge, Progress } from "../components/ui";
 import { flowers, goals, informationStyles, locations, mascots } from "../mock/data";
+import { loginAccount, MIN_PASSWORD_LENGTH, registerAccount, type Session } from "../services/authApi";
 import type { CompanionType, DemoProfile, FlowerId, MascotId, Preferences } from "../types";
 import BrandMark from "../components/BrandMark";
 
@@ -17,19 +18,24 @@ export function SplashScreen() {
   );
 }
 
+type CreatedAccount = { session: Session; dataId: string };
+
 export function AccessFlow({
+  deviceId,
   onExplore,
   onLogin,
   onRegister,
 }: {
+  deviceId: string;
   onExplore: () => void;
-  onLogin: (name: string) => void;
-  onRegister: (name: string, rememberConversations: boolean) => void;
+  onLogin: (session: Session, dataId: string) => Promise<void> | void;
+  /** created llega solo si se abrió una cuenta real; sin él, el perfil queda en este dispositivo. */
+  onRegister: (name: string, rememberConversations: boolean, created?: CreatedAccount) => void;
 }) {
   const [mode, setMode] = useState<AccessMode>("welcome");
 
   if (mode === "login") return <Login onBack={() => setMode("welcome")} onContinue={onLogin} />;
-  if (mode === "register") return <Register onBack={() => setMode("welcome")} onContinue={onRegister} />;
+  if (mode === "register") return <Register deviceId={deviceId} onBack={() => setMode("welcome")} onContinue={onRegister} />;
 
   return (
     <main className="access-page">
@@ -39,11 +45,11 @@ export function AccessFlow({
         <h1>Tu ritmo también es una forma de avanzar.</h1>
         <p>Explora prácticas breves, organiza lo que necesitas y conoce cómo podría funcionar una red de orientación accesible.</p>
         <div className="access-actions">
-          <Button onClick={() => setMode("register")}>Crear cuenta de prueba <ArrowRight size={18} /></Button>
+          <Button onClick={() => setMode("register")}>Crear cuenta <ArrowRight size={18} /></Button>
           <Button variant="secondary" onClick={() => setMode("login")}>Iniciar sesión</Button>
           <Button variant="ghost" onClick={onExplore}>Explorar KAHY sin cuenta</Button>
         </div>
-        <p className="fine-print">Al completar el registro, solo se conservan en este dispositivo tu perfil y preferencias. KAHY no guarda el chat ni crea un expediente clínico.</p>
+        <p className="fine-print">Con una cuenta, tu perfil y tu avance se guardan para que puedas entrar desde otro dispositivo. KAHY no guarda en su servidor el texto del chat ni crea un expediente clínico.</p>
       </section>
       <section className="welcome-art" aria-label="Mascotas de KAHY">
         <div className="mascot-row">
@@ -59,68 +65,97 @@ export function AccessFlow({
   );
 }
 
-function Login({ onBack, onContinue }: { onBack: () => void; onContinue: (name: string) => void }) {
+function Login({ onBack, onContinue }: { onBack: () => void; onContinue: (session: Session, dataId: string) => Promise<void> | void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
 
-  function submit(event: React.FormEvent) {
+  async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (busy) return;
     const next: Record<string, string> = {};
-    if (!/^\S+@\S+\.\S+$/.test(email)) next.email = "Escribe un correo con formato válido.";
-    if (password.length < 6) next.password = "Usa al menos 6 caracteres para la demostración.";
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) next.email = "Escribe un correo con formato válido.";
+    if (!password) next.password = "Escribe tu contraseña.";
     setErrors(next);
-    if (!Object.keys(next).length) onContinue(email.split("@")[0] || "Invitado");
+    if (Object.keys(next).length) return;
+    setBusy(true);
+    const result = await loginAccount(email.trim(), password);
+    // Si entra, la app carga el perfil de la cuenta y cambia de pantalla; el botón sigue ocupado mientras tanto.
+    if (result.ok) return onContinue(result.session, result.dataId);
+    setBusy(false);
+    setErrors({ form: result.code === "UNAVAILABLE" ? "El servicio de cuentas no está disponible en este momento. Intenta más tarde o explora KAHY sin cuenta." : result.message });
   }
 
   return (
     <main className="form-page">
       <button className="back-link" onClick={onBack}><ArrowLeft size={18} /> Volver</button>
       <Card className="auth-card">
-        <DemoBadge>Acceso simulado</DemoBadge>
+        <DemoBadge>Cuenta KAHY</DemoBadge>
         <h1>Qué gusto verte</h1>
-        <p>La demostración no envía ni guarda el correo o la contraseña. Si ya completaste tu perfil, entrarás sin repetir la encuesta.</p>
+        <p>Entra con el correo y la contraseña de tu cuenta para recuperar tu perfil y tu avance en este dispositivo.</p>
         <form onSubmit={submit} noValidate>
-          <label className="field"><span>Correo de prueba</span><div><Mail size={18} /><input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="tu@ejemplo.mx" aria-invalid={Boolean(errors.email)} /></div>{errors.email && <small className="field-error">{errors.email}</small>}</label>
-          <label className="field"><span>Contraseña de prueba</span><div><LockKeyhole size={18} /><input value={password} onChange={(event) => setPassword(event.target.value)} type={showPassword ? "text" : "password"} placeholder="6 caracteres o más" aria-invalid={Boolean(errors.password)} /><button type="button" className="field-action" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>{errors.password && <small className="field-error">{errors.password}</small>}</label>
-          <Button type="submit" className="full-width">Entrar a KAHY</Button>
+          <label className="field"><span>Correo</span><div><Mail size={18} /><input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" placeholder="tu@ejemplo.mx" aria-invalid={Boolean(errors.email)} /></div>{errors.email && <small className="field-error">{errors.email}</small>}</label>
+          <label className="field"><span>Contraseña</span><div><LockKeyhole size={18} /><input value={password} onChange={(event) => setPassword(event.target.value)} type={showPassword ? "text" : "password"} autoComplete="current-password" placeholder="Tu contraseña" aria-invalid={Boolean(errors.password)} /><button type="button" className="field-action" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>{errors.password && <small className="field-error">{errors.password}</small>}</label>
+          {errors.form && <p className="form-error" role="alert">{errors.form}</p>}
+          <Button type="submit" className="full-width" disabled={busy}>{busy ? "Entrando…" : "Entrar a KAHY"}</Button>
         </form>
+        <p className="fine-print">Todavía no hay recuperación automática de contraseña: guárdala en un lugar seguro.</p>
       </Card>
     </main>
   );
 }
 
-function Register({ onBack, onContinue }: { onBack: () => void; onContinue: (name: string, rememberConversations: boolean) => void }) {
+function Register({ deviceId, onBack, onContinue }: { deviceId: string; onBack: () => void; onContinue: (name: string, rememberConversations: boolean, created?: CreatedAccount) => void }) {
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [age, setAge] = useState("");
   const [region, setRegion] = useState(locations[0]);
   const [accepted, setAccepted] = useState(false);
   const [rememberConversations, setRememberConversations] = useState(false);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [cloudUnavailable, setCloudUnavailable] = useState(false);
+
+  async function createAccount() {
+    setBusy(true);
+    const result = await registerAccount(email.trim(), password, deviceId);
+    setBusy(false);
+    if (result.ok) return onContinue(name.trim(), rememberConversations, { session: result.session, dataId: result.dataId });
+    if (result.code === "UNAVAILABLE") return setCloudUnavailable(true);
+    setError(result.message);
+    // Correo ya registrado o datos no válidos: se corrigen en el primer paso.
+    if (result.code !== "RATE_LIMIT") setStep(0);
+  }
 
   function next() {
-    if (step === 0 && (name.trim().length < 2 || !/^\S+@\S+\.\S+$/.test(email))) return setError("Completa un nombre y un correo de prueba válido.");
-    if (step === 1 && Number(age) < 18) return setError("Este prototipo está diseñado para personas de 18 años o más.");
-    if (step === 3 && !accepted) return setError("Confirma que entiendes los límites de esta demostración.");
+    if (busy) return;
+    if (step === 0 && (name.trim().length < 2 || !/^\S+@\S+\.\S+$/.test(email.trim()))) return setError("Completa un nombre y un correo válido.");
+    if (step === 0 && password.length < MIN_PASSWORD_LENGTH) return setError(`Elige una contraseña de al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+    if (step === 1 && Number(age) < 18) return setError("Por ahora KAHY está diseñado para personas de 18 años o más.");
+    if (step === 3 && !accepted) return setError("Confirma que entiendes los límites de KAHY y qué se guarda.");
     setError("");
-    if (step === 3) onContinue(name.trim(), rememberConversations); else setStep(step + 1);
+    if (step === 3) void createAccount(); else setStep(step + 1);
   }
 
   return (
     <main className="form-page">
-      <button className="back-link" onClick={() => step ? setStep(step - 1) : onBack()}><ArrowLeft size={18} /> {step ? "Paso anterior" : "Volver"}</button>
+      <button className="back-link" onClick={() => { setCloudUnavailable(false); if (step) setStep(step - 1); else onBack(); }}><ArrowLeft size={18} /> {step ? "Paso anterior" : "Volver"}</button>
       <Card className="auth-card register-card">
-        <DemoBadge>Registro local · paso {step + 1} de 4</DemoBadge>
+        <DemoBadge>Crear cuenta · paso {step + 1} de 4</DemoBadge>
         <Progress value={step + 1} max={4} label="Progreso del registro" />
-        {step === 0 && <div className="form-step"><h1>Empecemos por lo básico</h1><p>No se creará una cuenta real.</p><label className="field"><span>¿Cómo quieres que te llamemos?</span><div><UserRound size={18} /><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tu nombre o apodo" /></div></label><label className="field"><span>Correo de prueba</span><div><Mail size={18} /><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@ejemplo.mx" /></div></label></div>}
+        {step === 0 && <div className="form-step"><h1>Empecemos por lo básico</h1><p>Con tu correo y una contraseña podrás entrar desde cualquier dispositivo.</p><label className="field"><span>¿Cómo quieres que te llamemos?</span><div><UserRound size={18} /><input value={name} onChange={(e) => setName(e.target.value)} autoComplete="nickname" placeholder="Tu nombre o apodo" /></div></label><label className="field"><span>Correo</span><div><Mail size={18} /><input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" placeholder="tu@ejemplo.mx" /></div></label><label className="field"><span>Contraseña</span><div><LockKeyhole size={18} /><input value={password} onChange={(e) => setPassword(e.target.value)} type={showPassword ? "text" : "password"} autoComplete="new-password" placeholder={`${MIN_PASSWORD_LENGTH} caracteres o más`} /><button type="button" className="field-action" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label></div>}
         {step === 1 && <div className="form-step"><h1>Confirma el alcance</h1><p>La fase actual está pensada para adultos.</p><label className="field"><span>Edad</span><div><UserRound size={18} /><input value={age} onChange={(e) => setAge(e.target.value)} inputMode="numeric" placeholder="18 o más" /></div></label></div>}
         {step === 2 && <div className="form-step"><h1>Elige una región de muestra</h1><p>Solo cambia el contenido visible; no accedemos a tu ubicación.</p><label className="field"><span>Ubicación demostrativa</span><div><MapPin size={18} /><select value={region} onChange={(e) => setRegion(e.target.value)}>{locations.map((item) => <option key={item}>{item}</option>)}</select></div></label></div>}
-        {step === 3 && <div className="form-step"><h1>Antes de continuar</h1><div className="notice-box"><Check size={20} /><p>KAHY no ofrece diagnóstico, terapia, monitoreo ni respuesta de emergencia. Al finalizar se guardarán localmente tu apodo, región, mascota y preferencias; no la edad exacta, correo ni contraseña.</p></div><label className="check-row"><input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} /><span>Entiendo y quiero continuar.</span></label><div className="remember-consent"><strong>¿Quieres que KAHY recuerde los temas de tus conversaciones en este dispositivo?</strong><p>Ayuda a dar continuidad entre sesiones. Solo se guardan los temas (por ejemplo "estrés" o "sueño"), nunca el texto exacto de lo que escribes, y solo en este dispositivo. Es opcional y puedes cambiarlo después en tu perfil.</p><div className="remember-consent-actions"><button type="button" className={!rememberConversations ? "choice active" : "choice"} onClick={() => setRememberConversations(false)}>Cancelar</button><button type="button" className={rememberConversations ? "choice active" : "choice"} onClick={() => setRememberConversations(true)}>Aceptar</button></div></div></div>}
+        {step === 3 && <div className="form-step"><h1>Antes de continuar</h1><div className="notice-box"><Check size={20} /><p>KAHY no ofrece diagnóstico, terapia, monitoreo ni respuesta de emergencia. Tu cuenta guarda tu correo y tu contraseña protegida (nunca en texto legible), además de tu apodo, región, acompañante, preferencias y el avance que generes: hábitos, tareas, etiquetas del calendario emocional y resultados de tamizaje. No se guarda tu edad exacta, y KAHY no guarda en su servidor el texto de tus conversaciones del chat. Puedes eliminar tu cuenta y todos sus datos desde Perfil.</p></div><label className="check-row"><input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} /><span>Entiendo y quiero continuar.</span></label><div className="remember-consent"><strong>¿Quieres que KAHY recuerde los temas de tus conversaciones?</strong><p>Ayuda a dar continuidad entre sesiones. Solo se guardan los temas (por ejemplo "estrés" o "sueño"), nunca el texto exacto de lo que escribes. Es opcional y puedes cambiarlo después en tu perfil.</p><div className="remember-consent-actions"><button type="button" className={!rememberConversations ? "choice active" : "choice"} onClick={() => setRememberConversations(false)}>Cancelar</button><button type="button" className={rememberConversations ? "choice active" : "choice"} onClick={() => setRememberConversations(true)}>Aceptar</button></div></div></div>}
         {error && <p className="form-error" role="alert">{error}</p>}
-        <Button onClick={next} className="full-width">{step === 3 ? "Personalizar mi recorrido" : "Continuar"} <ArrowRight size={18} /></Button>
+        {cloudUnavailable
+          ? <div className="notice-box cloud-notice" role="alert"><CloudOff size={20} /><div><p>No pudimos crear tu cuenta en este momento. Puedes reintentar, o continuar solo en este dispositivo y crear la cuenta más tarde desde Perfil. Mientras tanto, tu avance no se podrá recuperar desde otro dispositivo.</p><div className="remember-consent-actions"><button type="button" className="choice" disabled={busy} onClick={() => void createAccount()}>{busy ? "Reintentando…" : "Reintentar"}</button><button type="button" className="choice" disabled={busy} onClick={() => onContinue(name.trim(), rememberConversations)}>Continuar solo aquí</button></div></div></div>
+          : <Button onClick={next} className="full-width" disabled={busy}>{busy ? "Creando tu cuenta…" : step === 3 ? "Crear cuenta y personalizar" : "Continuar"} {!busy && <ArrowRight size={18} />}</Button>}
       </Card>
     </main>
   );
@@ -145,7 +180,7 @@ export function Onboarding({
   const [flower, setFlower] = useState<FlowerId>("Clavel");
 
   const steps = [
-    <div className="onboarding-question" key="location"><span className="step-kicker">Contexto de muestra</span><h1>¿Qué zona quieres usar en la demostración?</h1><p>No solicitamos GPS ni ubicación real.</p><div className="choice-grid">{locations.map((item) => <button className={city === item ? "choice active" : "choice"} onClick={() => setCity(item)} key={item}><MapPin size={20} /><span>{item}</span>{city === item && <Check size={18} />}</button>)}</div></div>,
+    <div className="onboarding-question" key="location"><span className="step-kicker">Tu zona</span><h1>¿En qué zona de Michoacán estás?</h1><p>Sirve para mostrarte primero los servicios de apoyo cercanos. No solicitamos GPS ni ubicación real.</p><div className="choice-grid">{locations.map((item) => <button className={city === item ? "choice active" : "choice"} onClick={() => setCity(item)} key={item}><MapPin size={20} /><span>{item}</span>{city === item && <Check size={18} />}</button>)}</div></div>,
     <div className="onboarding-question" key="goals"><span className="step-kicker">Tu recorrido</span><h1>¿Qué te gustaría encontrar primero?</h1><p>Elige hasta tres opciones. No se usan para diagnosticar.</p><div className="choice-grid">{goals.map((item) => <button className={selectedGoals.includes(item) ? "choice active" : "choice"} onClick={() => setSelectedGoals(selectedGoals.includes(item) ? selectedGoals.filter((goal) => goal !== item) : selectedGoals.length < 3 ? [...selectedGoals, item] : selectedGoals)} key={item}><span>{item}</span>{selectedGoals.includes(item) && <Check size={18} />}</button>)}</div></div>,
     <div className="onboarding-question" key="style"><span className="step-kicker">Forma de explicar</span><h1>¿Cómo prefieres recibir información?</h1><div className="choice-grid">{informationStyles.map((item) => <button className={style === item.id ? "choice active" : "choice"} onClick={() => setStyle(item.id)} key={item.id}><span><strong>{item.label}</strong><small>{item.description}</small></span>{style === item.id && <Check size={18} />}</button>)}</div></div>,
     <div className="onboarding-question" key="access"><span className="step-kicker">Comodidad visual</span><h1>¿Qué ajustes te harían sentir más cómodo?</h1><div className="choice-grid"><button className={localPreferences.lowStimuli ? "choice active" : "choice"} onClick={() => setLocalPreferences({ ...localPreferences, lowStimuli: !localPreferences.lowStimuli })}><span><strong>Menos estímulos</strong><small>Reduce adornos y color de fondo.</small></span>{localPreferences.lowStimuli && <Check size={18} />}</button><button className={localPreferences.reducedMotion ? "choice active" : "choice"} onClick={() => setLocalPreferences({ ...localPreferences, reducedMotion: !localPreferences.reducedMotion })}><span><strong>Movimiento reducido</strong><small>Evita transiciones y respiración animada.</small></span>{localPreferences.reducedMotion && <Check size={18} />}</button><button className={localPreferences.textScale === "large" ? "choice active" : "choice"} onClick={() => setLocalPreferences({ ...localPreferences, textScale: localPreferences.textScale === "large" ? "normal" : "large" })}><span><strong>Texto grande</strong><small>Aumenta el tamaño base de lectura.</small></span>{localPreferences.textScale === "large" && <Check size={18} />}</button></div></div>,

@@ -282,13 +282,13 @@ function faqReply(key: FaqKey, topic: ChatTopic): ConversationReply {
       return {
         ...base,
         label: "Sobre el costo",
-        title: "Esta demostración no tiene costo",
-        introduction: "KAHY, en esta fase, es un prototipo visual sin cobros ni cuentas reales. Una versión operativa tendría que definir su modelo de acceso junto con instituciones de salud y universidades.",
+        title: "KAHY no tiene costo",
+        introduction: "KAHY no cobra por usarse. Los centros comunitarios y las líneas telefónicas del directorio también son gratuitos; otros servicios, como el hospital psiquiátrico o el centro universitario, manejan cuotas de recuperación.",
         steps: [
-          { horizon: "Ahora", text: "Puedes explorar el chat, actividades y el directorio de demostración sin costo." },
-          { horizon: "A futuro", text: "El directorio real dependería de convenios con especialistas universitarios o gubernamentales." },
+          { horizon: "Ahora", text: "Puedes usar el chat, las actividades y el directorio sin costo." },
+          { horizon: "Para atención", text: "En el directorio están los teléfonos y domicilios de servicios públicos de Michoacán, con su fuente oficial." },
         ],
-        question: "¿Te gustaría ver cómo luce el directorio de especialistas de demostración?",
+        question: "¿Te gustaría ver el directorio de servicios de apoyo?",
         choices: ["Ver directorio", "Seguir platicando", "Volver al tema anterior"],
         sourceIds: ["mexico-privacy"],
       };
@@ -312,10 +312,10 @@ function faqReply(key: FaqKey, topic: ChatTopic): ConversationReply {
         ...base,
         label: "Conexión con una persona",
         title: "Puedo ayudarte a dar ese paso hacia una persona real",
-        introduction: "KAHY es un prototipo automatizado; no reemplaza a un profesional. Si buscas hablar con alguien de verdad, puedo mostrarte el directorio de demostración o la ruta de ayuda inmediata según la urgencia.",
+        introduction: "KAHY es un prototipo automatizado; no reemplaza a un profesional. Si buscas hablar con alguien de verdad, puedo mostrarte el directorio de servicios de apoyo en Michoacán o la ruta de ayuda inmediata según la urgencia.",
         steps: [
           { horizon: "Si es urgente", text: "Usa el botón de ayuda inmediata: 911 o Línea de la Vida 800 911 2000." },
-          { horizon: "Si no es urgente", text: "Explora el directorio de especialistas de demostración para ver cómo funcionaría la conexión real." },
+          { horizon: "Si no es urgente", text: "Revisa el directorio: reúne servicios públicos y universitarios de Michoacán con teléfono, domicilio y fuente oficial. KAHY no agenda citas; llama antes de acudir." },
         ],
         question: "¿Es algo urgente o prefieres explorar opciones sin prisa?",
         choices: ["Es urgente", "Sin prisa, ver directorio", "Seguir platicando aquí"],
@@ -830,7 +830,7 @@ export function createReply(input: string, previousTopic: ChatTopic = "inicio", 
   if (topic === "acceso") return {
     mode: "standard", topic, label: "Brecha de atención", title: "Preparemos una búsqueda que funcione con distancia y pocos datos",
     introduction: "La ayuda en Michoacán no se limita a Morelia, Uruapan y Zamora: la Secretaría de Salud reporta Centros Comunitarios de Salud Mental y Adicciones (CECOSAMA) también en Huetamo, Zitácuaro y Lázaro Cárdenas. Aun así, conviene comparar canal, costo, credenciales, horario y qué pasa en una urgencia antes de agendar.",
-    insight: "El directorio de especialistas de esta demostración es ficticio. Una versión operativa deberá sincronizarse con un directorio real y verificado, con fecha de última revisión, y ofrecer alternativas de voz o texto de bajo consumo, no solo videollamada.",
+    insight: "El directorio de KAHY reúne servicios públicos y universitarios reales de Michoacán, con la fuente y la fecha de revisión de cada dato. KAHY no agenda citas ni tiene convenio con ellos: llama antes de acudir para confirmar horarios.",
     steps: [
       { horizon: "Definir necesidad", text: "Anota si buscas evaluación, psicoterapia, apoyo por consumo, orientación familiar o atención médica. Eso evita derivaciones innecesarias." },
       { horizon: "Reducir barreras", text: "Pregunta por sesiones telefónicas, chat, horarios agrupados y requisitos de conectividad antes de agendar." },

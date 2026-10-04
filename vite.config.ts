@@ -6,14 +6,14 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 
 import siteConfiguration from './.figma/make/site.json'
 import { getChatReply, getStatusPayload, readJsonBody } from './server/kahyAi'
-import {
-  ensureSchema, getProfile, upsertProfile, deleteAllDataForDevice,
-  listScreenings, addScreening,
-  listChatMemory, addChatMemory, clearChatMemory,
-  getPetGarden, upsertPetGarden,
-  listTaskPlans, upsertTaskPlan, deleteTaskPlans, sanitizeTaskPlan,
-  listHabitDays, upsertHabitDay,
-} from './api/_lib/db'
+import authHandler from './api/auth'
+import chatMemoryHandler from './api/data/chat-memory'
+import emotionsHandler from './api/data/emotions'
+import habitsHandler from './api/data/habits'
+import petGardenHandler from './api/data/pet-garden'
+import profileHandler from './api/data/profile'
+import screeningsHandler from './api/data/screenings'
+import taskPlansHandler from './api/data/task-plans'
 import { getTaskBreakdown } from './api/_lib/taskBreakdown'
 
 // Vite config — https://vitejs.dev/config/
@@ -110,194 +110,66 @@ function kahyAiApi(): Plugin {
 }
 
 /**
- * Dev-server equivalent of api/data/*.ts (Postgres-backed persistence) —
- * same reasoning as kahyAiApi() above: Vite plugins never run in the
- * deployed build, so the real routes Vercel serves live under api/data/.
- * This just gives `npm run dev` the same endpoints, reusing api/_lib/db.ts
- * directly (Vite's own resolver has no trouble crossing this boundary —
- * it's specifically Vercel's function bundler that can't, see kahyAi.ts).
+ * Dev-server equivalent of the Vercel functions under api/auth.ts and
+ * api/data/*.ts (accounts + Postgres-backed persistence). Vite plugins never
+ * run in the deployed build, so the real routes live under api/; instead of
+ * re-implementing each one here, this mounts those same handlers behind a
+ * small adapter. That keeps `vite dev` and production identical — including
+ * the account access check every data route goes through (api/_lib/auth.ts).
  */
-function kahyDataApi(): Plugin {
-  function getDeviceIdFromQuery(url: string | undefined): string | null {
-    const query = new URLSearchParams((url || '').split('?')[1] || '')
-    return query.get('deviceId')
-  }
+type ApiHandler = (req: any, res: any) => unknown
 
+const apiRoutes: Array<[string, ApiHandler]> = [
+  ['/api/auth', authHandler],
+  ['/api/data/profile', profileHandler],
+  ['/api/data/screenings', screeningsHandler],
+  ['/api/data/chat-memory', chatMemoryHandler],
+  ['/api/data/pet-garden', petGardenHandler],
+  ['/api/data/emotions', emotionsHandler],
+  ['/api/data/task-plans', taskPlansHandler],
+  ['/api/data/habits', habitsHandler],
+]
+
+function kahyDataApi(): Plugin {
   return {
     name: 'kahy-data-api',
     apply: 'serve',
     configureServer(server) {
-      /**
-       * Every handler below is wrapped by this: without it, an unconfigured
-       * POSTGRES_URL locally doesn't just 500 one request — the thrown
-       * VercelPostgresError is unhandled inside Vite's middleware chain and
-       * crashes the whole `vite dev` process. Confirmed the hard way.
-       */
-      function withDbErrorHandling(handler: (req: IncomingMessage, res: ServerResponse) => Promise<unknown>) {
-        return async (req: IncomingMessage, res: ServerResponse) => {
-          res.setHeader('Content-Type', 'application/json; charset=utf-8')
-          res.setHeader('Cache-Control', 'no-store')
-          try {
-            await ensureSchema()
-            await handler(req, res)
-          } catch (error) {
-            console.error('[KAHY DB]', error instanceof Error ? error.message : error)
-            res.statusCode = 503
-            res.end(JSON.stringify({ code: 'DB_NOT_CONFIGURED', error: 'La base de datos todavía no está disponible en el servidor.' }))
-          }
-        }
-      }
-
-      server.middlewares.use('/api/data/profile', withDbErrorHandling(async (req, res) => {
-        if (req.method === 'GET') {
-          const deviceId = getDeviceIdFromQuery(req.url)
-          if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
-          const profile = await getProfile(deviceId)
-          return res.end(JSON.stringify({ profile }))
-        }
-        if (req.method === 'PUT') {
-          const body = await readJsonBody(req) as { deviceId?: string; profile?: Record<string, unknown> }
-          if (!body.deviceId || !body.profile) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId o profile.' })) }
-          await upsertProfile(body.deviceId, {
-            name: typeof body.profile.name === 'string' ? body.profile.name : 'Invitado',
-            companionType: typeof body.profile.companionType === 'string' ? body.profile.companionType : 'mascota',
-            mascot: typeof body.profile.mascot === 'string' ? body.profile.mascot : 'vaca',
-            flower: typeof body.profile.flower === 'string' ? body.profile.flower : 'Clavel',
-            city: typeof body.profile.city === 'string' ? body.profile.city : 'Morelia',
-            goals: Array.isArray(body.profile.goals) ? body.profile.goals as string[] : [],
-            preferences: (body.profile.preferences as Record<string, unknown> | undefined) || {},
-          })
-          return res.end(JSON.stringify({ ok: true }))
-        }
-        if (req.method === 'DELETE') {
-          const deviceId = getDeviceIdFromQuery(req.url)
-          if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
-          await deleteAllDataForDevice(deviceId)
-          return res.end(JSON.stringify({ ok: true }))
-        }
-        res.statusCode = 405
-        res.end(JSON.stringify({ error: 'Método no permitido.' }))
-      }))
-
-      server.middlewares.use('/api/data/screenings', withDbErrorHandling(async (req, res) => {
-        if (req.method === 'GET') {
-          const deviceId = getDeviceIdFromQuery(req.url)
-          if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
-          const results = await listScreenings(deviceId)
-          return res.end(JSON.stringify({ results }))
-        }
-        if (req.method === 'POST') {
-          const body = await readJsonBody(req) as { deviceId?: string; result?: Record<string, unknown> }
-          const result = body.result
-          if (!body.deviceId || !result || typeof result.id !== 'string' || typeof result.completedAt !== 'number' || !Array.isArray(result.answers) || typeof result.score !== 'number' || typeof result.band !== 'string') {
-            res.statusCode = 400
-            return res.end(JSON.stringify({ error: 'Falta deviceId o el resultado es inválido.' }))
-          }
-          await addScreening(body.deviceId, {
-            id: result.id, completedAt: result.completedAt, answers: result.answers as number[],
-            score: result.score, band: result.band, item9Positive: result.item9Positive as boolean | undefined,
-          })
-          return res.end(JSON.stringify({ ok: true }))
-        }
-        res.statusCode = 405
-        res.end(JSON.stringify({ error: 'Método no permitido.' }))
-      }))
-
-      server.middlewares.use('/api/data/chat-memory', withDbErrorHandling(async (req, res) => {
-        if (req.method === 'GET') {
-          const deviceId = getDeviceIdFromQuery(req.url)
-          if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
-          const entries = await listChatMemory(deviceId)
-          return res.end(JSON.stringify({ entries }))
-        }
-        if (req.method === 'POST') {
-          const body = await readJsonBody(req) as { deviceId?: string; topic?: string }
-          if (!body.deviceId || typeof body.topic !== 'string' || !body.topic) {
-            res.statusCode = 400
-            return res.end(JSON.stringify({ error: 'Falta deviceId o topic.' }))
-          }
-          await addChatMemory(body.deviceId, body.topic)
-          return res.end(JSON.stringify({ ok: true }))
-        }
-        if (req.method === 'DELETE') {
-          const deviceId = getDeviceIdFromQuery(req.url)
-          if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
-          await clearChatMemory(deviceId)
-          return res.end(JSON.stringify({ ok: true }))
-        }
-        res.statusCode = 405
-        res.end(JSON.stringify({ error: 'Método no permitido.' }))
-      }))
-
-      server.middlewares.use('/api/data/pet-garden', withDbErrorHandling(async (req, res) => {
-        if (req.method === 'GET') {
-          const deviceId = getDeviceIdFromQuery(req.url)
-          if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
-          const state = await getPetGarden(deviceId)
-          return res.end(JSON.stringify({ state }))
-        }
-        if (req.method === 'PUT') {
-          const body = await readJsonBody(req) as { deviceId?: string; state?: Record<string, unknown> }
-          const state = body.state
-          if (!body.deviceId || !state || typeof state.happiness !== 'number' || typeof state.bond !== 'number' || typeof state.progress !== 'number' || typeof state.lastCare !== 'number') {
-            res.statusCode = 400
-            return res.end(JSON.stringify({ error: 'Falta deviceId o el estado es inválido.' }))
-          }
-          await upsertPetGarden(body.deviceId, {
-            happiness: state.happiness, bond: state.bond, progress: state.progress,
-            careCounts: (state.careCounts as Record<string, number>) || {}, lastCare: state.lastCare,
-            rewardedMilestones: Array.isArray(state.rewardedMilestones) ? state.rewardedMilestones.filter((item): item is string => typeof item === 'string').slice(-160) : [],
-          })
-          return res.end(JSON.stringify({ ok: true }))
-        }
-        res.statusCode = 405
-        res.end(JSON.stringify({ error: 'Método no permitido.' }))
-      }))
-
-      server.middlewares.use('/api/data/task-plans', withDbErrorHandling(async (req, res) => {
-        const deviceId = getDeviceIdFromQuery(req.url)
-        if (req.method === 'GET') {
-          if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
-          return res.end(JSON.stringify({ plans: await listTaskPlans(deviceId) }))
-        }
-        if (req.method === 'DELETE') {
-          if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
-          const planId = new URLSearchParams((req.url || '').split('?')[1] || '').get('planId') || undefined
-          await deleteTaskPlans(deviceId, planId)
-          return res.end(JSON.stringify({ ok: true }))
-        }
-        if (req.method === 'PUT') {
-          const body = await readJsonBody(req) as { deviceId?: string; plan?: unknown }
-          const plan = sanitizeTaskPlan(body.plan)
-          if (!body.deviceId || !plan) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Plan inválido.' })) }
-          await upsertTaskPlan(body.deviceId, plan.id as string, plan)
-          return res.end(JSON.stringify({ ok: true }))
-        }
-        res.statusCode = 405
-        res.end(JSON.stringify({ error: 'Método no permitido.' }))
-      }))
-
-      server.middlewares.use('/api/data/habits', withDbErrorHandling(async (req, res) => {
-        if (req.method === 'GET') {
-          const deviceId = getDeviceIdFromQuery(req.url)
-          if (!deviceId) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'Falta deviceId.' })) }
-          return res.end(JSON.stringify({ days: await listHabitDays(deviceId) }))
-        }
-        if (req.method === 'PUT') {
-          const body = await readJsonBody(req) as { deviceId?: string; day?: { date?: string; completed?: unknown } }
-          const date = body.day?.date
-          const completed = body.day?.completed
-          if (!body.deviceId || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Array.isArray(completed)) {
-            res.statusCode = 400
-            return res.end(JSON.stringify({ error: 'Registro de hábitos inválido.' }))
-          }
-          await upsertHabitDay(body.deviceId, { date, completed: completed.filter((item): item is string => typeof item === 'string').slice(0, 20) })
-          return res.end(JSON.stringify({ ok: true }))
-        }
-        res.statusCode = 405
-        res.end(JSON.stringify({ error: 'Método no permitido.' }))
-      }))
+      for (const [route, handler] of apiRoutes) server.middlewares.use(route, adaptVercelHandler(handler))
     },
+  }
+}
+
+/**
+ * Gives a Vercel-style handler the request/response shape it expects on top
+ * of Vite's connect middleware. The catch matters: without a database
+ * configured, an unhandled VercelPostgresError inside the middleware chain
+ * crashes the whole `vite dev` process instead of failing one request.
+ */
+function adaptVercelHandler(handler: ApiHandler) {
+  return async (req: IncomingMessage, res: ServerResponse) => {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    const send = (status: number, payload: unknown) => {
+      if (res.writableEnded) return
+      res.statusCode = status
+      res.end(JSON.stringify(payload))
+    }
+    let body: unknown
+    try {
+      body = req.method === 'GET' || req.method === 'DELETE' ? undefined : await readJsonBody(req)
+    } catch {
+      return send(400, { error: 'Solicitud inválida.' })
+    }
+    try {
+      const query = Object.fromEntries(new URL(req.url || '/', 'http://localhost').searchParams)
+      await handler(
+        { method: req.method, query, body, headers: req.headers, socket: req.socket },
+        { setHeader: (name: string, value: string) => res.setHeader(name, value), status: (code: number) => ({ json: (payload: unknown) => send(code, payload) }) },
+      )
+    } catch (error) {
+      console.error('[KAHY API]', error instanceof Error ? error.message : error)
+      send(503, { code: 'DB_NOT_CONFIGURED', error: 'La base de datos todavía no está disponible en el servidor.' })
+    }
   }
 }
 

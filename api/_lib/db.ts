@@ -7,9 +7,11 @@ import { sql } from '@vercel/postgres'
  * this file has zero imports outside npm packages — see kahyAi.ts's header
  * comment for the full story on why that boundary matters here.
  *
- * There is no real login system: every table is keyed by an anonymous
- * `device_id` generated and stored client-side (src/lib/deviceId.ts), not by
- * a user account. Tables have no foreign keys on purpose — "explorar sin
+ * Every data table is keyed by `device_id`: an anonymous id generated and
+ * stored client-side (src/lib/deviceId.ts). An account (see auth.ts) does
+ * not add a second key — it *claims* one of those ids through
+ * `accounts.data_id`, and from then on that id is only reachable with the
+ * account's session. Tables have no foreign keys on purpose — "explorar sin
  * registro" never creates a profiles row, so screenings/chat-memory/pet
  * garden must be able to exist independently of one.
  */
@@ -91,6 +93,23 @@ function createSchema() {
         PRIMARY KEY (device_id, day)
       )
     `,
+    sql`
+      CREATE TABLE IF NOT EXISTS accounts (
+        account_id TEXT PRIMARY KEY,
+        email TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        data_id TEXT NOT NULL UNIQUE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `,
+    sql`
+      CREATE TABLE IF NOT EXISTS sessions (
+        token_hash TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        expires_at TIMESTAMPTZ NOT NULL
+      )
+    `,
   ]).then(() => {
     // Index creation kept separate from CREATE TABLE for older Postgres compatibility.
     return Promise.all([
@@ -100,6 +119,7 @@ function createSchema() {
       sql`CREATE INDEX IF NOT EXISTS idx_emotion_device_at ON emotion_entries(device_id, at DESC)`,
       sql`CREATE INDEX IF NOT EXISTS idx_task_plans_device ON task_plans(device_id)`,
       sql`CREATE INDEX IF NOT EXISTS idx_habit_days_device ON habit_days(device_id, day DESC)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_sessions_account ON sessions(account_id)`,
     ])
   }).then(() => undefined)
 }
@@ -187,9 +207,15 @@ export async function clearChatMemory(deviceId: string): Promise<void> {
   await sql`DELETE FROM chat_memory WHERE device_id = ${deviceId}`
 }
 
-/** Used by "borrar perfil guardado en este dispositivo" — a real delete, not just orphaning the row, since the deviceId itself isn't reset. */
+/**
+ * Used by "borrar perfil" / "eliminar mi cuenta" — a real delete, not just
+ * orphaning the rows. If an account had claimed this id, the account and
+ * its sessions go too, so nothing is left that could log back in.
+ */
 export async function deleteAllDataForDevice(deviceId: string): Promise<void> {
+  await sql`DELETE FROM sessions WHERE account_id IN (SELECT account_id FROM accounts WHERE data_id = ${deviceId})`
   await Promise.all([
+    sql`DELETE FROM accounts WHERE data_id = ${deviceId}`,
     sql`DELETE FROM profiles WHERE device_id = ${deviceId}`,
     sql`DELETE FROM screening_results WHERE device_id = ${deviceId}`,
     sql`DELETE FROM chat_memory WHERE device_id = ${deviceId}`,

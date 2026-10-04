@@ -5,7 +5,7 @@ export const navItems: Array<{ id: MainView; label: string }> = [
   { id: "chat", label: "Chat" },
   { id: "activities", label: "Actividades" },
   { id: "screening", label: "Tamizaje" },
-  { id: "specialists", label: "Especialistas" },
+  { id: "specialists", label: "Directorio" },
   { id: "profile", label: "Perfil" },
 ];
 
@@ -84,45 +84,6 @@ export const informationStyles = [
   { id: "brief", label: "Breve y directo", description: "Pocos pasos y frases cortas." },
   { id: "guided", label: "Guiado", description: "Explicaciones claras, paso por paso." },
   { id: "visual", label: "Más visual", description: "Tarjetas, símbolos y menos texto." },
-];
-
-export const specialists = [
-  {
-    id: "demo-ana",
-    name: "Dra. Ana R.",
-    focus: "Ansiedad y manejo del estrés",
-    format: "Videollamada de demostración",
-    availability: "Mar y jue · 16:00–19:00",
-    note: "Perfil ficticio para probar filtros, perfil y agenda.",
-    initials: "AR",
-  },
-  {
-    id: "demo-luis",
-    name: "Psic. Luis M.",
-    focus: "TDAH y organización cotidiana",
-    format: "Chat o videollamada de demostración",
-    availability: "Lun, mié y vie · 10:00–14:00",
-    note: "Perfil ficticio; no representa disponibilidad real.",
-    initials: "LM",
-  },
-  {
-    id: "demo-carmen",
-    name: "Mtra. Carmen T.",
-    focus: "Autismo y acompañamiento familiar",
-    format: "Videollamada de demostración",
-    availability: "Sáb · 09:00–13:00",
-    note: "Perfil ficticio para visualizar una futura red de atención.",
-    initials: "CT",
-  },
-  {
-    id: "demo-diego",
-    name: "Psic. Diego P.",
-    focus: "Estrés traumático y hábitos de autocuidado",
-    format: "Chat de demostración",
-    availability: "Mar y vie · 12:00–17:00",
-    note: "Perfil ficticio; la plataforma aún no ofrece terapia.",
-    initials: "DP",
-  },
 ];
 
 export type KnowledgeSource = {
@@ -323,7 +284,7 @@ export const trustedSources: KnowledgeSource[] = [
     organization: "Secretaría de Salud de Michoacán / CONASAMA",
     category: "ayuda",
     summary: "Michoacán reporta CECOSAMA en Morelia, Uruapan, Huetamo, Zitácuaro, Zamora y Lázaro Cárdenas (agosto 2026), no solo en las tres ciudades más grandes.",
-    productRule: "KAHY no asume que la ayuda regional se limita a Morelia, Uruapan y Zamora; el directorio real necesitaría sincronizarse con esta lista y su fecha de verificación.",
+    productRule: "KAHY no asume que la ayuda regional se limita a Morelia, Uruapan y Zamora; el directorio de KAHY incluye los centros de las seis ciudades con su fuente y fecha de verificación.",
     url: "https://salud.michoacan.gob.mx/cuida-ssm-salud-mental-de-las-y-los-jovenes-a-traves-de-los-centros-de-salud-mental/",
     verifiedAt: "7 sep 2026",
   },
