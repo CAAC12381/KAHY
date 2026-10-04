@@ -1,4 +1,4 @@
-import { Bubbles, Check, CirclePause, Cloud, HeartPulse, ListChecks, Play, RotateCcw, ShieldCheck, Timer, Wind } from "lucide-react";
+import { Bubbles, Check, CirclePause, Cloud, HeartPulse, ListChecks, Maximize2, Play, RotateCcw, ShieldCheck, Timer, Wind } from "lucide-react";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import TaskBreakdown from "../components/TaskBreakdown";
 import { Button, Card, DemoBadge } from "../components/ui";
@@ -207,13 +207,13 @@ function Breathing({ reducedMotion, onTalkToKahy }: { reducedMotion: boolean; on
 }
 
 function CloudWalk() {
-  return <Card className="clouds-panel"><div className="activity-title"><span className="activity-illustration"><Cloud /></span><div><DemoBadge>Juego de demostración</DemoBadge><h1>Un paseo entre nubes</h1><p>Sin puntajes que juzgar ni límite de tiempo. Cierra cuando quieras.</p></div></div><div className="game-frame"><iframe src="/games/paseo-entre-nubes/index.html" title="Un paseo entre nubes" loading="lazy" /></div></Card>;
+  return <Card className="clouds-panel"><div className="activity-title"><span className="activity-illustration"><Cloud /></span><div><DemoBadge>Juego de demostración</DemoBadge><h1>Un paseo entre nubes</h1><p>Sin puntajes que juzgar ni límite de tiempo. Cierra cuando quieras.</p></div></div><a className="game-fullscreen-link" href="/games/paseo-entre-nubes/index.html" target="_blank" rel="noreferrer"><Maximize2 size={17} /> Abrir en pantalla completa</a><div className="game-frame game-frame--clouds"><iframe src="/games/paseo-entre-nubes/index.html" title="Un paseo entre nubes" loading="lazy" /></div></Card>;
 }
 
 function BodyInspector() {
-  return <Card className="body-panel"><div className="activity-title"><span className="activity-illustration"><HeartPulse /></span><div><DemoBadge>Juego de demostración</DemoBadge><h1>El Inspector del Cuerpo</h1><p>Sin diagnóstico ni evaluación: solo una forma amable de entender las señales del cuerpo.</p></div></div><div className="game-frame"><iframe src="/games/inspector-del-cuerpo/index.html" title="El Inspector del Cuerpo" loading="lazy" /></div></Card>;
+  return <Card className="body-panel"><div className="activity-title"><span className="activity-illustration"><HeartPulse /></span><div><DemoBadge>Juego de demostración</DemoBadge><h1>El Inspector del Cuerpo</h1><p>Sin diagnóstico ni evaluación: solo una forma amable de entender las señales del cuerpo.</p></div></div><a className="game-fullscreen-link" href="/games/inspector-del-cuerpo/index.html" target="_blank" rel="noreferrer"><Maximize2 size={17} /> Abrir en pantalla completa</a><div className="game-frame game-frame--body"><iframe src="/games/inspector-del-cuerpo/index.html" title="El Inspector del Cuerpo" loading="lazy" /></div></Card>;
 }
 
 function BubblePop() {
-  return <Card className="bubbles-panel"><div className="activity-title"><span className="activity-illustration"><Bubbles /></span><div><DemoBadge>Juego de demostración</DemoBadge><h1>Suelta la burbuja</h1><p>Mantén presionado para empezar y suelta cada burbuja a tu propio ritmo.</p></div></div><div className="game-frame"><iframe src="/games/suelta-la-burbuja/index.html" title="Suelta la burbuja" loading="lazy" /></div></Card>;
+  return <Card className="bubbles-panel"><div className="activity-title"><span className="activity-illustration"><Bubbles /></span><div><DemoBadge>Juego de demostración</DemoBadge><h1>Suelta la burbuja</h1><p>Mantén presionado para empezar y suelta cada burbuja a tu propio ritmo.</p></div></div><a className="game-fullscreen-link" href="/games/suelta-la-burbuja/index.html" target="_blank" rel="noreferrer"><Maximize2 size={17} /> Abrir en pantalla completa</a><div className="game-frame game-frame--bubbles"><iframe src="/games/suelta-la-burbuja/index.html" title="Suelta la burbuja" loading="lazy" /></div></Card>;
 }

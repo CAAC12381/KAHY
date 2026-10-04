@@ -6,10 +6,12 @@ import {
   Home,
   Leaf,
   MessageCircle,
+  Menu,
   User,
   Users,
+  X,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { navItems } from "../mock/data";
 import type { MainView, MascotId, Preferences } from "../types";
 import Mascot from "../components/Mascot";
@@ -22,7 +24,15 @@ const icons = {
   screening: ClipboardList,
   specialists: Users,
   profile: User,
+  resources: BookOpen,
 };
+
+const mobilePrimaryIds: MainView[] = ["home", "chat", "activities", "screening"];
+const mobileMoreItems: Array<{ id: MainView; label: string }> = [
+  { id: "specialists", label: "Especialistas" },
+  { id: "profile", label: "Perfil y ajustes" },
+  { id: "resources", label: "Recursos y fuentes" },
+];
 
 export default function AppShell({
   children,
@@ -40,6 +50,26 @@ export default function AppShell({
   preferences: Preferences;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMoreActive = mobileMoreItems.some((item) => item.id === currentView);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [currentView]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileMenuOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [mobileMenuOpen]);
+
+  function navigateFromMobile(view: MainView) {
+    setMobileMenuOpen(false);
+    onNavigate(view);
+  }
 
   return (
     <div className={`app-shell ${collapsed ? "app-shell--collapsed" : ""}`}>
@@ -93,15 +123,27 @@ export default function AppShell({
         <main id="main-content" className={currentView === "chat" ? "content content--chat" : "content"}>{children}</main>
       </div>
 
+      {mobileMenuOpen && <>
+        <button className="mobile-more-backdrop" onClick={() => setMobileMenuOpen(false)} aria-label="Cerrar menú" />
+        <aside id="mobile-more-menu" className="mobile-more-sheet" role="dialog" aria-modal="true" aria-labelledby="mobile-more-title">
+          <div className="mobile-more-heading"><div><span className="eyebrow">Navegación</span><h2 id="mobile-more-title">Más secciones</h2></div><button className="icon-button" onClick={() => setMobileMenuOpen(false)} aria-label="Cerrar menú"><X size={21} /></button></div>
+          <div className="mobile-more-links">{mobileMoreItems.map((item) => {
+            const Icon = icons[item.id as keyof typeof icons];
+            return <button key={item.id} className={currentView === item.id ? "active" : ""} onClick={() => navigateFromMobile(item.id)} aria-current={currentView === item.id ? "page" : undefined}><Icon size={21} /><span>{item.label}</span><ChevronRight size={18} /></button>;
+          })}</div>
+        </aside>
+      </>}
+
       <nav className="bottom-nav" aria-label="Navegación móvil">
-        {navItems.map((item) => {
+        {navItems.filter((item) => mobilePrimaryIds.includes(item.id)).map((item) => {
           const Icon = icons[item.id as keyof typeof icons];
           return (
-            <button key={item.id} className={currentView === item.id ? "active" : ""} onClick={() => onNavigate(item.id)} aria-current={currentView === item.id ? "page" : undefined}>
+            <button key={item.id} className={currentView === item.id ? "active" : ""} onClick={() => navigateFromMobile(item.id)} aria-current={currentView === item.id ? "page" : undefined}>
               <Icon size={20} /><span>{item.label}</span>
             </button>
           );
         })}
+        <button className={mobileMoreActive || mobileMenuOpen ? "active" : ""} onClick={() => setMobileMenuOpen((value) => !value)} aria-expanded={mobileMenuOpen} aria-controls="mobile-more-menu"><Menu size={20} /><span>Más</span></button>
       </nav>
     </div>
   );
