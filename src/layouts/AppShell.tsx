@@ -29,7 +29,7 @@ const icons = {
 
 const mobilePrimaryIds: MainView[] = ["home", "chat", "activities", "screening"];
 const mobileMoreItems: Array<{ id: MainView; label: string }> = [
-  { id: "specialists", label: "Especialistas" },
+  { id: "specialists", label: "Directorio" },
   { id: "profile", label: "Perfil y ajustes" },
   { id: "resources", label: "Recursos y fuentes" },
 ];
