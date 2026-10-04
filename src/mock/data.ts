@@ -26,7 +26,7 @@ export const mascots: Array<{
     name: "Moka",
     animal: "vaquita",
     description: "Tierna y juguetona",
-    stages: [petAsset("animales/vaca/vaca.jpg"), petAsset("animales/vaca/vaca-2.jpg"), petAsset("animales/vaca/vaca-3.jpg")],
+    stages: [petAsset("animales/vaca/vaca-caja.jpg"), petAsset("animales/vaca/vaca-2.jpg"), petAsset("animales/vaca/vaca-3.jpg")],
     sadImage: petAsset("animales/tristes/vaca-triste.png"),
   },
   {
@@ -34,7 +34,7 @@ export const mascots: Array<{
     name: "Pío",
     animal: "pollito",
     description: "Curioso y alegre",
-    stages: [petAsset("animales/pollito/pollito.jpg"), petAsset("animales/pollito/pollito-2.jpg"), petAsset("animales/pollito/pollito-3.jpg"), petAsset("animales/pollito/pollito-4.jpg")],
+    stages: [petAsset("animales/pollito/pollito-caja.jpg"), petAsset("animales/pollito/pollito-2.jpg"), petAsset("animales/pollito/pollito-3.jpg"), petAsset("animales/pollito/pollito-4.jpg")],
     sadImage: petAsset("animales/tristes/pollito-triste.png"),
   },
   {
@@ -42,7 +42,7 @@ export const mascots: Array<{
     name: "Lima",
     animal: "camaleón",
     description: "Sereno y creativo",
-    stages: [petAsset("animales/camaleon/camaleon.jpg"), petAsset("animales/camaleon/camaleon-1.jpg"), petAsset("animales/camaleon/camaleon-2.jpg"), petAsset("animales/camaleon/camaleon-3.jpg"), petAsset("animales/camaleon/camaleon-4.jpg")],
+    stages: [petAsset("animales/camaleon/camaleon-caja.jpg"), petAsset("animales/camaleon/camaleon-1.jpg"), petAsset("animales/camaleon/camaleon-2.jpg"), petAsset("animales/camaleon/camaleon-3.jpg"), petAsset("animales/camaleon/camaleon-4.jpg")],
     sadImage: petAsset("animales/tristes/camaleon-triste.png"),
   },
   {
@@ -50,7 +50,7 @@ export const mascots: Array<{
     name: "Tita",
     animal: "tortuguita",
     description: "Tranquila y dulce",
-    stages: [petAsset("animales/tortuga/tortuga.png"), petAsset("animales/tortuga/tortuga-1.jpg"), petAsset("animales/tortuga/tortuga-2.jpg"), petAsset("animales/tortuga/tortuga-3.jpg")],
+    stages: [petAsset("animales/tortuga/tortuga-caja.jpg"), petAsset("animales/tortuga/tortuga-1.jpg"), petAsset("animales/tortuga/tortuga-2.jpg"), petAsset("animales/tortuga/tortuga-3.jpg")],
     sadImage: petAsset("animales/tristes/tortuga-triste.png"),
   },
 ];
