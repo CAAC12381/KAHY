@@ -1,4 +1,5 @@
-import { detectSafetySignal, isRateLimited, resolveProvider, type ResolvedProvider } from './kahyAi.js'
+import { detectSafetySignal } from './chatGuards.js'
+import { isRateLimited, resolveProvider, type ResolvedProvider } from './kahyAi.js'
 
 /**
  * POST /api/kahy/breakdown — divide una tarea (o un paso) en acciones

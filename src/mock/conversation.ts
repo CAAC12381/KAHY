@@ -1,5 +1,9 @@
 import type { EmotionInsight } from "../types";
 import { createAdaptiveOfflineReply, type LocalConversationContext } from "../lib/offlineConversation";
+// Las frases de crisis viven en un solo archivo, compartido con el servidor (ver su encabezado).
+import { detectSafetySignal, detectThirdPartySafetySignal } from "../../api/_lib/chatGuards";
+
+export { detectSafetySignal, detectThirdPartySafetySignal };
 
 export type ReplyMode = "standard" | "support" | "safety";
 export type ChatTopic =
@@ -39,84 +43,12 @@ export type ConversationReply = {
   emotion?: EmotionInsight;
 };
 
-// NOTE: duplicated in api/_lib/kahyAi.ts (Vercel's function bundler failed
-// to trace an import reaching from api/ into this src/ file — see that
-// file's header comment). Update both if you change this list.
-const safetyPatterns = [
-  /me quiero morir/i,
-  /quiero morir/i,
-  /no quiero vivir/i,
-  /no quiero seguir (viviendo|aqui|así|asi)/i,
-  /ya no quiero (estar|seguir) (aqui|vivo|viva)/i,
-  /quiero desaparecer (para siempre|de este mundo)/i,
-  /me quiero ir para siempre/i,
-  /me quiero morir ya/i,
-  /suicid/i,
-  /matarme/i,
-  /(me quiero|quiero|voy a|planeo|pienso) (matar|matarme|suicidarme)/i,
-  /quitarme la vida/i,
-  /me voy a matar/i,
-  /acabar con mi vida/i,
-  /terminar con todo esto/i,
-  /acabar con todo esto/i,
-  /ya no la hago mas/i,
-  /hacerme da[nñ]o/i,
-  /me quiero hacer da[nñ]o/i,
-  /quiero hacerme da[nñ]o/i,
-  /pienso hacerme da[nñ]o/i,
-  /lastimarme/i,
-  /quiero lastimarme/i,
-  /voy a lastimarme/i,
-  /no puedo mantenerme a salvo/i,
-  /me (corté|corte|estoy cortando)/i,
-  /cortarme las venas/i,
-  /ahorcarme/i,
-  /colgarme/i,
-  /aventarme (del|de un|desde)/i,
-  /tirarme (del|de un|desde)/i,
-  /(tengo|hice|ya tengo).{0,24}(un plan|una forma).{0,40}(morir|matarme|hacerme da[nñ]o|suicid)/i,
-  /despedirme de todos/i,
-  /ojala no despertara/i,
-  /mejor ya no despertar/i,
-  /estaria(n)? mejor sin mi/i,
-  /soy una carga para (todos|mi familia|los demas)/i,
-  /ya no le veo sentido a (nada|la vida)/i,
-  /nada tiene sentido ya/i,
-  /sobredosis/i,
-  /tome demasiadas pastillas/i,
-  /me tome todas las pastillas/i,
-  /no (está|esta) respirando/i,
-  /no puedo respirar/i,
-  /esta inconsciente/i,
-  /violencia.*ahora/i,
-  /me estan golpeando/i,
-  /hacer(le)? daño a alguien/i,
-  /estoy en peligro/i,
-];
-
 function includesAny(text: string, words: string[]) {
   return words.some((word) => text.includes(word));
 }
 
 function normalize(input: string) {
   return input.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
-}
-
-export function detectSafetySignal(input: string) {
-  const contextual = normalize(input)
-    .replace(/\bno me quiero morir\b/g, "")
-    .replace(/\bno quiero (morir|matarme|hacerme dano|lastimarme)\b/g, "")
-    .replace(/\b(me muero|mori) de (risa|hambre|sueno|amor|verguenza)\b/g, "")
-    .replace(/\b(esta|esa|la) (tarea|chamba|escuela) me mata\b/g, "")
-    .replace(/\bquiero matar el tiempo\b/g, "")
-    .replace(/\bmori con (ese|esa|el|la) (meme|video|chiste)\b/g, "");
-  return safetyPatterns.some((pattern) => pattern.test(contextual));
-}
-
-export function detectThirdPartySafetySignal(input: string) {
-  const text = normalize(input);
-  return /\b(mi|un|una) (amigo|amiga|hermano|hermana|pareja|novio|novia|hijo|hija|mama|madre|papa|padre|compa|familiar|companero|companera).{0,100}(se quiere morir|quiere morir|suicid|matarse|hacerse dano|se esta lastimando)/i.test(text)
-    || /\b(alguien|una persona).{0,80}(se quiere morir|quiere morir|suicid|matarse|hacerse dano)/i.test(text);
 }
 
 export function getTopic(input: string): ChatTopic {

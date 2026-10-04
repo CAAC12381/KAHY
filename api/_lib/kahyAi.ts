@@ -1,4 +1,5 @@
 import type { IncomingMessage } from 'node:http'
+import { detectSafetySignal, detectThirdPartySafetySignal, isOutOfScopeInformationRequest, scopeBoundaryCopy } from './chatGuards.js'
 
 /**
  * Shared AI orchestration logic for KAHY's chat endpoint, used by the two
@@ -11,121 +12,19 @@ import type { IncomingMessage } from 'node:http'
  * production — this file exists specifically to avoid that failure mode
  * by keeping the whole dependency graph inside api/.
  *
- * The dev-server path (vite.config.ts, via server/kahyAi.ts) still
- * imports detectSafetySignal directly from src/mock/conversation.ts,
- * since that one only ever runs under `vite dev`/`vite preview`, not as a
- * Vercel function — so it doesn't hit this bundling issue.
- *
- * IMPORTANT: the safetyPatterns array below is a deliberate duplicate of
- * the one in src/mock/conversation.ts. If you add a crisis phrase there,
- * add it here too — a mismatch here is a false negative on the deployed
- * site specifically, even though local dev would catch it fine.
+ * The crisis-phrase list and the scope boundary are NOT defined here: they
+ * live once in ./chatGuards.ts, which the dev server and the browser code
+ * import too. src/ may import from api/ (Vite follows it); the reverse is
+ * what broke on Vercel.
  */
-
-const safetyPatterns = [
-  /me quiero morir/i,
-  /quiero morir/i,
-  /no quiero vivir/i,
-  /no quiero seguir (viviendo|aqui|así|asi)/i,
-  /ya no quiero (estar|seguir) (aqui|vivo|viva)/i,
-  /quiero desaparecer (para siempre|de este mundo)/i,
-  /me quiero ir para siempre/i,
-  /me quiero morir ya/i,
-  /suicid/i,
-  /matarme/i,
-  /(me quiero|quiero|voy a|planeo|pienso) (matar|matarme|suicidarme)/i,
-  /quitarme la vida/i,
-  /me voy a matar/i,
-  /acabar con mi vida/i,
-  /terminar con todo esto/i,
-  /acabar con todo esto/i,
-  /ya no la hago mas/i,
-  /hacerme da[nñ]o/i,
-  /me quiero hacer da[nñ]o/i,
-  /quiero hacerme da[nñ]o/i,
-  /pienso hacerme da[nñ]o/i,
-  /lastimarme/i,
-  /quiero lastimarme/i,
-  /voy a lastimarme/i,
-  /no puedo mantenerme a salvo/i,
-  /me (corté|corte|estoy cortando)/i,
-  /cortarme las venas/i,
-  /ahorcarme/i,
-  /colgarme/i,
-  /aventarme (del|de un|desde)/i,
-  /tirarme (del|de un|desde)/i,
-  /(tengo|hice|ya tengo).{0,24}(un plan|una forma).{0,40}(morir|matarme|hacerme da[nñ]o|suicid)/i,
-  /despedirme de todos/i,
-  /ojala no despertara/i,
-  /mejor ya no despertar/i,
-  /estaria(n)? mejor sin mi/i,
-  /soy una carga para (todos|mi familia|los demas)/i,
-  /ya no le veo sentido a (nada|la vida)/i,
-  /nada tiene sentido ya/i,
-  /sobredosis/i,
-  /tome demasiadas pastillas/i,
-  /me tome todas las pastillas/i,
-  /no (está|esta) respirando/i,
-  /no puedo respirar/i,
-  /esta inconsciente/i,
-  /violencia.*ahora/i,
-  /me estan golpeando/i,
-  /hacer(le)? daño a alguien/i,
-  /estoy en peligro/i,
-]
-
-export function detectSafetySignal(input: string) {
-  const contextual = input.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
-    .replace(/\bno me quiero morir\b/g, '')
-    .replace(/\bno quiero (morir|matarme|hacerme dano|lastimarme)\b/g, '')
-    .replace(/\b(me muero|mori) de (risa|hambre|sueno|amor|verguenza)\b/g, '')
-    .replace(/\b(esta|esa|la) (tarea|chamba|escuela) me mata\b/g, '')
-    .replace(/\bquiero matar el tiempo\b/g, '')
-    .replace(/\bmori con (ese|esa|el|la) (meme|video|chiste)\b/g, '')
-  return safetyPatterns.some((pattern) => pattern.test(contextual))
-}
-
-function detectThirdPartySafetySignal(input: string) {
-  const text = input.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
-  return /\b(mi|un|una) (amigo|amiga|hermano|hermana|pareja|novio|novia|hijo|hija|mama|madre|papa|padre|compa|familiar|companero|companera).{0,100}(se quiere morir|quiere morir|suicid|matarse|hacerse dano|se esta lastimando)/i.test(text)
-    || /\b(alguien|una persona).{0,80}(se quiere morir|quiere morir|suicid|matarse|hacerse dano)/i.test(text)
-}
-
-function normalizeScopeText(input: string) {
-  return input.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, ' ').trim().replace(/^[¿¡!?.,;:\s]+/, '')
-}
-
-/**
- * KAHY is not a general-purpose assistant. This deterministic boundary
- * catches direct requests for unrelated facts, tutorials or instructions
- * before they reach the model. Hobbies and everyday topics remain welcome
- * when the person shares their lived experience or connects them with
- * wellbeing, motivation, identity, relationships or daily functioning.
- */
-function isOutOfScopeInformationRequest(input: string) {
-  const text = normalizeScopeText(input)
-  if (!text) return false
-
-  const appOrWellbeingContext = /\b(kahy|privacidad|datos|cuenta|chat|directorio|tamizaje|psicolog\w*|psiquiatr\w*|psicoter\w*|salud mental|bienestar|emocion\w*|sentir|me siento|ansiedad|estres|panico|depres\w*|triste\w*|animo|duelo|soledad|trauma\w*|trastorno\w*|bipolar\w*|esquizofren\w*|borderline|autismo|tdah|neurodiv\w*|toc|obses\w*|compuls\w*|fobia\w*|psicosis|mania|anorexia|bulimia|alimentari\w*|adiccion\w*|consumo|dormir|sueno|medicamento\w*|terapia\w*|tcc|cognitiv\w*|conductual\w*|mindfulness|meditacion|respiracion|pareja|familia|amistad|amigo|relacion\w*|ruptura|separacion|conflicto\w*|limite\w*|trabajo|escuela|estudio|universidad|tarea|organizar|procrast\w*|concentr\w*|decision\w*|habito\w*|motivacion|autoestima|energia|cansancio|miedo|enojo|frustracion|culpa|confusion|esperanza|relajar|calmar|agobio|sobrecarga|apoyar|acompanar|discriminacion|identidad|lgbt|violencia|crianza|embarazo|posparto|migracion|crisis|emergencia|locatel|linea de la vida|numero de ayuda|me preocupa|me da miedo|me cuesta|me ayuda|me gusta|me apasiona|hobby|pasatiempo)\b/.test(text)
-  const technicalSubject = /\b(receta\w*|cocin\w*|sopa\w*|pastel\w*|ingrediente\w*|llanta\w*|neumatico\w*|motor\w*|mecanic\w*|automovil\w*|carro\w*|codigo\w*|program\w*|software|excel|computador\w*|instal\w*|matematic\w*|ecuacion\w*|capital de|historia de|clima|pronostico\w*|precio\w*|comprar|viaje\w*|turismo)\b/.test(text)
-  const asksForInformation = /^(como|que es|que son|quien|cual|cuales|donde|cuando|cuanto|por que|explica(?:me)?|dime|dame|haz(?:me)?|ensena(?:me)?|recomienda(?:me)?|resuelve|resume|traduce|escribe|habla(?:me)? de|cuenta(?:me)? sobre|informacion (?:de|sobre)|definicion de|ayuda(?:me)? (?:a|con)|necesito saber|necesito (?:una|un)|quiero saber|quiero (?:una|un)|quiero aprender|pasos para|instrucciones para|receta de|lista de)\b/.test(text)
-    || /\b(como se hace|como puedo hacer|como hago|como preparo|como cambio|como arreglo|como reparo|paso a paso|dame una receta|explicame como|quiero saber como|instrucciones para|tutorial de)\b/.test(text)
-
-  return asksForInformation && (technicalSubject || !appOrWellbeingContext)
-}
 
 function scopeBoundaryReply() {
   return {
     mode: 'standard',
     presentation: 'conversation',
     topic: 'conversación',
-    label: 'Enfoque de KAHY',
-    title: 'Puedo acompañarte desde el bienestar',
-    introduction: 'No soy un asistente general para dar recetas, tutoriales o instrucciones técnicas. Sí podemos hablar de ese tema si forma parte de tu vida: por ejemplo, si es un hobby que te relaja, algo que te apasiona, una tarea que te abruma o una experiencia que quieres comprender.',
-    insight: 'Tú decides hacia dónde llevar la conversación. Mi función es ayudarte a explorar cómo te afecta, qué significado tiene para ti o qué necesitas en este momento, no sustituir una guía especializada sobre ese tema.',
+    ...scopeBoundaryCopy,
     steps: [],
-    question: '¿Qué lugar tiene este tema en tu vida o cómo te hace sentir?',
-    choices: ['Es un hobby que me relaja', 'Me está causando estrés', 'Quiero contar por qué me importa'],
     sourceIds: [],
     openHelp: false,
     emotion: { primary: 'no_clara', detail: '', intensity: 'no_clara', progress: 'sin_señal', confidence: 'baja' },
