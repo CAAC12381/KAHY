@@ -14,6 +14,16 @@ function normalize(value: string) {
   return value.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
 }
 
+function isOutOfScopeInformationRequest(input: string) {
+  const text = normalize(input).replace(/\s+/g, " ").trim().replace(/^[¿¡!?.,;:\s]+/, "");
+  if (!text) return false;
+  const appOrWellbeingContext = /\b(kahy|privacidad|datos|cuenta|chat|directorio|tamizaje|psicolog\w*|psiquiatr\w*|psicoter\w*|salud mental|bienestar|emocion\w*|sentir|me siento|ansiedad|estres|panico|depres\w*|triste\w*|animo|duelo|soledad|trauma\w*|trastorno\w*|bipolar\w*|esquizofren\w*|borderline|autismo|tdah|neurodiv\w*|toc|obses\w*|compuls\w*|fobia\w*|psicosis|mania|anorexia|bulimia|alimentari\w*|adiccion\w*|consumo|dormir|sueno|medicamento\w*|terapia\w*|tcc|cognitiv\w*|conductual\w*|mindfulness|meditacion|respiracion|pareja|familia|amistad|amigo|relacion\w*|ruptura|separacion|conflicto\w*|limite\w*|trabajo|escuela|estudio|universidad|tarea|organizar|procrast\w*|concentr\w*|decision\w*|habito\w*|motivacion|autoestima|energia|cansancio|miedo|enojo|frustracion|culpa|confusion|esperanza|relajar|calmar|agobio|sobrecarga|apoyar|acompanar|discriminacion|identidad|lgbt|violencia|crianza|embarazo|posparto|migracion|crisis|emergencia|locatel|linea de la vida|numero de ayuda|me preocupa|me da miedo|me cuesta|me ayuda|me gusta|me apasiona|hobby|pasatiempo)\b/.test(text);
+  const technicalSubject = /\b(receta\w*|cocin\w*|sopa\w*|pastel\w*|ingrediente\w*|llanta\w*|neumatico\w*|motor\w*|mecanic\w*|automovil\w*|carro\w*|codigo\w*|program\w*|software|excel|computador\w*|instal\w*|matematic\w*|ecuacion\w*|capital de|historia de|clima|pronostico\w*|precio\w*|comprar|viaje\w*|turismo)\b/.test(text);
+  const asksForInformation = /^(como|que es|que son|quien|cual|cuales|donde|cuando|cuanto|por que|explica(?:me)?|dime|dame|haz(?:me)?|ensena(?:me)?|recomienda(?:me)?|resuelve|resume|traduce|escribe|habla(?:me)? de|cuenta(?:me)? sobre|informacion (?:de|sobre)|definicion de|ayuda(?:me)? (?:a|con)|necesito saber|necesito (?:una|un)|quiero saber|quiero (?:una|un)|quiero aprender|pasos para|instrucciones para|receta de|lista de)\b/.test(text)
+    || /\b(como se hace|como puedo hacer|como hago|como preparo|como cambio|como arreglo|como reparo|paso a paso|dame una receta|explicame como|quiero saber como|instrucciones para|tutorial de)\b/.test(text);
+  return asksForInformation && (technicalSubject || !appOrWellbeingContext);
+}
+
 function hasAny(text: string, phrases: string[]) {
   return phrases.some((phrase) => text.includes(phrase));
 }
@@ -109,6 +119,16 @@ export function createAdaptiveOfflineReply(input: string, previousTopic: ChatTop
   const continuedIntent = directIntent === "open" && !["open", "question", "listen"].includes(previousIntent);
   const intent = continuedIntent ? previousIntent : directIntent;
   const base = baseReply(input, previousTopic, context, intent);
+
+  if (isOutOfScopeInformationRequest(input)) return {
+    ...base,
+    title: "Puedo acompañarte desde el bienestar",
+    introduction: "No soy un asistente general para dar recetas, tutoriales o instrucciones técnicas. Sí podemos hablar de ese tema si forma parte de tu vida: por ejemplo, si es un hobby que te relaja, algo que te apasiona, una tarea que te abruma o una experiencia que quieres comprender.",
+    insight: "Tú decides hacia dónde llevar la conversación. Mi función es ayudarte a explorar cómo te afecta, qué significado tiene para ti o qué necesitas ahora, no sustituir una guía especializada sobre ese tema.",
+    steps: [],
+    question: "¿Qué lugar tiene este tema en tu vida o cómo te hace sentir?",
+    choices: ["Es un hobby que me relaja", "Me está causando estrés", "Quiero contar por qué me importa"],
+  };
 
   if (intent === "listen") return {
     ...base,

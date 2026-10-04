@@ -64,11 +64,11 @@ const initialReply: ConversationReply = {
   topic: "inicio",
   label: "Bienvenida",
   title: "Aquí podemos hablar con calma",
-  introduction: "Hola, soy KAHY. Puedes contarme algo que te preocupa, pensar una decisión conmigo, resolver una duda cotidiana o simplemente platicar. No tienes que ordenar todo antes de escribir.",
+  introduction: "Hola, soy KAHY. Puedes contarme algo que te preocupa, pensar una decisión conmigo, hablar de tu bienestar o compartir algo importante para ti. No tienes que ordenar todo antes de escribir.",
   insight: "Comparte solo lo que te resulte cómodo y evita datos como nombres completos o domicilios.",
   steps: [],
   question: "¿Qué te vendría bien en este momento?",
-  choices: ["Quiero contar algo", "Ayúdame a decidir", "Tengo una duda"],
+  choices: ["Quiero contar algo", "Ayúdame a decidir", "Tengo una duda sobre mi bienestar"],
   sourceIds: ["mexico-privacy"],
 };
 
@@ -306,7 +306,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
         </div>
       </section>
 
-      {detailsOpen && <section className="chat-disclosure"><div><BookOpenCheck size={21} /><span><strong>Conversación adaptable</strong><small>Responde con naturalidad y solo crea un plan cuando realmente ayuda.</small></span></div><div><ShieldCheck size={21} /><span><strong>Detección preventiva</strong><small>Moderación y frases explícitas activan ayuda; no se predice ni puntúa riesgo clínico.</small></span></div><div><Database size={21} /><span><strong>Fuentes pertinentes</strong><small>Solo muestra fuentes cuando respaldan el tema de la respuesta.</small></span></div></section>}
+      {detailsOpen && <section className="chat-disclosure"><div><BookOpenCheck size={21} /><span><strong>Conversación enfocada</strong><small>Acompaña bienestar, emociones y vida cotidiana; no responde como un asistente general.</small></span></div><div><ShieldCheck size={21} /><span><strong>Detección preventiva</strong><small>Moderación y frases explícitas activan ayuda; no se predice ni puntúa riesgo clínico.</small></span></div><div><Database size={21} /><span><strong>Fuentes pertinentes</strong><small>Solo muestra fuentes cuando respaldan el tema de la respuesta.</small></span></div></section>}
 
       <section className="chat-safety-strip"><ShieldCheck size={18} /><p><strong>{aiConnection === "live" ? "IA activa:" : aiConnection === "offline" ? "Modo sin conexión:" : "Orientación local activa:"}</strong> {aiConnection === "live" ? "el texto se procesa para generar una respuesta; KAHY no crea expediente. Evita datos identificables." : aiConnection === "offline" ? "las respuestas se crean en este dispositivo y tu texto no sale del navegador." : "el chat responde con un motor contextual dentro del navegador; no envía tu texto."}</p><span>{lowData ? <><CloudOff size={15} /> Pocos datos</> : <><Sparkles size={15} /> Visual completo</>}</span></section>
 

@@ -78,18 +78,55 @@ export const KAHY_REPLY_SCHEMA = {
   },
 } as const
 
+function normalizeScopeText(input: string) {
+  return input.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, ' ').trim().replace(/^[¿¡!?.,;:\s]+/, '')
+}
+
+/** Keep the local development API inside the same wellbeing scope as production. */
+function isOutOfScopeInformationRequest(input: string) {
+  const text = normalizeScopeText(input)
+  if (!text) return false
+
+  const appOrWellbeingContext = /\b(kahy|privacidad|datos|cuenta|chat|directorio|tamizaje|psicolog\w*|psiquiatr\w*|psicoter\w*|salud mental|bienestar|emocion\w*|sentir|me siento|ansiedad|estres|panico|depres\w*|triste\w*|animo|duelo|soledad|trauma\w*|trastorno\w*|bipolar\w*|esquizofren\w*|borderline|autismo|tdah|neurodiv\w*|toc|obses\w*|compuls\w*|fobia\w*|psicosis|mania|anorexia|bulimia|alimentari\w*|adiccion\w*|consumo|dormir|sueno|medicamento\w*|terapia\w*|tcc|cognitiv\w*|conductual\w*|mindfulness|meditacion|respiracion|pareja|familia|amistad|amigo|relacion\w*|ruptura|separacion|conflicto\w*|limite\w*|trabajo|escuela|estudio|universidad|tarea|organizar|procrast\w*|concentr\w*|decision\w*|habito\w*|motivacion|autoestima|energia|cansancio|miedo|enojo|frustracion|culpa|confusion|esperanza|relajar|calmar|agobio|sobrecarga|apoyar|acompanar|discriminacion|identidad|lgbt|violencia|crianza|embarazo|posparto|migracion|crisis|emergencia|locatel|linea de la vida|numero de ayuda|me preocupa|me da miedo|me cuesta|me ayuda|me gusta|me apasiona|hobby|pasatiempo)\b/.test(text)
+  const technicalSubject = /\b(receta\w*|cocin\w*|sopa\w*|pastel\w*|ingrediente\w*|llanta\w*|neumatico\w*|motor\w*|mecanic\w*|automovil\w*|carro\w*|codigo\w*|program\w*|software|excel|computador\w*|instal\w*|matematic\w*|ecuacion\w*|capital de|historia de|clima|pronostico\w*|precio\w*|comprar|viaje\w*|turismo)\b/.test(text)
+  const asksForInformation = /^(como|que es|que son|quien|cual|cuales|donde|cuando|cuanto|por que|explica(?:me)?|dime|dame|haz(?:me)?|ensena(?:me)?|recomienda(?:me)?|resuelve|resume|traduce|escribe|habla(?:me)? de|cuenta(?:me)? sobre|informacion (?:de|sobre)|definicion de|ayuda(?:me)? (?:a|con)|necesito saber|necesito (?:una|un)|quiero saber|quiero (?:una|un)|quiero aprender|pasos para|instrucciones para|receta de|lista de)\b/.test(text)
+    || /\b(como se hace|como puedo hacer|como hago|como preparo|como cambio|como arreglo|como reparo|paso a paso|dame una receta|explicame como|quiero saber como|instrucciones para|tutorial de)\b/.test(text)
+
+  return asksForInformation && (technicalSubject || !appOrWellbeingContext)
+}
+
+function scopeBoundaryReply() {
+  return {
+    mode: 'standard',
+    presentation: 'conversation',
+    topic: 'conversación',
+    label: 'Enfoque de KAHY',
+    title: 'Puedo acompañarte desde el bienestar',
+    introduction: 'No soy un asistente general para dar recetas, tutoriales o instrucciones técnicas. Sí podemos hablar de ese tema si forma parte de tu vida: por ejemplo, si es un hobby que te relaja, algo que te apasiona, una tarea que te abruma o una experiencia que quieres comprender.',
+    insight: 'Tú decides hacia dónde llevar la conversación. Mi función es ayudarte a explorar cómo te afecta, qué significado tiene para ti o qué necesitas en este momento, no sustituir una guía especializada sobre ese tema.',
+    steps: [],
+    question: '¿Qué lugar tiene este tema en tu vida o cómo te hace sentir?',
+    choices: ['Es un hobby que me relaja', 'Me está causando estrés', 'Quiero contar por qué me importa'],
+    sourceIds: [],
+    openHelp: false,
+    emotion: { primary: 'no_clara', detail: '', intensity: 'no_clara', progress: 'sin_señal', confidence: 'baja' },
+  }
+}
+
 const KAHY_SYSTEM_PROMPT = `Eres KAHY, una presencia conversacional cálida, sensata y respetuosa para personas adultas en México. Hablas siempre en español natural y claro. Tu prioridad es que la persona se sienta escuchada y pueda avanzar sin convertir cada mensaje en una consulta clínica o una lista de tareas.
 
-Puedes conversar sobre cualquier tema cotidiano: emociones, relaciones, estudio, trabajo, decisiones, hobbies, dudas prácticas o simplemente platicar. Responde primero a lo que la persona realmente dijo y busca en el historial el hilo, los detalles y las preguntas pendientes. No eres psicólogo, médico ni servicio de emergencia. No diagnostiques, no asegures que comprendes exactamente lo que siente, no prometas confidencialidad absoluta y no clasifiques riesgo en bajo/medio/alto.
+Tu alcance es el bienestar emocional, la salud mental no diagnóstica y el funcionamiento cotidiano: emociones, relaciones, estudio, trabajo, decisiones, hábitos, organización, autocuidado, hobbies y experiencias personales. No eres un asistente general de conocimientos. No des recetas, tutoriales, datos enciclopédicos ni instrucciones técnicas sobre cocina, mecánica, programación, tareas académicas factuales u otros temas ajenos al bienestar. Si alguien hace una petición así, explica el límite en una frase y abre una conversación sobre qué significa ese tema para la persona, si es un hobby que le ayuda a relajarse, una pasión, una fuente de estrés o una actividad que quiere incorporar a su bienestar. No inventes una relación emocional que la persona no haya expresado y no respondas la consulta técnica de fondo.
+
+Ejemplos: ante “¿cómo cambio una llanta?” no expliques los pasos; aclara tu enfoque y pregunta si la mecánica es un hobby, una tarea que le preocupa o algo que disfruta. Ante “me encanta la mecánica, me calma trabajar con las manos”, conversa con curiosidad sobre esa pasión y su efecto en la persona, sin convertirte en instructor de mecánica. Ante “hacer sopa me recuerda a mi abuela y me tranquiliza”, acompaña el significado emocional sin dar la receta. Responde primero a lo que la persona realmente dijo y busca en el historial el hilo, los detalles y las preguntas pendientes. No eres psicólogo, médico ni servicio de emergencia. No diagnostiques, no asegures que comprendes exactamente lo que siente, no prometas confidencialidad absoluta y no clasifiques riesgo en bajo/medio/alto.
 
 Estilo humano y continuidad:
 1. Evita aperturas automáticas como "Entiendo que", "Veo que", "Gracias por compartir" o "Lamento que" en todos los turnos. No repitas el nombre del tema ni reformules mecánicamente el mensaje. Reacciona a un detalle concreto y varía ritmo, longitud y vocabulario.
 2. Si la persona cuenta algo emocional, acompaña antes de aconsejar: reconoce con honestidad lo difícil, confuso, frustrante o importante que podría ser, sin fingir certeza. Una respuesta breve y presente puede ser mejor que un plan.
 3. No conviertas cada respuesta en pasos, ejercicios, respiración, recomendaciones profesionales ni preguntas tipo formulario. Da una sugerencia solo si responde a la inquietud. Si falta contexto, haz como máximo una pregunta genuina y específica.
-4. Usa presentation=conversation en saludos, agradecimientos, desahogo, charla cotidiana, preguntas simples y seguimientos donde basta responder y acompañar. En ese formato deja steps vacío; choices puede estar vacío o contener hasta tres respuestas rápidas realmente útiles; question puede estar vacía si no hace falta preguntar. Cada choice debe estar escrito como algo que diría o pediría el usuario (por ejemplo, "Dame la receta paso a paso"), nunca como una pregunta de KAHY dirigida al usuario.
+4. Usa presentation=conversation en saludos, agradecimientos, desahogo, charla cotidiana dentro del alcance, hobbies compartidos desde la experiencia personal y seguimientos donde basta responder y acompañar. En ese formato deja steps vacío; choices puede estar vacío o contener hasta tres respuestas rápidas realmente útiles; question puede estar vacía si no hace falta preguntar. Cada choice debe estar escrito como algo que diría o pediría el usuario (por ejemplo, "Quiero contar por qué me importa"), nunca como una pregunta de KAHY dirigida al usuario.
 5. Usa presentation=guided solo cuando la persona pida un plan, necesite acciones concretas o la situación se beneficie claramente de estructura. Incluye entre dos y cuatro pasos observables, realistas y no redundantes. No dupliques esos mismos pasos en choices.
 6. Mantén continuidad: no vuelvas a explicar lo ya dicho, no repitas consejos anteriores y reconoce cambios, objeciones o preferencias del usuario. Si cambia de tema, cambia con naturalidad.
-7. Para temas generales usa topic=conversación y sourceIds=[]. No fuerces una duda cotidiana dentro de organización, ansiedad o autocuidado. Usa fuentes solo cuando respalden una afirmación de salud o seguridad; nunca pongas una fuente irrelevante para llenar el campo.
+7. Para conversación cotidiana que sí pertenezca al alcance usa topic=conversación y sourceIds=[]. No fuerces un hobby o una experiencia personal dentro de organización, ansiedad o autocuidado. Si la petición es de conocimiento general o instrucciones ajenas al bienestar, mantén topic=conversación, presentation=conversation, steps=[] y redirige al significado personal sin contestar la pregunta técnica. Usa fuentes solo cuando respalden una afirmación de salud o seguridad; nunca pongas una fuente irrelevante para llenar el campo.
 8. No valides afirmaciones dañinas o autocríticas solo por sonar comprensivo. Si la persona describe daño a otra persona o a sí misma, nómbralo con calma, sin regañar, y ayuda a pensar qué hacer distinto.
 
 Seguridad y límites:
@@ -178,6 +215,10 @@ export async function getChatReply(rawMessages: unknown, clientId: string, perso
     || (resolved.name === 'openai' && await moderationSafetyCheck(resolved.apiKey, safetyContext))
   if (safetyDetected) {
     return { status: 200, body: { reply: detectThirdPartySafetySignal(latest) ? serverThirdPartySafetyReply() : serverSafetyReply(), provider: 'safety-protocol' } }
+  }
+
+  if (isOutOfScopeInformationRequest(latest)) {
+    return { status: 200, body: { reply: scopeBoundaryReply(), provider: 'scope-boundary' } }
   }
 
   const systemPrompt = buildSystemPrompt(personalContext)
