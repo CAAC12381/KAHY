@@ -11,6 +11,9 @@ export const navItems: Array<{ id: MainView; label: string }> = [
 
 const petAsset = (path: string) => `${import.meta.env.BASE_URL}assets/pets/${path}`;
 
+/** The companion's box before it is opened; shown on Inicio until the user clicks it. */
+export const closedBoxImage = petAsset("animales/caja-cerrada.jpg");
+
 export const mascots: Array<{
   id: MascotId;
   name: string;

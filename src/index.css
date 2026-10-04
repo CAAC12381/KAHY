@@ -95,6 +95,23 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .mascot--blink { position: relative; }
 .mascot .mascot-eyes-closed { position: absolute; inset: 0; opacity: 0; animation: mascot-blink 6s ease-in-out 1s 1 both; }
 @keyframes mascot-blink { 0%, 5% { opacity: 0; } 14%, 28% { opacity: 1; } 38%, 56% { opacity: 0; } 65%, 80% { opacity: 1; } 90%, 100% { opacity: 0; } }
+/* Caja de bienvenida: cubre al animalito hasta que el usuario la abre con un clic. */
+.mascot-box-wrap { display: inline-grid; }
+.mascot-box-wrap > * { grid-area: 1 / 1; }
+.mascot-box { z-index: 1; padding: 0; border: 0; cursor: pointer; animation: mascot-box-hint 2.6s ease-in-out infinite; }
+.mascot-box:hover { filter: brightness(1.03); }
+.mascot-box:focus-visible { outline: 3px solid var(--purple); outline-offset: 4px; }
+.mascot-box--opening { pointer-events: none; animation: mascot-box-open 1.3s ease-in-out 1 both; }
+@keyframes mascot-box-hint { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes mascot-box-open {
+  0% { transform: rotate(0); opacity: 1; }
+  10% { transform: rotate(-4deg); }
+  22% { transform: rotate(4deg); }
+  34% { transform: rotate(-3deg); }
+  46% { transform: rotate(2deg); }
+  58% { transform: rotate(0) scale(1); opacity: 1; }
+  100% { transform: scale(1.14); opacity: 0; }
+}
 .mascot--tiny { width: 46px; height: 46px; border-radius: 50%; }
 .mascot--small { width: 92px; height: 92px; }
 .mascot--medium { width: 150px; height: 150px; }
