@@ -18,6 +18,7 @@ import { useEmotionCalendar } from "./hooks/useEmotionCalendar";
 import { useTaskPlans } from "./hooks/useTaskPlans";
 import { useDailyHabits } from "./hooks/useDailyHabits";
 import { getDeviceId, resetDeviceId, setDeviceId } from "./lib/deviceId";
+import { COMPANION_REVEALS_KEY, forgetCompanionReveal } from "./lib/companionReveal";
 import { clearSession, logoutAccount, readSession, SESSION_EXPIRED_EVENT, type Session } from "./services/authApi";
 import { fetchRemoteProfile, saveRemoteProfile, deleteRemoteData, type RemoteProfile } from "./services/dataApi";
 import type { DemoProfile, MainView, Preferences, ToastMessage } from "./types";
@@ -272,7 +273,7 @@ export default function App() {
   async function logout() {
     await logoutAccount();
     try {
-      Object.keys(window.localStorage).filter((key) => key.startsWith("kahy.") && key !== ACCESSIBILITY_KEY).forEach((key) => window.localStorage.removeItem(key));
+      Object.keys(window.localStorage).filter((key) => key.startsWith("kahy.") && key !== ACCESSIBILITY_KEY && key !== COMPANION_REVEALS_KEY).forEach((key) => window.localStorage.removeItem(key));
     } catch {
       // Si el almacenamiento está bloqueado no hay nada local que limpiar.
     }
@@ -313,6 +314,7 @@ export default function App() {
       ? "¿Quieres eliminar tu cuenta y todos los datos guardados en ella? Esta acción no se puede deshacer."
       : "¿Quieres borrar el perfil guardado en este dispositivo? La próxima vez podrás registrarte de nuevo.";
     if (!window.confirm(question)) return;
+    forgetCompanionReveal(deviceId, profile.mascot);
     window.localStorage.removeItem(REGISTRATION_KEY);
     window.localStorage.removeItem("kahy.chat-memory.v1");
     // Con cuenta, el servidor borra también la cuenta y sus sesiones.
@@ -343,7 +345,7 @@ export default function App() {
     <div className={preferenceClasses(preferences)}>
       <a className="skip-link" href="#main-content">Saltar al contenido</a>
       <AppShell currentView={view} onNavigate={navigate} onHelp={() => setShowHelp(true)} mascot={profile.mascot} preferences={preferences}>
-        {view === "home" && <HomePage profile={profile} preferences={preferences} navigate={navigate} notify={notify} screenings={screenings} onHelp={() => setShowHelp(true)} garden={garden} emotionCalendar={emotionCalendar} taskPlans={taskPlans} habits={habits} onOpenTask={openTaskBreakdown} />}
+        {view === "home" && <HomePage profile={profile} deviceId={deviceId} preferences={preferences} navigate={navigate} notify={notify} screenings={screenings} onHelp={() => setShowHelp(true)} garden={garden} emotionCalendar={emotionCalendar} taskPlans={taskPlans} habits={habits} onOpenTask={openTaskBreakdown} />}
         {view === "chat" && <ChatPage key={chatDraft?.key ?? "chat"} initialDraft={chatDraft?.text} onHelp={() => setShowHelp(true)} navigate={navigate} preferences={preferences} screenings={screenings} garden={garden} profile={profile} deviceId={deviceId} chatHistory={chatHistory} emotionCalendar={emotionCalendar} taskPlans={taskPlans} habits={habits} onOpenTask={openTaskBreakdown} />}
         {view === "activities" && <ActivitiesPage key={activityIntent?.key ?? "activities"} preferences={preferences} notify={notify} taskPlans={taskPlans} emotionCalendar={emotionCalendar} onHelp={() => setShowHelp(true)} onTalkToKahy={talkToKahy} initialActivity={activityIntent?.activity} initialPlanId={activityIntent?.planId} />}
         {view === "screening" && <ScreeningPage screenings={screenings} onHelp={() => setShowHelp(true)} navigate={navigate} />}

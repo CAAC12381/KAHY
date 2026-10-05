@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Check, CloudOff, Eye, EyeOff, LockKeyhole, Mail, MapPin, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CloudOff, Eye, EyeOff, LockKeyhole, Mail, MapPin, ShieldCheck, UserRound } from "lucide-react";
 import { useState } from "react";
 import Mascot, { Flower } from "../components/Mascot";
 import { Button, Card, DemoBadge, Progress } from "../components/ui";
@@ -34,7 +34,7 @@ export function AccessFlow({
 }) {
   const [mode, setMode] = useState<AccessMode>("welcome");
 
-  if (mode === "login") return <Login onBack={() => setMode("welcome")} onContinue={onLogin} />;
+  if (mode === "login") return <Login onBack={() => setMode("welcome")} onCreateAccount={() => setMode("register")} onExplore={onExplore} onContinue={onLogin} />;
   if (mode === "register") return <Register deviceId={deviceId} onBack={() => setMode("welcome")} onContinue={onRegister} />;
 
   return (
@@ -65,12 +65,27 @@ export function AccessFlow({
   );
 }
 
-function Login({ onBack, onContinue }: { onBack: () => void; onContinue: (session: Session, dataId: string) => Promise<void> | void }) {
+function Login({ onBack, onCreateAccount, onExplore, onContinue }: {
+  onBack: () => void;
+  onCreateAccount: () => void;
+  onExplore: () => void;
+  onContinue: (session: Session, dataId: string) => Promise<void> | void;
+}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+
+  function updateEmail(value: string) {
+    setEmail(value);
+    setErrors((current) => ({ ...current, email: "", form: "" }));
+  }
+
+  function updatePassword(value: string) {
+    setPassword(value);
+    setErrors((current) => ({ ...current, password: "", form: "" }));
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -89,19 +104,30 @@ function Login({ onBack, onContinue }: { onBack: () => void; onContinue: (sessio
   }
 
   return (
-    <main className="form-page">
+    <main className="form-page form-page--login">
       <button className="back-link" onClick={onBack}><ArrowLeft size={18} /> Volver</button>
-      <Card className="auth-card">
-        <DemoBadge>Cuenta KAHY</DemoBadge>
-        <h1>Qué gusto verte</h1>
-        <p>Entra con el correo y la contraseña de tu cuenta para recuperar tu perfil y tu avance en este dispositivo.</p>
+      <Card className="auth-card auth-card--login">
+        <div className="auth-card-heading">
+          <div className="auth-card-brand"><BrandMark size="small" /><span><strong>KAHY</strong><small>Acceso a tu espacio</small></span></div>
+          <DemoBadge>Cuenta protegida</DemoBadge>
+        </div>
+        <h1>Qué gusto verte de nuevo</h1>
+        <p>Continúa justo donde te quedaste. Al entrar recuperaremos tu perfil, tus preferencias y el avance que hayas respaldado.</p>
+        <div className="auth-benefits" aria-label="Qué se recupera al iniciar sesión">
+          <span><Check size={17} /><span><strong>Tu avance</strong><small>Hábitos, tareas y calendario</small></span></span>
+          <span><ShieldCheck size={17} /><span><strong>Tu privacidad</strong><small>El texto del chat no se guarda</small></span></span>
+        </div>
         <form onSubmit={submit} noValidate>
-          <label className="field"><span>Correo</span><div><Mail size={18} /><input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" placeholder="tu@ejemplo.mx" aria-invalid={Boolean(errors.email)} /></div>{errors.email && <small className="field-error">{errors.email}</small>}</label>
-          <label className="field"><span>Contraseña</span><div><LockKeyhole size={18} /><input value={password} onChange={(event) => setPassword(event.target.value)} type={showPassword ? "text" : "password"} autoComplete="current-password" placeholder="Tu contraseña" aria-invalid={Boolean(errors.password)} /><button type="button" className="field-action" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>{errors.password && <small className="field-error">{errors.password}</small>}</label>
+          <label className="field"><span>Correo de tu cuenta</span><div><Mail size={18} /><input value={email} onChange={(event) => updateEmail(event.target.value)} type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} autoFocus disabled={busy} placeholder="tu@ejemplo.mx" aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? "login-email-error" : undefined} /></div>{errors.email && <small className="field-error" id="login-email-error">{errors.email}</small>}</label>
+          <label className="field"><span>Contraseña</span><div><LockKeyhole size={18} /><input value={password} onChange={(event) => updatePassword(event.target.value)} type={showPassword ? "text" : "password"} autoComplete="current-password" disabled={busy} placeholder="Tu contraseña" aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? "login-password-error" : undefined} /><button type="button" className="field-action" onClick={() => setShowPassword(!showPassword)} disabled={busy} aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>{errors.password && <small className="field-error" id="login-password-error">{errors.password}</small>}</label>
           {errors.form && <p className="form-error" role="alert">{errors.form}</p>}
           <Button type="submit" className="full-width" disabled={busy}>{busy ? "Entrando…" : "Entrar a KAHY"}</Button>
         </form>
-        <p className="fine-print">Todavía no hay recuperación automática de contraseña: guárdala en un lugar seguro.</p>
+        <div className="auth-alternatives">
+          <p>¿Aún no tienes una cuenta? <button type="button" onClick={onCreateAccount}>Crear cuenta</button></p>
+          <button type="button" className="auth-explore-link" onClick={onExplore}>Continuar sin cuenta en este dispositivo <ArrowRight size={16} /></button>
+        </div>
+        <p className="auth-recovery-note"><LockKeyhole size={15} /> La recuperación automática de contraseña todavía no está disponible. KAHY nunca te pedirá tu contraseña dentro del chat.</p>
       </Card>
     </main>
   );

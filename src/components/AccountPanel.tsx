@@ -1,4 +1,4 @@
-import { CloudOff, LockKeyhole, LogOut, Mail, ShieldCheck, UserRoundCheck } from "lucide-react";
+import { CloudOff, Eye, EyeOff, LockKeyhole, LogOut, Mail, ShieldCheck, UserRoundCheck } from "lucide-react";
 import { useState } from "react";
 import { Button, Card } from "./ui";
 import { loginAccount, MIN_PASSWORD_LENGTH, registerAccount, type Session } from "../services/authApi";
@@ -21,6 +21,7 @@ export default function AccountPanel({ account, deviceId, onLogout, onLoggedIn, 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [accepted, setAccepted] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -28,6 +29,7 @@ export default function AccountPanel({ account, deviceId, onLogout, onLoggedIn, 
     setMode(next);
     setError("");
     setPassword("");
+    setShowPassword(false);
   }
 
   async function submit(event: React.FormEvent) {
@@ -67,8 +69,8 @@ export default function AccountPanel({ account, deviceId, onLogout, onLoggedIn, 
       {mode === "idle"
         ? <div className="account-actions"><Button onClick={() => open("register")}>Crear cuenta</Button><Button variant="secondary" onClick={() => open("login")}>Ya tengo cuenta</Button></div>
         : <form className="account-form" onSubmit={submit} noValidate>
-          <label className="field"><span>Correo</span><div><Mail size={18} /><input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" placeholder="tu@ejemplo.mx" /></div></label>
-          <label className="field"><span>Contraseña</span><div><LockKeyhole size={18} /><input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete={mode === "register" ? "new-password" : "current-password"} placeholder={mode === "register" ? `${MIN_PASSWORD_LENGTH} caracteres o más` : "Tu contraseña"} /></div></label>
+          <label className="field"><span>Correo</span><div><Mail size={18} /><input value={email} onChange={(event) => { setEmail(event.target.value); setError(""); }} type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} disabled={busy} placeholder="tu@ejemplo.mx" /></div></label>
+          <label className="field"><span>Contraseña</span><div><LockKeyhole size={18} /><input value={password} onChange={(event) => { setPassword(event.target.value); setError(""); }} type={showPassword ? "text" : "password"} autoComplete={mode === "register" ? "new-password" : "current-password"} disabled={busy} placeholder={mode === "register" ? `${MIN_PASSWORD_LENGTH} caracteres o más` : "Tu contraseña"} /><button type="button" className="field-action" onClick={() => setShowPassword((value) => !value)} disabled={busy} aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label>
           {mode === "register" && <>
             <div className="notice-box"><ShieldCheck size={20} /><p>Se guardan tu correo, tu contraseña protegida (nunca en texto legible), tu perfil y tu avance: hábitos, tareas, etiquetas emocionales y resultados de tamizaje. KAHY no guarda en su servidor el texto del chat. Lo anterior a hoy que solo esté en este navegador se irá respaldando conforme lo uses.</p></div>
             <label className="check-row"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} /><span>Tengo 18 años o más y acepto que se guarde lo anterior.</span></label>

@@ -14,7 +14,7 @@ export default function Mascot({
   mood?: PetMood;
   /** 1-indexed growth stage, clamped to this mascot's available stages. */
   stage?: number;
-  /** Plays a short blink once. Only the first (in-the-box) stage has closed-eyes art. */
+  /** Plays five blinks during this platform visit. Only the first stage has closed-eyes art. */
   blink?: boolean;
   className?: string;
 }) {

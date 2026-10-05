@@ -10,14 +10,16 @@ import { stageForGrowth, type PetGardenApi } from "../hooks/usePetGarden";
 import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
 import type { TaskPlansApi } from "../hooks/useTaskPlans";
 import type { ScreeningsState } from "../hooks/useScreenings";
+import { advanceCompanionBox, hasRevealedCompanion, rememberCompanionReveal, type CompanionBoxState } from "../lib/companionReveal";
 import { closedBoxImage, flowers, mascots } from "../mock/data";
 import type { DemoProfile, MainView, Preferences } from "../types";
 
-// La bienvenida (caja cerrada que se abre con un clic y luego el parpadeo) se muestra una sola vez tras cargar la plataforma.
-let welcomePlayed = false;
+// El parpadeo se reproduce una vez por visita, aunque se navegue fuera de Inicio y se regrese.
+let blinkPlayedThisVisit = false;
 
 export default function HomePage({
   profile,
+  deviceId,
   preferences,
   navigate,
   notify,
@@ -30,6 +32,7 @@ export default function HomePage({
   onOpenTask,
 }: {
   profile: DemoProfile;
+  deviceId: string;
   preferences: Preferences;
   navigate: (view: MainView) => void;
   notify: (message: string) => void;
@@ -41,8 +44,9 @@ export default function HomePage({
   habits: DailyHabitsApi;
   onOpenTask: (planId?: string) => void;
 }) {
-  const [welcome] = useState(() => !welcomePlayed);
-  const [boxState, setBoxState] = useState<"closed" | "opening" | "open">("closed");
+  const [revealedAtLoad] = useState(() => hasRevealedCompanion(deviceId, profile.mascot));
+  const [boxState, setBoxState] = useState<CompanionBoxState>(revealedAtLoad ? "open" : "closed");
+  const [blinkActive, setBlinkActive] = useState(false);
   const currentTask = [...taskPlans.active].sort((a, b) => b.updatedAt - a.updatedAt)[0];
   const currentNext = currentTask?.steps.find((step) => !step.done && step.text.trim());
   const displayName = profile.name === "Invitado" ? "" : `, ${profile.name}`;
@@ -52,13 +56,11 @@ export default function HomePage({
   const companionData = profile.companionType === "mascota" ? mascots.find((item) => item.id === profile.mascot) : flowers.find((item) => item.id === profile.flower);
   const companionStage = stageForGrowth(garden.growth, companionData?.stages.length || 3);
   // Solo el animalito bebé (el que vive en la caja) y contento tiene caja que abrir.
-  const hasBox = welcome && profile.companionType === "mascota" && companionStage === 1 && garden.mood !== "triste";
+  const hasBox = !revealedAtLoad && profile.companionType === "mascota" && companionStage === 1 && garden.mood !== "triste";
   const boxVisible = hasBox && boxState !== "open";
 
   function openBox() {
-    if (boxState !== "closed") return;
-    welcomePlayed = true;
-    setBoxState("opening");
+    setBoxState((current) => advanceCompanionBox(current, preferences.reducedMotion));
   }
 
   // Respaldo por si la animación no llega a avisar que terminó.
@@ -68,8 +70,19 @@ export default function HomePage({
     return () => window.clearTimeout(timer);
   }, [boxState]);
 
+  useEffect(() => {
+    if (boxState !== "open" || profile.companionType !== "mascota") return;
+    if (!revealedAtLoad) rememberCompanionReveal(deviceId, profile.mascot);
+    if (!blinkPlayedThisVisit) {
+      blinkPlayedThisVisit = true;
+      setBlinkActive(true);
+    }
+  }, [boxState, deviceId, profile.companionType, profile.mascot, revealedAtLoad]);
+
   const companionMessage = boxVisible
-    ? "Toca la caja para ver quién está dentro."
+    ? boxState === "primed"
+      ? `¡Se movió! Toca una vez más para conocer a ${companionName}.`
+      : "Toca la caja dos veces para descubrir quién está dentro."
     : currentTask && currentNext
     ? `Seguimos con un paso de ${currentTask.title}.`
     : habits.completed.length
@@ -93,16 +106,17 @@ export default function HomePage({
         </div>
         {preferences.showMascot && <div className="hero-mascot"><span className="speech-note">{companionMessage}</span>{profile.companionType === "mascota" ? (
           <span className="mascot-box-wrap">
-            <Mascot id={profile.mascot} size="large" mood={garden.mood} stage={companionStage} blink={hasBox && boxState === "open"} />
+            <Mascot id={profile.mascot} size="large" mood={garden.mood} stage={companionStage} blink={blinkActive} />
             {boxVisible && (
               <button
                 type="button"
-                className={`mascot mascot--large mascot-box ${boxState === "opening" ? "mascot-box--opening" : ""}`}
+                className={`mascot mascot--large mascot-box ${boxState === "primed" ? "mascot-box--primed" : ""} ${boxState === "opening" ? "mascot-box--opening" : ""}`}
                 onClick={openBox}
                 onAnimationEnd={(event) => { if (event.animationName === "mascot-box-open") setBoxState("open"); }}
-                aria-label={`Abrir la caja de ${companionName}`}
+                aria-label={boxState === "primed" ? `Segundo toque: descubrir a ${companionName}` : `Primer toque: preparar la caja de ${companionName}`}
               >
                 <img src={closedBoxImage} alt="" />
+                <span className="mascot-box-prompt">{boxState === "primed" ? "Toca otra vez · 2 de 2" : "Descubrir · 1 de 2"}</span>
               </button>
             )}
           </span>
