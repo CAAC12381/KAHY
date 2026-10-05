@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowRight, Check, CloudOff, Eye, EyeOff, LockKeyhole, Mail, MapPin, ShieldCheck, UserRound } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Mascot, { Flower } from "../components/Mascot";
 import { Button, Card, DemoBadge, Progress } from "../components/ui";
 import { flowers, goals, informationStyles, locations, mascots } from "../mock/data";
@@ -20,19 +20,31 @@ export function SplashScreen() {
 
 type CreatedAccount = { session: Session; dataId: string };
 
+/** Cada paso nuevo empieza arriba: en teléfono el botón de continuar queda al final y la página venía desplazada. */
+function useScrollTopOn(value: unknown) {
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [value]);
+}
+
 export function AccessFlow({
   deviceId,
+  resumeName,
   onExplore,
   onLogin,
   onRegister,
 }: {
   deviceId: string;
+  /** Nombre del perfil que ya existe en este dispositivo (p. ej. tras pulsar "Salir"); permite retomarlo. */
+  resumeName?: string;
+  /** Entra a la app sin iniciar sesión: retoma el perfil de este dispositivo o, si no hay, entra como invitado. */
   onExplore: () => void;
   onLogin: (session: Session, dataId: string) => Promise<void> | void;
   /** created llega solo si se abrió una cuenta real; sin él, el perfil queda en este dispositivo. */
   onRegister: (name: string, rememberConversations: boolean, created?: CreatedAccount) => void;
 }) {
   const [mode, setMode] = useState<AccessMode>("welcome");
+  useScrollTopOn(mode);
 
   if (mode === "login") return <Login onBack={() => setMode("welcome")} onCreateAccount={() => setMode("register")} onExplore={onExplore} onContinue={onLogin} />;
   if (mode === "register") return <Register deviceId={deviceId} onBack={() => setMode("welcome")} onContinue={onRegister} />;
@@ -45,11 +57,15 @@ export function AccessFlow({
         <h1>Tu ritmo también es una forma de avanzar.</h1>
         <p>Explora prácticas breves, organiza lo que necesitas y conoce cómo podría funcionar una red de orientación accesible.</p>
         <div className="access-actions">
-          <Button onClick={() => setMode("register")}>Crear cuenta <ArrowRight size={18} /></Button>
+          {resumeName
+            ? <Button onClick={onExplore}>Continuar como {resumeName} <ArrowRight size={18} /></Button>
+            : <Button onClick={() => setMode("register")}>Crear cuenta <ArrowRight size={18} /></Button>}
           <Button variant="secondary" onClick={() => setMode("login")}>Iniciar sesión</Button>
-          <Button variant="ghost" onClick={onExplore}>Explorar KAHY sin cuenta</Button>
+          {resumeName
+            ? <Button variant="ghost" onClick={() => setMode("register")}>Crear una cuenta nueva</Button>
+            : <Button variant="ghost" onClick={onExplore}>Explorar KAHY sin cuenta</Button>}
         </div>
-        <p className="fine-print">Con una cuenta, tu perfil y tu avance se guardan para que puedas entrar desde otro dispositivo. KAHY no guarda en su servidor el texto del chat ni crea un expediente clínico.</p>
+        <p className="fine-print">{resumeName ? "Tu perfil y tu avance siguen guardados en este dispositivo. " : ""}Con una cuenta, tu perfil y tu avance se guardan para que puedas entrar desde otro dispositivo. KAHY no guarda en su servidor el texto del chat ni crea un expediente clínico.</p>
       </section>
       <section className="welcome-art" aria-label="Mascotas de KAHY">
         <div className="mascot-row">
@@ -135,6 +151,7 @@ function Login({ onBack, onCreateAccount, onExplore, onContinue }: {
 
 function Register({ deviceId, onBack, onContinue }: { deviceId: string; onBack: () => void; onContinue: (name: string, rememberConversations: boolean, created?: CreatedAccount) => void }) {
   const [step, setStep] = useState(0);
+  useScrollTopOn(step);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -197,6 +214,7 @@ export function Onboarding({
   onFinish: (profile: DemoProfile, preferences: Preferences) => void;
 }) {
   const [step, setStep] = useState(0);
+  useScrollTopOn(step);
   const [city, setCity] = useState(locations[0]);
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   const [style, setStyle] = useState("guided");

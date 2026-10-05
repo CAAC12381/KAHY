@@ -1,8 +1,9 @@
-import { ArrowLeft, ArrowRight, Brain, Check, ChevronDown, ClipboardList, ExternalLink, MessageCircle, ShieldAlert, ShieldCheck, Sparkles, Wind } from "lucide-react";
+import { ArrowRight, Brain, Check, ChevronDown, ClipboardList, ExternalLink, MessageCircle, ShieldAlert, ShieldCheck, Sparkles, Wind } from "lucide-react";
 import { useState } from "react";
 import { Button, Card, DemoBadge } from "../components/ui";
 import SupportBanner from "../components/SupportBanner";
 import type { ScreeningsState } from "../hooks/useScreenings";
+import { useBackNavigation } from "../lib/backNavigation";
 import { buildScreeningResult, getScreening, screeningLegalNotice, screenings as screeningDefs, type ScreeningDefinition } from "../mock/screenings";
 import { trustedSources } from "../mock/data";
 import type { MainView, ScreeningId, ScreeningResult } from "../types";
@@ -50,12 +51,14 @@ export default function ScreeningPage({ screenings, onHelp, navigate }: { screen
     setHistoryOpen(false);
   }
 
+  // Con un cuestionario abierto (o su resultado), la barra superior muestra la flecha de regreso.
+  useBackNavigation(1, "Tamizaje", backToGrid, activeId !== null);
+
   if (activeId && !result) {
     const definition = getScreening(activeId);
     const answeredCount = answers.filter((value) => value >= 0).length;
     return (
       <div className="page screening-page">
-        <button className="back-link" onClick={backToGrid}><ArrowLeft size={18} /> Volver al tamizaje</button>
         <div className="page-heading"><div><span className="eyebrow">{definition.name}</span><h1>{definition.fullName}</h1><p>{definition.focus}</p></div><DemoBadge>{answeredCount}/{definition.items.length} respondidas</DemoBadge></div>
         <div className="notice-box scope-note"><ShieldCheck size={20} /><p>{screeningLegalNotice}</p></div>
         <Card className="screening-form">
@@ -91,7 +94,6 @@ export default function ScreeningPage({ screenings, onHelp, navigate }: { screen
     const isSum = definition.scoring.type === "sum";
     return (
       <div className="page screening-page">
-        <button className="back-link" onClick={backToGrid}><ArrowLeft size={18} /> Volver al tamizaje</button>
         <Card className="screening-result">
           <span className="eyebrow"><Sparkles size={14} /> Resultado de {definition.name}</span>
           <h1>{result.band}</h1>

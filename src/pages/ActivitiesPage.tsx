@@ -4,6 +4,7 @@ import TaskBreakdown from "../components/TaskBreakdown";
 import { Button, Card, DemoBadge } from "../components/ui";
 import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
 import type { TaskPlansApi } from "../hooks/useTaskPlans";
+import { useBackNavigation } from "../lib/backNavigation";
 import type { Preferences } from "../types";
 
 export type Activity = "breathing" | "task" | "clouds" | "body" | "bubbles";
@@ -57,6 +58,8 @@ export default function ActivitiesPage({ preferences, notify, taskPlans, emotion
 }) {
   const [activity, setActivity] = useState<Activity | null>(initialActivity ?? null);
   const activeTasks = taskPlans.active.length;
+  // La flecha de regreso vive en la barra superior para que siga visible al bajar por la actividad.
+  useBackNavigation(1, "Actividades", () => setActivity(null), activity !== null);
   return (
     <div className="page">
       <div className="page-heading"><div><span className="eyebrow">A tu ritmo</span><h1>Actividades breves</h1><p>Herramientas de demostración para probar calma, organización y registro emocional.</p></div><DemoBadge>Sin evaluación clínica</DemoBadge></div>
@@ -66,7 +69,7 @@ export default function ActivitiesPage({ preferences, notify, taskPlans, emotion
         <button className="activity-card clouds" onClick={() => setActivity("clouds")}><span className="activity-illustration"><Cloud /></span><span className="pill">Juego tranquilo</span><h2>Un paseo entre nubes</h2><p>Guía un globo despacito entre las nubes, a tu propio ritmo.</p><span className="text-link">Jugar <Play size={17} /></span></button>
         <button className="activity-card body" onClick={() => setActivity("body")}><span className="activity-illustration"><HeartPulse /></span><span className="pill">Juego educativo</span><h2>El Inspector del Cuerpo</h2><p>Explora qué le pasa a tu cuerpo con la ansiedad y ayúdalo a calmarse.</p><span className="text-link">Explorar <Play size={17} /></span></button>
         <button className="activity-card bubbles" onClick={() => setActivity("bubbles")}><span className="activity-illustration"><Bubbles /></span><span className="pill">Regulación emocional</span><h2>Suelta la burbuja</h2><p>Piensa en algo que te abrume y suéltalo, una burbuja a la vez.</p><span className="text-link">Jugar <Play size={17} /></span></button>
-      </div> : <div className="activity-detail"><button className="back-link" onClick={() => setActivity(null)}>← Todas las actividades</button>{activity === "breathing" && <Breathing reducedMotion={preferences.reducedMotion} onTalkToKahy={onTalkToKahy} />}{activity === "task" && <TaskBreakdown taskPlans={taskPlans} emotionCalendar={emotionCalendar} notify={notify} onHelp={onHelp} onTalkToKahy={onTalkToKahy} reducedMotion={preferences.reducedMotion} initialPlanId={initialPlanId} />}{activity === "clouds" && <CloudWalk />}{activity === "body" && <BodyInspector />}{activity === "bubbles" && <BubblePop />}</div>}
+      </div> : <div className="activity-detail">{activity === "breathing" && <Breathing reducedMotion={preferences.reducedMotion} onTalkToKahy={onTalkToKahy} />}{activity === "task" && <TaskBreakdown taskPlans={taskPlans} emotionCalendar={emotionCalendar} notify={notify} onHelp={onHelp} onTalkToKahy={onTalkToKahy} reducedMotion={preferences.reducedMotion} initialPlanId={initialPlanId} />}{activity === "clouds" && <CloudWalk />}{activity === "body" && <BodyInspector />}{activity === "bubbles" && <BubblePop />}</div>}
     </div>
   );
 }

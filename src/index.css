@@ -48,6 +48,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 ::selection { background: var(--pink); color: var(--ink); }
 
 .kahy-app { height: 100vh; height: 100dvh; overflow: hidden; }
+/* Bienvenida, registro y personalización son páginas normales: crecen con su contenido y se desplazan con el
+   documento. Con el alto fijo de la app, en teléfono lo que quedaba bajo la pantalla (el botón de continuar) era inalcanzable. */
+.kahy-app--flow { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
+/* "Volver" queda fijo sobre una página que ahora se desplaza: lleva fondo propio para leerse encima del contenido. */
+.kahy-app--flow .form-page > .back-link { z-index: 5; padding: 0 14px 0 10px; border-radius: 999px; background: rgba(255, 254, 251, .96); box-shadow: var(--shadow-sm); }
+/* Con tres campos el paso supera su alto mínimo y el botón quedaba pegado al último campo. */
+.register-card > .button { margin-top: 18px; }
 .recovery-screen { min-height: 100vh; display: grid; place-content: center; justify-items: center; gap: 14px; padding: 30px; background: radial-gradient(circle at 50% 25%, var(--yellow-soft), var(--cream) 58%); text-align: center; }
 .recovery-screen h1 { max-width: 680px; margin: 0; }.recovery-screen p { max-width: 580px; }
 .skip-link { position: fixed; top: 10px; left: 10px; z-index: 100; transform: translateY(-150%); padding: 11px 16px; border-radius: 10px; background: var(--ink); color: white; text-decoration: none; }
@@ -240,12 +247,28 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .sidebar-note strong, .sidebar-note small { display: block; }
 .sidebar-note strong { font-size: .78rem; }
 .sidebar-note small { margin-top: 3px; color: var(--muted); font-size: .68rem; line-height: 1.35; }
+.sidebar-footer { display: grid; gap: 10px; margin-top: auto; padding-top: 16px; }
+.sidebar-footer .sidebar-note { margin-top: 0; }
+.sidebar-exit { min-height: 46px; display: flex; align-items: center; gap: 13px; padding: 0 14px; border: 1px solid var(--line); border-radius: 14px; background: transparent; color: var(--muted); font-weight: 720; text-align: left; white-space: nowrap; }
+.sidebar-exit:hover { border-color: #e6c4c3; background: var(--danger-soft); color: #74393d; }
+.app-shell--collapsed .sidebar-exit { justify-content: center; padding: 0; }
+.mobile-more-links .mobile-more-exit { margin-top: 6px; border-color: #e6c4c3; background: var(--danger-soft); color: #74393d; }
+/* El menú "Más" queda por encima del botón flotante de accesibilidad, que tapaba el borde de su última fila. */
+.app-shell .mobile-more-backdrop { z-index: 119; }
+.app-shell .mobile-more-sheet { z-index: 120; }
 .app-main { min-width: 0; height: 100%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 .topbar { flex: 0 0 auto; z-index: 15; min-height: 72px; display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 10px clamp(20px, 4vw, 54px); border-bottom: 1px solid rgba(223,221,211,.8); background: rgba(248,246,240,.9); backdrop-filter: blur(14px); }
 .mobile-brand { display: none; margin-right: auto; }
 .prototype-label { color: var(--muted); font-size: .78rem; font-weight: 700; }
 .help-button { min-height: 44px; padding: 9px 15px; border: 1px solid #ddb9b9; border-radius: 13px; background: var(--danger-soft); color: #73383d; font-weight: 800; }
 .help-button:hover { background: #f1d8d7; }
+/* Flecha de regreso de la barra superior (useBackNavigation): siempre visible aunque el contenido se desplace. */
+.topbar-back { flex: 0 1 auto; min-width: 0; min-height: 44px; display: inline-flex; align-items: center; gap: 8px; margin-right: auto; padding: 8px 14px 8px 10px; border: 1px solid #cfc1d4; border-radius: 13px; background: var(--white); color: var(--purple-deep); font-weight: 780; }
+.topbar-back:hover { background: var(--purple-soft); }
+.topbar-back svg { flex: 0 0 auto; }
+.topbar-back span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* En pantallas chicas la flecha ocupa el lugar del logo; Inicio sigue en la barra inferior. */
+.topbar--has-back .mobile-brand { display: none; }
 .bottom-nav { display: none; }
 .content { position: relative; flex: 1; min-height: 0; overflow-y: auto; padding: clamp(26px, 4vw, 56px); isolation: isolate; }
 .content--chat { padding: 10px clamp(12px, 1.4vw, 24px) 14px; overflow: hidden; display: flex; flex-direction: column; }

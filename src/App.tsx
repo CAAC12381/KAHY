@@ -335,16 +335,36 @@ export default function App() {
     setStage("access");
   }
 
-  const accessibilityMenu = <AccessibilityMenu preferences={preferences} onChange={updatePreferences} />;
+  /**
+   * "Salir": regresa a la pantalla de acceso. Con cuenta cierra la sesión (y recarga); sin cuenta no borra
+   * nada: el perfil de este dispositivo sigue ahí y la pantalla de acceso ofrece continuar con él.
+   */
+  function exitToAccess() {
+    if (account) {
+      if (window.confirm("Al salir se cierra tu sesión y se quitan tus datos de este dispositivo; siguen guardados en tu cuenta. El historial completo del chat solo vive en este navegador y se borrará. ¿Salir?")) void logout();
+      return;
+    }
+    setShowHelp(false);
+    setActivityIntent(null);
+    setChatDraft(null);
+    setView("home");
+    setStage("access");
+  }
 
-  if (stage === "splash") return <div className={preferenceClasses(preferences)}><SplashScreen />{accessibilityMenu}</div>;
-  if (stage === "access") return <div className={preferenceClasses(preferences)}><AccessFlow onExplore={() => { setIsRegistered(false); setStage("app"); }} deviceId={deviceId} onLogin={completeLogin} onRegister={startRegistration} />{accessibilityMenu}</div>;
-  if (stage === "onboarding") return <div className={preferenceClasses(preferences)}><Onboarding initialName={pendingName} preferences={preferences} onFinish={finishOnboarding} />{accessibilityMenu}</div>;
+  const accessibilityMenu = <AccessibilityMenu preferences={preferences} onChange={updatePreferences} />;
+  // Bienvenida, registro y personalización son páginas normales que crecen con su contenido: llevan
+  // "kahy-app--flow" para poder desplazarse, a diferencia de la app, que tiene alto fijo y desplaza por dentro.
+  const flowClasses = `${preferenceClasses(preferences)} kahy-app--flow`;
+
+  if (stage === "splash") return <div className={flowClasses}><SplashScreen />{accessibilityMenu}</div>;
+  // onExplore conserva isRegistered: quien ya tiene perfil en este dispositivo lo retoma; quien no, entra como invitado.
+  if (stage === "access") return <div className={flowClasses}><AccessFlow resumeName={isRegistered ? profile.name : undefined} onExplore={() => setStage("app")} deviceId={deviceId} onLogin={completeLogin} onRegister={startRegistration} />{accessibilityMenu}</div>;
+  if (stage === "onboarding") return <div className={flowClasses}><Onboarding initialName={pendingName} preferences={preferences} onFinish={finishOnboarding} />{accessibilityMenu}</div>;
 
   return (
     <div className={preferenceClasses(preferences)}>
       <a className="skip-link" href="#main-content">Saltar al contenido</a>
-      <AppShell currentView={view} onNavigate={navigate} onHelp={() => setShowHelp(true)} mascot={profile.mascot} preferences={preferences}>
+      <AppShell currentView={view} onNavigate={navigate} onHelp={() => setShowHelp(true)} onExit={exitToAccess} mascot={profile.mascot} preferences={preferences}>
         {view === "home" && <HomePage profile={profile} deviceId={deviceId} preferences={preferences} navigate={navigate} notify={notify} screenings={screenings} onHelp={() => setShowHelp(true)} garden={garden} emotionCalendar={emotionCalendar} taskPlans={taskPlans} habits={habits} onOpenTask={openTaskBreakdown} />}
         {view === "chat" && <ChatPage key={chatDraft?.key ?? "chat"} initialDraft={chatDraft?.text} onHelp={() => setShowHelp(true)} navigate={navigate} preferences={preferences} screenings={screenings} garden={garden} profile={profile} deviceId={deviceId} chatHistory={chatHistory} emotionCalendar={emotionCalendar} taskPlans={taskPlans} habits={habits} onOpenTask={openTaskBreakdown} />}
         {view === "activities" && <ActivitiesPage key={activityIntent?.key ?? "activities"} preferences={preferences} notify={notify} taskPlans={taskPlans} emotionCalendar={emotionCalendar} onHelp={() => setShowHelp(true)} onTalkToKahy={talkToKahy} initialActivity={activityIntent?.activity} initialPlanId={activityIntent?.planId} />}

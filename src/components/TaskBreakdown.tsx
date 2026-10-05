@@ -1,8 +1,9 @@
-import { ArrowLeft, Check, ChevronDown, ChevronUp, Clock, ListChecks, MessageCircle, Pause, Play, Plus, RotateCcw, Scissors, Sparkles, Target, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Clock, ListChecks, MessageCircle, Pause, Play, Plus, RotateCcw, Scissors, Sparkles, Target, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button, Card, DemoBadge } from "./ui";
 import { MAX_STEPS, makeStep, type TaskPlansApi } from "../hooks/useTaskPlans";
 import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
+import { useBackNavigation } from "../lib/backNavigation";
 import { emotionLabels, emotionTone } from "../lib/emotionLexicon";
 import { detectSafetySignal } from "../mock/conversation";
 import { requestBreakdown } from "../services/taskApi";
@@ -64,6 +65,14 @@ export default function TaskBreakdown({ taskPlans, emotionCalendar, notify, onHe
   useEffect(() => {
     if ((screen.mode === "plan" || screen.mode === "focus") && !plan) setScreen({ mode: "list" });
   }, [screen, plan]);
+
+  // Dentro de una tarea, la flecha de la barra superior regresa un nivel; en la lista manda la de Actividades.
+  const innerBack = screen.mode === "focus"
+    ? { label: "Todos los pasos", go: () => setScreen({ mode: "plan", id: screen.id }) }
+    : screen.mode === "plan" || (screen.mode === "new" && taskPlans.plans.length > 0)
+      ? { label: "Mis tareas", go: () => setScreen({ mode: "list" }) }
+      : null;
+  useBackNavigation(2, innerBack?.label ?? "", () => innerBack?.go(), innerBack !== null);
 
   function recordFeeling(emotion: EmotionName, moment: "antes" | "después") {
     emotionCalendar.record({
@@ -255,7 +264,6 @@ function PlanEditor({ plan, taskPlans, encouragement, onDismissEncouragement, on
 
   return (
     <div className="task-plan-view">
-      <button className="back-link" onClick={onBack}><ArrowLeft size={17} /> Mis tareas</button>
       <div className="task-plan-head">
         {editingTitle
           ? <input className="task-title-input" defaultValue={plan.title} maxLength={240} autoFocus aria-label="Nombre de la tarea" onBlur={(event) => { const value = event.target.value.trim(); if (value && value !== plan.title) taskPlans.update(plan.id, (current) => ({ ...current, title: value })); setEditingTitle(false); }} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") setEditingTitle(false); }} />
@@ -379,7 +387,6 @@ function FocusMode({ plan, taskPlans, onExit, onHelp, notify }: { plan: TaskPlan
 
   return (
     <div className="task-focus">
-      <button className="back-link" onClick={onExit}><ArrowLeft size={17} /> Ver todos los pasos</button>
       <span className="eyebrow">Modo enfoque · paso {index + 1} de {plan.steps.length}</span>
       <p className="task-focus-plan">{plan.title}</p>
       <h2 className="task-focus-step">{step.text}</h2>
