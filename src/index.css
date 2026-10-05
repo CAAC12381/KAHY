@@ -247,12 +247,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .sidebar-note strong, .sidebar-note small { display: block; }
 .sidebar-note strong { font-size: .78rem; }
 .sidebar-note small { margin-top: 3px; color: var(--muted); font-size: .68rem; line-height: 1.35; }
-.sidebar-footer { display: grid; gap: 10px; margin-top: auto; padding-top: 16px; }
-.sidebar-footer .sidebar-note { margin-top: 0; }
-.sidebar-exit { min-height: 46px; display: flex; align-items: center; gap: 13px; padding: 0 14px; border: 1px solid var(--line); border-radius: 14px; background: transparent; color: var(--muted); font-weight: 720; text-align: left; white-space: nowrap; }
-.sidebar-exit:hover { border-color: #e6c4c3; background: var(--danger-soft); color: #74393d; }
-.app-shell--collapsed .sidebar-exit { justify-content: center; padding: 0; }
-.mobile-more-links .mobile-more-exit { margin-top: 6px; border-color: #e6c4c3; background: var(--danger-soft); color: #74393d; }
 /* El menú "Más" queda por encima del botón flotante de accesibilidad, que tapaba el borde de su última fila. */
 .app-shell .mobile-more-backdrop { z-index: 119; }
 .app-shell .mobile-more-sheet { z-index: 120; }
@@ -269,6 +263,19 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .topbar-back span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* En pantallas chicas la flecha ocupa el lugar del logo; Inicio sigue en la barra inferior. */
 .topbar--has-back .mobile-brand { display: none; }
+/* "Salir": siempre en la barra superior, junto al botón de ayuda, igual en computadora y en teléfono. */
+.topbar-exit { flex: 0 0 auto; min-height: 44px; display: inline-flex; align-items: center; gap: 7px; padding: 8px 13px; border: 1px solid var(--line); border-radius: 13px; background: var(--white); color: var(--ink); font-weight: 760; white-space: nowrap; }
+.topbar-exit:hover { border-color: #e6c4c3; background: var(--danger-soft); color: #74393d; }
+.topbar-exit svg { flex: 0 0 auto; }
+/* En teléfono caben la flecha, "Salir" y el botón de ayuda con su texto; si falta espacio, lo cede la etiqueta de la flecha. */
+@media (max-width: 620px) {
+  .topbar-back { padding: 8px 10px 8px 8px; font-size: .86rem; }
+  .topbar-exit { padding-inline: 10px; font-size: .8rem; }
+}
+@media (max-width: 430px) {
+  .topbar-back { min-height: 40px; gap: 5px; font-size: .78rem; }
+  .topbar-exit { min-height: 40px; gap: 5px; padding-inline: 9px; font-size: .72rem; }
+}
 .bottom-nav { display: none; }
 .content { position: relative; flex: 1; min-height: 0; overflow-y: auto; padding: clamp(26px, 4vw, 56px); isolation: isolate; }
 .content--chat { padding: 10px clamp(12px, 1.4vw, 24px) 14px; overflow: hidden; display: flex; flex-direction: column; }

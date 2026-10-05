@@ -132,18 +132,12 @@ export default function AppShell({
           </button>
         </nav>
 
-        <div className="sidebar-footer">
-          <button className="sidebar-exit" onClick={onExit} title={collapsed ? "Salir" : undefined}>
-            <LogOut size={20} />
-            {!collapsed && <span>Salir</span>}
-          </button>
-          {!collapsed && (
-            <div className="sidebar-note">
-              {preferences.showMascot && <Mascot id={mascot} size="tiny" />}
-              <div><strong>Orientación privada</strong><small>Chat activo · sin expediente clínico.</small></div>
-            </div>
-          )}
-        </div>
+        {!collapsed && (
+          <div className="sidebar-note">
+            {preferences.showMascot && <Mascot id={mascot} size="tiny" />}
+            <div><strong>Orientación privada</strong><small>Chat activo · sin expediente clínico.</small></div>
+          </div>
+        )}
       </aside>
 
       <div className="app-main">
@@ -151,6 +145,8 @@ export default function AppShell({
           <button className="mobile-brand" onClick={() => onNavigate("home")}><BrandMark size="small" /> KAHY</button>
           {back && <button className="topbar-back" onClick={back.onBack}><ArrowLeft size={18} /><span>{back.label}</span></button>}
           <span className="prototype-label">Vista demostrativa</span>
+          {/* "Salir" va siempre en la barra superior, en el mismo lugar en computadora y en teléfono. */}
+          <button className="topbar-exit" onClick={onExit}><LogOut size={17} /><span>Salir</span></button>
           <button className="help-button" onClick={onHelp}>Necesito ayuda ahora</button>
         </header>
         <main id="main-content" ref={mainRef} className={currentView === "chat" ? "content content--chat" : "content"}>{children}</main>
@@ -163,9 +159,7 @@ export default function AppShell({
           <div className="mobile-more-links">{mobileMoreItems.map((item) => {
             const Icon = icons[item.id as keyof typeof icons];
             return <button key={item.id} className={currentView === item.id ? "active" : ""} onClick={() => navigateFromMobile(item.id)} aria-current={currentView === item.id ? "page" : undefined}><Icon size={21} /><span>{item.label}</span><ChevronRight size={18} /></button>;
-          })}
-            <button className="mobile-more-exit" onClick={() => { setMobileMenuOpen(false); onExit(); }}><LogOut size={21} /><span>Salir</span></button>
-          </div>
+          })}</div>
         </aside>
       </>}
 
