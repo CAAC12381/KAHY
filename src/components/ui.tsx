@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useEscapeKey } from "../lib/dismiss";
 
 export function Button({
   children,
@@ -67,6 +68,8 @@ export function Modal({
   children: ReactNode;
   onClose: () => void;
 }) {
+  // Ya se cerraba al tocar fuera (el fondo); Escape lo iguala con el resto de los paneles.
+  useEscapeKey(true, onClose);
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onMouseDown={(event) => event.stopPropagation()}>

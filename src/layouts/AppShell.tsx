@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BackNavigationContext, type BackEntry, type BackRegistry } from "../lib/backNavigation";
+import { useEscapeKey } from "../lib/dismiss";
 import { navItems } from "../mock/data";
 import type { MainView, MascotId, Preferences } from "../types";
 import Mascot from "../components/Mascot";
@@ -82,14 +83,7 @@ export default function AppShell({
     mainRef.current?.scrollTo({ top: 0 });
   }, [currentView, backLevel, back?.label]);
 
-  useEffect(() => {
-    if (!mobileMenuOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobileMenuOpen(false);
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [mobileMenuOpen]);
+  useEscapeKey(mobileMenuOpen, () => setMobileMenuOpen(false));
 
   function navigateFromMobile(view: MainView) {
     setMobileMenuOpen(false);

@@ -1,5 +1,6 @@
 import { Accessibility, Contrast, Eye, Move, Palette, RotateCcw, Type, Underline, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useDismissOnOutside, useEscapeKey } from "../lib/dismiss";
 import type { ColorMode, Preferences, TextScale } from "../types";
 import { Toggle } from "./ui";
 
@@ -19,6 +20,7 @@ const textOptions: Array<{ value: TextScale; label: string }> = [
 export default function AccessibilityMenu({ preferences, onChange }: { preferences: Preferences; onChange: (next: Preferences) => void }) {
   const [open, setOpen] = useState(false);
   const [announcement, setAnnouncement] = useState("");
+  const rootRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
 
@@ -28,14 +30,12 @@ export default function AccessibilityMenu({ preferences, onChange }: { preferenc
   }
 
   useEffect(() => {
-    if (!open) return;
-    closeRef.current?.focus();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeMenu();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    if (open) closeRef.current?.focus();
   }, [open]);
+
+  useEscapeKey(open, closeMenu);
+  // Al tocar fuera se cierra sin mover el foco: la persona ya está interactuando con otra parte de la pantalla.
+  useDismissOnOutside([rootRef], open, () => setOpen(false));
 
   function update<K extends keyof Preferences>(key: K, value: Preferences[K], message: string) {
     onChange({ ...preferences, [key]: value });
@@ -57,7 +57,7 @@ export default function AccessibilityMenu({ preferences, onChange }: { preferenc
   }
 
   return (
-    <div className={`accessibility-widget ${open ? "is-open" : ""}`}>
+    <div ref={rootRef} className={`accessibility-widget ${open ? "is-open" : ""}`}>
       <button ref={launcherRef} className="accessibility-launcher" onClick={() => setOpen(true)} aria-label="Abrir menú de accesibilidad" aria-expanded={open} aria-controls="accessibility-panel">
         <Accessibility size={24} aria-hidden="true" />
         <span>Accesibilidad</span>
@@ -101,7 +101,7 @@ export default function AccessibilityMenu({ preferences, onChange }: { preferenc
 
             <div className="accessibility-notes">
               <span><Eye size={16} /> Los cambios se aplican al instante.</span>
-              <span><Move size={16} /> Puedes cerrar este panel con Escape.</span>
+              <span><Move size={16} /> Para cerrar este panel, toca fuera de él o pulsa Escape.</span>
               <span><Contrast size={16} /> El sistema conserva tus ajustes.</span>
             </div>
             <button className="accessibility-reset" onClick={reset}><RotateCcw size={17} /> Restablecer ajustes visuales</button>

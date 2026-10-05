@@ -34,6 +34,7 @@ import type { ScreeningsState } from "../hooks/useScreenings";
 import { makeStep, type TaskPlansApi } from "../hooks/useTaskPlans";
 import { createReply, detectSafetySignal, getTopic, type ChatTopic, type ConversationReply } from "../mock/conversation";
 import { flowers, mascots, trustedSources } from "../mock/data";
+import { useDismissOnOutside, useEscapeKey } from "../lib/dismiss";
 import { emotionLabels, inferLocalEmotion } from "../lib/emotionLexicon";
 import { buildAdaptiveContext } from "../lib/personalization";
 import type { DemoProfile, MainView, Preferences } from "../types";
@@ -130,6 +131,13 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
   const [currentTopic, setCurrentTopic] = useState<ChatTopic>("inicio");
   const [lowData, setLowData] = useState(true);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const detailsRef = useRef<HTMLElement>(null);
+  const detailsButtonRef = useRef<HTMLButtonElement>(null);
+  // "Cómo funciona" tapa parte del chat en teléfono: se cierra al tocar fuera. Historial y plan ya tenían fondo para eso.
+  useDismissOnOutside([detailsRef, detailsButtonRef], detailsOpen, () => setDetailsOpen(false));
+  useEscapeKey(detailsOpen, () => setDetailsOpen(false));
+  useEscapeKey(historyOpen, () => setHistoryOpen(false));
+  useEscapeKey(planOpen, () => setPlanOpen(false));
   const [plan, setPlan] = useState<Array<{ text: string; done: boolean }>>([]);
   const [aiConnection, setAiConnection] = useState<AiConnection>("checking");
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -302,11 +310,11 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
           <button className="chat-tool-button" onClick={() => setHistoryOpen(true)} aria-label={`Historial, ${chatHistory.sessions.length} conversaciones guardadas`} aria-expanded={historyOpen}><History size={17} /><span>Historial</span>{chatHistory.sessions.length > 0 && <b>{chatHistory.sessions.length}</b>}</button>
           <button className={plan.length ? "chat-tool-button has-content" : "chat-tool-button"} onClick={() => setPlanOpen(true)} aria-label={`Plan de ahora, ${plan.length} acciones`} aria-expanded={planOpen}><ListChecks size={17} /><span>Plan de ahora</span>{plan.length > 0 && <b>{plan.length}</b>}</button>
           <button className={lowData ? "data-mode active" : "data-mode"} onClick={() => setLowData(!lowData)} aria-label={lowData ? "Desactivar modo de pocos datos" : "Activar modo de pocos datos"} aria-pressed={lowData}><WifiOff size={17} /><span>{lowData ? "Pocos datos" : "Modo visual"}</span></button>
-          <button className="chat-menu-button" onClick={() => setDetailsOpen(!detailsOpen)} aria-label="Cómo funciona el chat" aria-expanded={detailsOpen}><MoreHorizontal size={20} /><span>Cómo funciona</span></button>
+          <button ref={detailsButtonRef} className="chat-menu-button" onClick={() => setDetailsOpen(!detailsOpen)} aria-label="Cómo funciona el chat" aria-expanded={detailsOpen}><MoreHorizontal size={20} /><span>Cómo funciona</span></button>
         </div>
       </section>
 
-      {detailsOpen && <section className="chat-disclosure"><div><BookOpenCheck size={21} /><span><strong>Conversación enfocada</strong><small>Acompaña bienestar, emociones y vida cotidiana; no responde como un asistente general.</small></span></div><div><ShieldCheck size={21} /><span><strong>Detección preventiva</strong><small>Moderación y frases explícitas activan ayuda; no se predice ni puntúa riesgo clínico.</small></span></div><div><Database size={21} /><span><strong>Fuentes pertinentes</strong><small>Solo muestra fuentes cuando respaldan el tema de la respuesta.</small></span></div></section>}
+      {detailsOpen && <section ref={detailsRef} className="chat-disclosure"><div><BookOpenCheck size={21} /><span><strong>Conversación enfocada</strong><small>Acompaña bienestar, emociones y vida cotidiana; no responde como un asistente general.</small></span></div><div><ShieldCheck size={21} /><span><strong>Detección preventiva</strong><small>Moderación y frases explícitas activan ayuda; no se predice ni puntúa riesgo clínico.</small></span></div><div><Database size={21} /><span><strong>Fuentes pertinentes</strong><small>Solo muestra fuentes cuando respaldan el tema de la respuesta.</small></span></div></section>}
 
       <section className="chat-safety-strip"><ShieldCheck size={18} /><p><strong>{aiConnection === "live" ? "IA activa:" : aiConnection === "offline" ? "Modo sin conexión:" : "Orientación local activa:"}</strong> {aiConnection === "live" ? "el texto se procesa para generar una respuesta; KAHY no crea expediente. Evita datos identificables." : aiConnection === "offline" ? "las respuestas se crean en este dispositivo y tu texto no sale del navegador." : "el chat responde con un motor contextual dentro del navegador; no envía tu texto."}</p><span>{lowData ? <><CloudOff size={15} /> Pocos datos</> : <><Sparkles size={15} /> Visual completo</>}</span></section>
 
