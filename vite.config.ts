@@ -129,7 +129,24 @@ function kahyOfflineBuild(): Plugin {
     },
     writeBundle(options, bundle) {
       const outDir = options.dir || 'dist'
-      const built = Object.keys(bundle).filter((file) => file !== 'index.html' && !file.endsWith('.map')).sort()
+      // Lo que solo se carga al abrir una sección (p. ej. three.js en "Compañeros en 3D") no se
+      // descarga al instalar: se guarda la primera vez que alguien abre esa sección.
+      type ChunkInfo = { type: string; isEntry?: boolean; imports?: string[]; viteMetadata?: { importedCss?: Set<string> } }
+      const items = bundle as unknown as Record<string, ChunkInfo>
+      const reachable = new Set<string>()
+      const visit = (file: string) => {
+        if (reachable.has(file)) return
+        reachable.add(file)
+        items[file]?.imports?.forEach(visit)
+      }
+      Object.entries(items).filter(([, item]) => item.type === 'chunk' && item.isEntry).forEach(([file]) => visit(file))
+      const lazyOnly = new Set<string>()
+      for (const [file, item] of Object.entries(items)) {
+        if (item.type !== 'chunk' || reachable.has(file)) continue
+        lazyOnly.add(file)
+        item.viteMetadata?.importedCss?.forEach((css) => lazyOnly.add(css))
+      }
+      const built = Object.keys(bundle).filter((file) => file !== 'index.html' && !file.endsWith('.map') && !lazyOnly.has(file)).sort()
       const extras = ['manifest.webmanifest', 'assets/kahy-logo-272.jpg', 'icons/icon-192.png']
       const precache = [...built, ...extras].map((file) => `${base}${file}`)
       const version = createHash('sha256').update(built.join('|')).digest('hex').slice(0, 12)

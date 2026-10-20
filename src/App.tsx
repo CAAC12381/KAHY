@@ -2,6 +2,7 @@ import { CheckCircle2, ExternalLink, Phone, ShieldAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import AppShell from "./layouts/AppShell";
 import ConnectionBanner from "./components/ConnectionBanner";
+import LazyCompanion3D from "./components/LazyCompanion3D";
 import { AccessFlow, Onboarding, SplashScreen } from "./pages/AccessFlow";
 import ActivitiesPage, { type Activity } from "./pages/ActivitiesPage";
 import ChatPage from "./pages/ChatPage";
@@ -386,6 +387,7 @@ export default function App() {
         {view === "screening" && <ScreeningPage screenings={screenings} onHelp={() => setShowHelp(true)} navigate={navigate} />}
         {view === "specialists" && <SpecialistsPage city={profile.city} onHelp={() => setShowHelp(true)} />}
         {view === "resources" && <ResourcesPage />}
+        {view === "companion3d" && <LazyCompanion3D preferences={preferences} />}
         {view === "profile" && <ProfilePage profile={profile} preferences={preferences} setProfile={updateProfile} setPreferences={updatePreferences} navigate={navigate} notify={notify} isRegistered={isRegistered} onResetRegistration={resetRegistration} account={account} onLogout={logout} onLoggedIn={completeLogin} onAccountCreated={accountCreated} screenings={screenings} deviceId={deviceId} chatHistory={chatHistory} emotionCalendar={emotionCalendar} />}
       </AppShell>
 

@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   BookOpen,
+  Box,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
@@ -30,6 +31,7 @@ const icons = {
   specialists: Users,
   profile: User,
   resources: BookOpen,
+  companion3d: Box,
 };
 
 const mobilePrimaryIds: MainView[] = ["home", "chat", "activities", "screening"];
@@ -37,6 +39,7 @@ const mobileMoreItems: Array<{ id: MainView; label: string }> = [
   { id: "specialists", label: "Directorio" },
   { id: "profile", label: "Perfil y ajustes" },
   { id: "resources", label: "Recursos y fuentes" },
+  { id: "companion3d", label: "Compañeros en 3D" },
 ];
 
 export default function AppShell({
@@ -124,6 +127,10 @@ export default function AppShell({
           <button className={currentView === "resources" ? "active" : ""} onClick={() => onNavigate("resources")} title={collapsed ? "Recursos" : undefined}>
             <BookOpen size={20} />
             {!collapsed && <span>Recursos</span>}
+          </button>
+          <button className={currentView === "companion3d" ? "active" : ""} onClick={() => onNavigate("companion3d")} aria-current={currentView === "companion3d" ? "page" : undefined} title={collapsed ? "Compañeros en 3D" : undefined}>
+            <Box size={20} />
+            {!collapsed && <span>Compañeros 3D</span>}
           </button>
         </nav>
 

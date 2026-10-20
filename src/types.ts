@@ -5,7 +5,8 @@ export type MainView =
   | "screening"
   | "specialists"
   | "resources"
-  | "profile";
+  | "profile"
+  | "companion3d";
 
 export type MascotId = "vaca" | "pollito" | "camaleon" | "tortuga";
 export type FlowerId = "Clavel" | "Gerbera" | "Orquidea" | "Tulipan";
