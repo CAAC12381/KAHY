@@ -30,4 +30,13 @@
   .companion-3d-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .companion-3d-actions .button { width: 100%; justify-content: center; gap: 6px; padding-inline: 10px; font-size: .88rem; white-space: nowrap; }
   .companion-3d-chip { padding-right: 10px; }
+  .companion-3d-actions .companion-3d-sleep { grid-column: 1 / -1; }
 }
+
+/* Controles de la vista (girar, centrar, foto) en la esquina inferior del recuadro. */
+.companion-3d-view-tools { position: absolute; z-index: 2; right: 12px; bottom: 12px; display: flex; gap: 8px; }
+.companion-3d-view-tools button { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: rgba(255, 254, 251, .92); box-shadow: var(--shadow-sm); color: var(--purple-deep); cursor: pointer; }
+.companion-3d-view-tools button:hover { border-color: var(--purple); }
+.companion-3d-view-tools button:focus-visible { outline: 3px solid var(--purple); outline-offset: 2px; }
+.companion-3d-view-tools button[aria-pressed="true"] { background: var(--purple-soft); }
+.companion-3d-hint { margin: 10px 0 0; color: var(--purple-deep); font-size: .86rem; font-weight: 700; }

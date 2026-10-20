@@ -1,23 +1,29 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
 /**
- * Moka en 3D: una vaquita color crema con manchas cafés, hocico rosa,
- * cuernitos y su campanita, parada en un prado con flores (como en su
- * ilustración). Está hecha solo con figuras básicas de three.js, sin
- * archivos de modelo, así que pesa poco y funciona sin internet.
+ * Moka en 3D: vaquita color crema con manchas cafés, hocico rosa, cuernitos,
+ * orejas de hoja y su collar con campanita, sobre un prado redondo con
+ * flores y pasto (como en su ilustración). Hecha solo con figuras de
+ * three.js y texturas pintadas aquí mismo, sin archivos de modelo: pesa
+ * poco y funciona sin internet.
  *
  * Unidades: 1 ≈ el largo del cuerpo. Moka mira hacia +z; el suelo es y = 0.
- * Si cambias una pieza, cambia sus números en `buildMoka` y revisa que no
- * atraviese a sus vecinas (el comentario de cada pieza dice dónde está).
+ * Cada pieza dice dónde está; si mueves una, revisa que no atraviese a sus
+ * vecinas (las manchas y las chapitas están pintadas en las texturas, así
+ * que siguen a la piel solas).
  */
 
-export type MokaAction = "greet" | "eat" | "wag";
+export type MokaAction = "greet" | "pet" | "eat" | "wag";
 
 export type MokaViewer = {
   play: (action: MokaAction) => void;
+  setSleeping: (sleeping: boolean) => void;
   setAutoRotate: (enabled: boolean) => void;
   resetView: () => void;
+  /** Foto de lo que se ve ahora, con fondo, como PNG (data URL). */
+  takePhoto: () => string;
   dispose: () => void;
 };
 
@@ -34,17 +40,19 @@ const COLORS = {
   snout: "#f3b9ae",
   nostril: "#7a4b3f",
   eye: "#2b211d",
-  blush: "#f19a9a",
-  horn: "#e9d3a6",
+  tongue: "#e98c8c",
+  horn: "#ecd8ab",
   innerEar: "#f2b4ab",
   collar: "#d9706f",
   bell: "#e8b84a",
   grass: "#c3d9a8",
   grassEdge: "#a9c78c",
+  blade: "#9fc184",
+  photoBackground: "#f6efe0",
 };
 
-const CAMERA_START = new THREE.Vector3(2.3, 1.85, 3.5);
-const TARGET = new THREE.Vector3(0, 0.82, 0);
+const CAMERA_START = new THREE.Vector3(2.3, 1.75, 3.4);
+const TARGET = new THREE.Vector3(0, 0.74, 0);
 
 export function createMokaViewer(container: HTMLElement, options: Options): MokaViewer {
   // Lanza un error si el navegador no tiene WebGL; la página muestra un aviso en ese caso.
@@ -53,7 +61,7 @@ export function createMokaViewer(container: HTMLElement, options: Options): Moka
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
+  renderer.toneMappingExposure = 1.1;
   renderer.domElement.className = "moka-canvas";
   container.appendChild(renderer.domElement);
 
@@ -61,9 +69,15 @@ export function createMokaViewer(container: HTMLElement, options: Options): Moka
   const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 50);
   camera.position.copy(CAMERA_START);
 
-  // Luz cálida de mañana, como la de la acuarela.
-  scene.add(new THREE.HemisphereLight("#fff6e6", "#c9c2a8", 1.6));
-  const sun = new THREE.DirectionalLight("#fff0d8", 2.1);
+  // Luz suave de cuarto (para el brillo de la campana y el pelaje) + sol cálido con sombra difusa.
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const room = new RoomEnvironment();
+  scene.environment = pmrem.fromScene(room, 0.04).texture;
+  scene.environmentIntensity = 0.45;
+  room.dispose();
+  pmrem.dispose();
+  scene.add(new THREE.HemisphereLight("#fff6e6", "#c9c2a8", 1.0));
+  const sun = new THREE.DirectionalLight("#fff0d8", 2.0);
   sun.position.set(2.2, 4.2, 3);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
@@ -71,9 +85,10 @@ export function createMokaViewer(container: HTMLElement, options: Options): Moka
   sun.shadow.camera.right = 2;
   sun.shadow.camera.top = 2;
   sun.shadow.camera.bottom = -2;
-  sun.shadow.bias = -0.0008;
+  sun.shadow.radius = 5;
+  sun.shadow.bias = -0.0006;
   scene.add(sun);
-  const fill = new THREE.DirectionalLight("#e4ecff", 0.55);
+  const fill = new THREE.DirectionalLight("#e4ecff", 0.45);
   fill.position.set(-3, 2, -1);
   scene.add(fill);
 
@@ -85,7 +100,7 @@ export function createMokaViewer(container: HTMLElement, options: Options): Moka
   controls.target.copy(TARGET);
   controls.enableDamping = true;
   controls.enablePan = false;
-  controls.minDistance = 2.4;
+  controls.minDistance = 2.3;
   controls.maxDistance = 6.5;
   controls.minPolarAngle = 0.35;
   controls.maxPolarAngle = 1.42; // No se puede mirar desde debajo del pasto.
@@ -93,23 +108,31 @@ export function createMokaViewer(container: HTMLElement, options: Options): Moka
   controls.autoRotate = !options.reducedMotion;
   controls.update();
 
-  // Tocar (sin arrastrar) a Moka la hace saludar.
+  // Tocar (sin arrastrar) a Moka avisa a la página; pasar el cursor encima la hace mirarlo.
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
+  let hovering = false;
   let downAt: { x: number; y: number } | null = null;
-  const onPointerDown = (event: PointerEvent) => { downAt = { x: event.clientX, y: event.clientY }; };
-  const onPointerUp = (event: PointerEvent) => {
-    if (!downAt || Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y) > 6) return;
-    downAt = null;
+  const pointerOnMoka = (event: PointerEvent) => {
     const rect = renderer.domElement.getBoundingClientRect();
     pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
     raycaster.setFromCamera(pointer, camera);
-    if (raycaster.intersectObject(moka.root, true).length) {
-      moka.play("greet");
-      options.onTap();
-    }
+    return raycaster.intersectObject(moka.body, true).length > 0;
+  };
+  const onPointerDown = (event: PointerEvent) => { downAt = { x: event.clientX, y: event.clientY }; };
+  const onPointerMove = (event: PointerEvent) => {
+    hovering = event.pointerType === "mouse";
+    if (hovering && !downAt) renderer.domElement.style.cursor = pointerOnMoka(event) ? "pointer" : "";
+  };
+  const onPointerLeave = () => { hovering = false; };
+  const onPointerUp = (event: PointerEvent) => {
+    const tapped = downAt && Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y) <= 6;
+    downAt = null;
+    if (tapped && pointerOnMoka(event)) options.onTap();
   };
   renderer.domElement.addEventListener("pointerdown", onPointerDown);
+  renderer.domElement.addEventListener("pointermove", onPointerMove);
+  renderer.domElement.addEventListener("pointerleave", onPointerLeave);
   renderer.domElement.addEventListener("pointerup", onPointerUp);
 
   const resize = () => {
@@ -131,8 +154,13 @@ export function createMokaViewer(container: HTMLElement, options: Options): Moka
   const timer = new THREE.Timer();
   const frame = (timestamp: number) => {
     timer.update(timestamp);
-    const delta = Math.min(timer.getDelta(), 0.05);
-    moka.update(timer.getElapsed(), delta, options.reducedMotion);
+    // Tope de 0.1 s: al volver a la pestaña no da un salto, y en equipos lentos las transiciones no se quedan a medias.
+    const delta = Math.min(timer.getDelta(), 0.1);
+    moka.update(timer.getElapsed(), delta, {
+      reducedMotion: options.reducedMotion,
+      viewer: camera,
+      pointer: hovering ? pointer : null,
+    });
     controls.update();
     renderer.render(scene, camera);
   };
@@ -143,11 +171,21 @@ export function createMokaViewer(container: HTMLElement, options: Options): Moka
 
   return {
     play: (action) => moka.play(action),
+    setSleeping: (sleeping) => moka.setSleeping(sleeping),
     setAutoRotate: (enabled) => { controls.autoRotate = enabled; },
     resetView: () => {
       camera.position.copy(CAMERA_START);
       controls.target.copy(TARGET);
       controls.update();
+    },
+    takePhoto: () => {
+      const previous = scene.background;
+      scene.background = new THREE.Color(COLORS.photoBackground);
+      renderer.render(scene, camera);
+      const url = renderer.domElement.toDataURL("image/png");
+      scene.background = previous;
+      renderer.render(scene, camera);
+      return url;
     },
     dispose: () => {
       visibility.disconnect();
@@ -155,21 +193,43 @@ export function createMokaViewer(container: HTMLElement, options: Options): Moka
       renderer.setAnimationLoop(null);
       timer.dispose();
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
+      renderer.domElement.removeEventListener("pointermove", onPointerMove);
+      renderer.domElement.removeEventListener("pointerleave", onPointerLeave);
       renderer.domElement.removeEventListener("pointerup", onPointerUp);
       controls.dispose();
       scene.traverse((object) => {
-        if (!(object instanceof THREE.Mesh)) return;
+        if (!(object instanceof THREE.Mesh || object instanceof THREE.Sprite)) return;
         object.geometry.dispose();
-        (Array.isArray(object.material) ? object.material : [object.material]).forEach((material) => material.dispose());
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        materials.forEach((material) => {
+          (material as THREE.MeshStandardMaterial).map?.dispose();
+          material.dispose();
+        });
       });
+      moka.textures.forEach((texture) => texture.dispose());
+      scene.environment?.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     },
   };
 }
 
+// --- Materiales y piezas ---------------------------------------------------
+
 function material(color: string, extra: THREE.MeshStandardMaterialParameters = {}) {
   return new THREE.MeshStandardMaterial({ color, roughness: 0.82, metalness: 0, ...extra });
+}
+
+/** Pelaje de peluche: el brillo "sheen" da ese borde aterciopelado al girarla. */
+function furMaterial(map?: THREE.Texture) {
+  return new THREE.MeshPhysicalMaterial({
+    color: map ? "#ffffff" : COLORS.fur,
+    map: map ?? null,
+    roughness: 0.78,
+    sheen: 1,
+    sheenRoughness: 0.55,
+    sheenColor: new THREE.Color("#fff1dc"),
+  });
 }
 
 function mesh(geometry: THREE.BufferGeometry, mat: THREE.Material, position: [number, number, number], scale: [number, number, number] = [1, 1, 1]) {
@@ -181,176 +241,371 @@ function mesh(geometry: THREE.BufferGeometry, mat: THREE.Material, position: [nu
 }
 
 /**
- * Una mancha "pegada" a la superficie de un elipsoide: se coloca en la
- * dirección `direction` desde su centro y se orienta según la normal ahí.
+ * Textura pintada para una esfera escalada (cuerpo o cabeza). `at` convierte
+ * una dirección desde el centro de la pieza en el punto de la textura que
+ * queda ahí, y `stretch` corrige que la textura se estira cerca de los polos.
  */
-function spotOn(center: THREE.Vector3, radius: number, scale: THREE.Vector3, direction: THREE.Vector3, size: [number, number], mat: THREE.Material) {
-  const unit = direction.clone().normalize();
-  const surface = center.clone().add(unit.clone().multiply(scale).multiplyScalar(radius));
-  const normal = unit.clone().divide(scale).normalize();
-  const spot = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 12), mat);
-  spot.scale.set(size[0], size[1], 0.035);
-  spot.position.copy(surface).addScaledVector(normal, -0.012);
-  spot.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
-  spot.castShadow = true;
-  return spot;
+function paintedSkin(scale: THREE.Vector3, paint: (ctx: CanvasRenderingContext2D, at: (direction: THREE.Vector3) => { x: number; y: number; stretch: number }, unit: number) => void) {
+  const width = 1024;
+  const height = 512;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = COLORS.fur;
+  ctx.fillRect(0, 0, width, height);
+  const at = (direction: THREE.Vector3) => {
+    const unitPoint = direction.clone().divide(scale).normalize();
+    const theta = Math.acos(THREE.MathUtils.clamp(unitPoint.y, -1, 1));
+    const phi = (Math.atan2(unitPoint.z, -unitPoint.x) + Math.PI * 2) % (Math.PI * 2);
+    return { x: (phi / (Math.PI * 2)) * width, y: (theta / Math.PI) * height, stretch: 1 / Math.max(0.25, Math.sin(theta)) };
+  };
+  paint(ctx, at, height / Math.PI); // `unit`: píxeles por radián en vertical.
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  return texture;
 }
 
+/** Mancha irregular (varios óvalos encimados), repetida al otro lado si toca el borde de la textura. */
+function blob(ctx: CanvasRenderingContext2D, point: { x: number; y: number; stretch: number }, radius: number, seed: number, color: string) {
+  const width = ctx.canvas.width;
+  ctx.fillStyle = color;
+  for (const shift of [-width, 0, width]) {
+    const cx = point.x + shift;
+    if (cx + radius * point.stretch * 2 < 0 || cx - radius * point.stretch * 2 > width) continue;
+    ctx.beginPath();
+    ctx.ellipse(cx, point.y, radius * 0.72 * point.stretch, radius * 0.72, 0, 0, Math.PI * 2);
+    ctx.fill();
+    for (let lobe = 0; lobe < 7; lobe++) {
+      const angle = (lobe / 7) * Math.PI * 2 + seed;
+      const size = radius * (0.42 + 0.2 * Math.sin(seed * 3.1 + lobe * 1.7));
+      ctx.beginPath();
+      ctx.ellipse(cx + Math.cos(angle) * radius * 0.5 * point.stretch, point.y + Math.sin(angle) * radius * 0.5, size * point.stretch, size, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function blush(ctx: CanvasRenderingContext2D, point: { x: number; y: number; stretch: number }, radius: number) {
+  ctx.save();
+  ctx.translate(point.x, point.y);
+  ctx.scale(point.stretch, 1);
+  const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+  gradient.addColorStop(0, "rgba(241, 150, 150, 0.6)");
+  gradient.addColorStop(1, "rgba(241, 150, 150, 0)");
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/** Oreja en forma de hoja: base redonda junto a la cabeza y punta afilada hacia +x. */
+function leafGeometry(length: number, width: number, thickness: number) {
+  const geometry = new THREE.SphereGeometry(1, 32, 16);
+  const position = geometry.attributes.position;
+  for (let index = 0; index < position.count; index++) {
+    const x = position.getX(index);
+    const toTip = (x + 1) / 2;
+    const narrow = 1 - 0.62 * toTip * toTip;
+    position.setXYZ(index, (x + 1) * (length / 2), position.getY(index) * width * narrow, position.getZ(index) * thickness * (1 - 0.45 * toTip));
+  }
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function spriteTexture(draw: (ctx: CanvasRenderingContext2D) => void) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 64;
+  canvas.height = 64;
+  draw(canvas.getContext("2d")!);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+// --- Moka ------------------------------------------------------------------
+
+type UpdateContext = { reducedMotion: boolean; viewer: THREE.Camera; pointer: THREE.Vector2 | null };
+
 function buildMoka() {
-  const fur = material(COLORS.fur);
+  const bodyScale = new THREE.Vector3(0.92, 0.74, 1.18);
+  const headScale = new THREE.Vector3(1.05, 0.95, 0.95);
+  const bodySkin = paintedSkin(bodyScale, (ctx, at, unit) => {
+    blob(ctx, at(new THREE.Vector3(0.9, 0.35, -0.25)), 0.42 * unit, 0.7, COLORS.spot);
+    blob(ctx, at(new THREE.Vector3(-0.85, 0.2, 0.3)), 0.36 * unit, 2.1, COLORS.spot);
+    blob(ctx, at(new THREE.Vector3(-0.3, 0.75, -0.6)), 0.3 * unit, 4.2, COLORS.spot);
+    blob(ctx, at(new THREE.Vector3(0.5, -0.15, 0.75)), 0.18 * unit, 5.3, COLORS.spot);
+  });
+  const headSkin = paintedSkin(headScale, (ctx, at, unit) => {
+    blob(ctx, at(new THREE.Vector3(0.24, 0.12, 0.32)), 0.34 * unit, 1.3, COLORS.spot); // Parche del ojo.
+    blob(ctx, at(new THREE.Vector3(-0.25, 0.8, -0.35)), 0.3 * unit, 3.7, COLORS.spot);
+    blush(ctx, at(new THREE.Vector3(0.28, -0.05, 0.3)), 0.17 * unit);
+    blush(ctx, at(new THREE.Vector3(-0.28, -0.05, 0.3)), 0.17 * unit);
+  });
+
+  const fur = furMaterial();
   const spot = material(COLORS.spot);
-  const hoof = material(COLORS.hoof);
-  const snout = material(COLORS.snout);
-  const dark = material(COLORS.eye, { roughness: 0.25 });
+  const hoof = material(COLORS.hoof, { roughness: 0.5 });
+  const snout = material(COLORS.snout, { roughness: 0.65 });
+  const dark = material(COLORS.eye, { roughness: 0.2 });
   const shine = new THREE.MeshBasicMaterial({ color: "#ffffff" });
-  const horn = material(COLORS.horn, { roughness: 0.6 });
+  const tongue = material(COLORS.tongue);
+  const horn = material(COLORS.horn, { roughness: 0.55 });
   const innerEar = material(COLORS.innerEar);
   const collar = material(COLORS.collar, { roughness: 0.6 });
-  const bellMat = material(COLORS.bell, { roughness: 0.3, metalness: 0.65 });
-  const blush = new THREE.MeshBasicMaterial({ color: COLORS.blush, transparent: true, opacity: 0.45, depthWrite: false });
+  const bellMat = material(COLORS.bell, { roughness: 0.25, metalness: 0.8 });
 
   const root = new THREE.Group();
-  const bodyPivot = new THREE.Group(); // Todo menos las patas: "respira" y se agacha al aterrizar.
-  root.add(bodyPivot);
+  // `body` agrupa todo lo que se puede tocar; `bodyPivot` respira y se acuesta; `stance` lleva las patas.
+  const body = new THREE.Group();
+  root.add(body);
+  const bodyPivot = new THREE.Group();
+  const stance = new THREE.Group();
+  body.add(bodyPivot, stance);
 
-  // Patas: cuatro cápsulas cortas con pezuñas; la parte de arriba queda dentro del cuerpo.
-  const legGeometry = new THREE.CapsuleGeometry(0.12, 0.3, 6, 16);
-  const hoofGeometry = new THREE.CylinderGeometry(0.125, 0.135, 0.09, 20);
-  for (const [x, z] of [[0.27, 0.3], [-0.27, 0.3], [0.27, -0.32], [-0.27, -0.32]] as const) {
-    root.add(mesh(legGeometry, fur, [x, 0.3, z]));
-    root.add(mesh(hoofGeometry, hoof, [x, 0.045, z]));
+  // Patas: cortas y un poco más anchas arriba, con pezuñas. Cada una gira desde su parte de arriba
+  // (y = 0.42, dentro del cuerpo) para poder doblarse al acostarse.
+  const legGeometry = new THREE.CylinderGeometry(0.125, 0.105, 0.34, 20);
+  const hoofGeometry = new THREE.CylinderGeometry(0.11, 0.118, 0.085, 20);
+  const legs: Array<{ pivot: THREE.Group; front: boolean }> = [];
+  for (const [x, z] of [[0.24, 0.3], [-0.24, 0.3], [0.24, -0.3], [-0.24, -0.3]] as const) {
+    const pivot = new THREE.Group();
+    pivot.position.set(x, 0.42, z);
+    pivot.add(mesh(legGeometry, fur, [0, -0.17, 0]));
+    pivot.add(mesh(hoofGeometry, hoof, [0, -0.38, 0]));
+    stance.add(pivot);
+    legs.push({ pivot, front: z > 0 });
   }
 
-  // Cuerpo: elipsoide centrado en y = 0.72 (de y 0.33 a 1.11, de z -0.58 a 0.58).
-  const bodyCenter = new THREE.Vector3(0, 0.72, 0);
-  const bodyScale = new THREE.Vector3(0.95, 0.78, 1.15);
-  const body = mesh(new THREE.SphereGeometry(0.5, 48, 32), fur, bodyCenter.toArray() as [number, number, number], bodyScale.toArray() as [number, number, number]);
-  bodyPivot.add(body);
-  for (const [direction, size] of [
-    [new THREE.Vector3(0.75, 0.45, -0.35), [0.17, 0.13]],
-    [new THREE.Vector3(-0.8, 0.25, 0.25), [0.15, 0.11]],
-    [new THREE.Vector3(-0.35, 0.85, -0.5), [0.13, 0.1]],
-    [new THREE.Vector3(0.45, 0.1, 0.75), [0.09, 0.07]],
-  ] as Array<[THREE.Vector3, [number, number]]>) {
-    bodyPivot.add(spotOn(bodyCenter, 0.5, bodyScale, direction, size, spot));
-  }
+  // Cuerpo: elipsoide en y = 0.62 (de y 0.25 a 0.99 y de z -0.59 a 0.59), con manchas pintadas.
+  bodyPivot.add(mesh(new THREE.SphereGeometry(0.5, 64, 40), furMaterial(bodySkin), [0, 0.62, 0], bodyScale.toArray() as [number, number, number]));
+  // Cuello: une el cuerpo con la cabeza para que no parezca una bola pegada.
+  bodyPivot.add(mesh(new THREE.SphereGeometry(0.25, 32, 24), fur, [0, 0.9, 0.4], [1, 1.05, 1.1]));
 
-  // Collar con campanita alrededor del cuello: el aro queda perpendicular a la línea cuerpo→cabeza,
-  // así que solo asoma la parte de abajo, bajo la barbilla, que es donde cuelga la campana.
-  const collarRing = mesh(new THREE.TorusGeometry(0.29, 0.032, 12, 40), collar, [0, 1.0, 0.44]);
-  collarRing.rotation.x = -0.75;
+  // Collar alrededor del cuello, perpendicular a la línea cuerpo→cabeza: asoma bajo la barbilla.
+  const collarRing = mesh(new THREE.TorusGeometry(0.255, 0.03, 12, 48), collar, [0, 0.9, 0.4]);
+  collarRing.rotation.x = -0.72;
   bodyPivot.add(collarRing);
+  // Campanita bajo la barbilla, por fuera del pecho (y 0.71, z 0.63).
   const bell = new THREE.Group();
-  bell.position.set(0, 0.79, 0.64);
-  bell.add(mesh(new THREE.SphereGeometry(0.07, 24, 16), bellMat, [0, -0.05, 0]));
-  bell.add(mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.03, 8), dark, [0, -0.11, 0.03]));
+  bell.position.set(0, 0.71, 0.63);
+  bell.add(mesh(new THREE.TorusGeometry(0.022, 0.007, 8, 16), bellMat, [0, 0, 0]));
+  bell.add(mesh(new THREE.SphereGeometry(0.065, 24, 16), bellMat, [0, -0.06, 0.02]));
+  bell.add(mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.02, 8), dark, [0, -0.12, 0.04]));
   bodyPivot.add(bell);
 
-  // Cola: un tubo curvo que sale de atrás del cuerpo, con un mechón café al final. Gira desde su base.
+  // Cola: tubo curvo desde atrás del cuerpo con un mechón café. Gira desde su base.
   const tail = new THREE.Group();
-  tail.position.set(0, 0.88, -0.5);
-  const tailCurve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, -0.08, -0.14), new THREE.Vector3(0, -0.26, -0.18), new THREE.Vector3(0, -0.4, -0.12)]);
+  tail.position.set(0, 0.78, -0.51);
+  const tailCurve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, -0.06, -0.12), new THREE.Vector3(0, -0.22, -0.17), new THREE.Vector3(0, -0.36, -0.12)]);
   tail.add(mesh(new THREE.TubeGeometry(tailCurve, 20, 0.022, 8), fur, [0, 0, 0]));
-  tail.add(mesh(new THREE.SphereGeometry(0.06, 16, 12), spot, [0, -0.44, -0.11], [1, 1.4, 1]));
+  tail.add(mesh(new THREE.SphereGeometry(0.06, 16, 12), spot, [0, -0.4, -0.1], [1, 1.4, 1]));
   bodyPivot.add(tail);
 
-  // Cabeza grande (estilo chibi), adelante y arriba del cuerpo. Gira un poco al "mirar".
+  // Cabeza grande (estilo chibi) en (0, 1.13, 0.58), metida un poco en el cuello y el cuerpo.
+  const HEAD_Y = 1.13;
   const head = new THREE.Group();
-  head.position.set(0, 1.22, 0.55);
+  head.position.set(0, HEAD_Y, 0.58);
   bodyPivot.add(head);
-  const headScale = new THREE.Vector3(1.05, 0.95, 0.95);
-  head.add(mesh(new THREE.SphereGeometry(0.42, 48, 32), fur, [0, 0, 0], headScale.toArray() as [number, number, number]));
-  head.add(spotOn(new THREE.Vector3(0, 0, 0), 0.42, headScale, new THREE.Vector3(0.55, 0.35, 0.75), [0.13, 0.11], spot)); // Parche junto al ojo.
-  head.add(spotOn(new THREE.Vector3(0, 0, 0), 0.42, headScale, new THREE.Vector3(-0.3, 0.9, -0.2), [0.12, 0.09], spot));
+  head.add(mesh(new THREE.SphereGeometry(0.42, 64, 40), furMaterial(headSkin), [0, 0, 0], headScale.toArray() as [number, number, number]));
 
-  // Hocico rosa con fosas y una sonrisa.
-  head.add(mesh(new THREE.SphereGeometry(0.24, 40, 24), snout, [0, -0.14, 0.33], [1.25, 0.85, 0.82]));
-  const nostrilGeometry = new THREE.SphereGeometry(0.028, 12, 8);
-  head.add(mesh(nostrilGeometry, material(COLORS.nostril), [0.09, -0.11, 0.52], [1, 1.4, 0.6]));
-  head.add(mesh(nostrilGeometry, material(COLORS.nostril), [-0.09, -0.11, 0.52], [1, 1.4, 0.6]));
-  const smile = mesh(new THREE.TorusGeometry(0.055, 0.011, 8, 24, Math.PI), dark, [0, -0.2, 0.515]);
+  // Hocico ancho y poco saliente (de perfil no parece de cerdito), con fosas al frente.
+  head.add(mesh(new THREE.SphereGeometry(0.25, 40, 24), snout, [0, -0.15, 0.27], [1.3, 0.8, 0.7]));
+  const nostrilGeometry = new THREE.SphereGeometry(0.026, 12, 8);
+  const nostril = material(COLORS.nostril);
+  head.add(mesh(nostrilGeometry, nostril, [0.085, -0.12, 0.432], [1, 1.3, 0.5]));
+  head.add(mesh(nostrilGeometry, nostril, [-0.085, -0.12, 0.432], [1, 1.3, 0.5]));
+  // Boca: sonrisa normal, y boca abierta con lengüita cuando dice "¡Muuu!".
+  const smile = mesh(new THREE.TorusGeometry(0.05, 0.01, 8, 24, Math.PI), dark, [0, -0.215, 0.43]);
   smile.rotation.z = Math.PI;
   head.add(smile);
+  const openMouth = new THREE.Group();
+  openMouth.position.set(0, -0.225, 0.425);
+  openMouth.add(mesh(new THREE.SphereGeometry(1, 20, 12), dark, [0, 0, 0], [0.055, 0.04, 0.02]));
+  openMouth.add(mesh(new THREE.SphereGeometry(1, 16, 10), tongue, [0, -0.014, 0.008], [0.032, 0.018, 0.014]));
+  openMouth.visible = false;
+  head.add(openMouth);
 
-  // Ojos grandes con brillo; se cierran (escala en y) para parpadear.
+  // Ojos grandes con dos brillos. Para parpadear se aplastan; contentos o dormida se cambian por arquitos.
   const eyes: THREE.Group[] = [];
-  for (const x of [0.17, -0.17]) {
+  const happyEyes: THREE.Mesh[] = [];
+  const sleepyEyes: THREE.Mesh[] = [];
+  const arcGeometry = new THREE.TorusGeometry(0.045, 0.011, 8, 20, Math.PI);
+  for (const x of [0.16, -0.16]) {
     const eye = new THREE.Group();
-    eye.position.set(x, 0.07, 0.35);
-    eye.add(mesh(new THREE.SphereGeometry(0.072, 24, 16), dark, [0, 0, 0], [0.85, 1, 0.6]));
-    eye.add(new THREE.Mesh(new THREE.SphereGeometry(0.02, 12, 8), shine).translateX(0.022).translateY(0.03).translateZ(0.04));
+    eye.position.set(x, 0.06, 0.352);
+    eye.add(mesh(new THREE.SphereGeometry(0.075, 24, 16), dark, [0, 0, 0], [0.85, 1, 0.55]));
+    eye.add(new THREE.Mesh(new THREE.SphereGeometry(0.022, 12, 8), shine).translateX(0.022).translateY(0.032).translateZ(0.035));
+    eye.add(new THREE.Mesh(new THREE.SphereGeometry(0.011, 10, 6), shine).translateX(-0.02).translateY(-0.024).translateZ(0.037));
     head.add(eye);
     eyes.push(eye);
-    // Chapitas rosadas bajo cada ojo, apenas por fuera de la cabeza y orientadas según su superficie.
-    const cheek = new THREE.Mesh(new THREE.CircleGeometry(0.06, 24), blush);
-    cheek.position.set(x * 1.55, -0.06, 0.322);
-    const radii = headScale.clone().multiplyScalar(0.42);
-    const normal = new THREE.Vector3(cheek.position.x / radii.x ** 2, cheek.position.y / radii.y ** 2, cheek.position.z / radii.z ** 2).normalize();
-    cheek.lookAt(cheek.position.clone().add(normal));
-    head.add(cheek);
+    const happy = mesh(arcGeometry, dark, [x, 0.05, 0.385]); // "^": ojitos contentos.
+    happy.visible = false;
+    head.add(happy);
+    happyEyes.push(happy);
+    const sleepy = mesh(arcGeometry, dark, [x, 0.07, 0.385]); // "‿": ojos cerrados al dormir.
+    sleepy.rotation.z = Math.PI;
+    sleepy.visible = false;
+    head.add(sleepy);
+    sleepyEyes.push(sleepy);
   }
 
-  // Orejas caídas hacia los lados y un poco hacia adelante, para que se vea su interior rosa.
-  // Son delgadas (escala z 0.45) y el rosa sobresale apenas de su cara de enfrente. Se mueven un poquito.
+  // Orejas de hoja hacia los lados, caídas y un poco al frente para que se vea el rosa de adentro.
+  // La izquierda es café, como una mancha más.
+  const earGeometry = leafGeometry(0.34, 0.11, 0.05);
+  const innerEarGeometry = leafGeometry(0.25, 0.075, 0.03);
   const ears: THREE.Group[] = [];
   for (const side of [1, -1]) {
     const ear = new THREE.Group();
-    ear.position.set(side * 0.4, 0.1, -0.02);
-    ear.rotation.set(0, side * -0.32, side * -0.45);
-    ear.add(mesh(new THREE.SphereGeometry(0.16, 24, 16), fur, [side * 0.12, 0, 0], [1.35, 0.5, 0.45]));
-    ear.add(mesh(new THREE.SphereGeometry(0.12, 20, 12), innerEar, [side * 0.14, 0, 0.046], [1.15, 0.36, 0.3]));
+    ear.position.set(side * 0.36, 0.13, -0.03);
+    ear.scale.x = side;
+    ear.rotation.set(0, side * -0.4, side * -0.38);
+    ear.add(mesh(earGeometry, side === 1 ? fur : spot, [0, 0, 0]));
+    ear.add(mesh(innerEarGeometry, innerEar, [0.035, 0, 0.032]));
     head.add(ear);
     ears.push(ear);
   }
 
-  // Cuernitos y un mechón de pelo café entre ellos.
+  // Cuernitos y un rizo café entre ellos.
   for (const side of [1, -1]) {
-    const hornMesh = mesh(new THREE.CapsuleGeometry(0.045, 0.1, 6, 12), horn, [side * 0.2, 0.38, -0.02]);
+    const hornMesh = mesh(new THREE.CapsuleGeometry(0.042, 0.09, 6, 12), horn, [side * 0.17, 0.35, -0.05]);
     hornMesh.rotation.z = side * -0.35;
     head.add(hornMesh);
   }
-  const tuftGeometry = new THREE.SphereGeometry(0.07, 16, 12);
-  head.add(mesh(tuftGeometry, spot, [0, 0.38, 0.06]));
-  head.add(mesh(tuftGeometry, spot, [0.07, 0.36, 0.1], [0.8, 0.8, 0.8]));
-  head.add(mesh(tuftGeometry, spot, [-0.07, 0.36, 0.1], [0.8, 0.8, 0.8]));
+  const tuftGeometry = new THREE.SphereGeometry(0.06, 16, 12);
+  head.add(mesh(tuftGeometry, spot, [0, 0.385, 0.05]));
+  head.add(mesh(tuftGeometry, spot, [0.06, 0.37, 0.1], [0.85, 0.85, 0.85]));
+  head.add(mesh(tuftGeometry, spot, [-0.06, 0.37, 0.1], [0.85, 0.85, 0.85]));
+  head.add(mesh(tuftGeometry, spot, [0, 0.355, 0.15], [0.7, 0.7, 0.7]));
 
-  // --- Animación ---
-  let action: { name: MokaAction; started: number } | null = null;
+  // --- Efectos: corazones al acariciarla y "z" al dormir. Son sprites, siempre de frente a la cámara.
+  const heartTexture = spriteTexture((ctx) => {
+    ctx.fillStyle = "#f28aa0";
+    ctx.beginPath();
+    ctx.moveTo(32, 56);
+    ctx.bezierCurveTo(6, 38, 4, 12, 20, 9);
+    ctx.bezierCurveTo(27, 8, 31, 13, 32, 18);
+    ctx.bezierCurveTo(33, 13, 37, 8, 44, 9);
+    ctx.bezierCurveTo(60, 12, 58, 38, 32, 56);
+    ctx.fill();
+  });
+  const zTexture = spriteTexture((ctx) => {
+    ctx.fillStyle = "#8a6aa0";
+    ctx.font = "bold 46px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("z", 32, 34);
+  });
+  const effects = new THREE.Group();
+  root.add(effects);
+  type Particle = { sprite: THREE.Sprite; born: number; life: number; from: THREE.Vector3; sway: number; rise: number; size: number };
+  const particles: Particle[] = [];
+  function spawn(texture: THREE.Texture, from: THREE.Vector3, size: number, rise: number, life: number) {
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }));
+    sprite.position.copy(from);
+    sprite.scale.setScalar(0.001);
+    effects.add(sprite);
+    particles.push({ sprite, born: now, life, from: from.clone(), sway: Math.random() * Math.PI * 2, rise, size });
+  }
+
+  // --- Animación -------------------------------------------------------------
+  let action: { name: MokaAction; started: number; spawned: number } | null = null;
+  let sleeping = false;
+  let sleepAmount = 0;
+  let nextZ = 0;
   let nextBlink = 1.5;
   let blinkStart = -1;
   let now = 0;
+  let lookYaw = 0;
+  let lookPitch = 0;
+  const viewerLocal = new THREE.Vector3();
 
   function play(name: MokaAction) {
-    action = { name, started: now };
+    if (sleeping) return;
+    action = { name, started: now, spawned: 0 };
   }
 
-  function update(time: number, _delta: number, reducedMotion: boolean) {
-    now = time;
-    const calm = reducedMotion ? 0 : 1;
+  function setSleeping(value: boolean) {
+    sleeping = value;
+    if (value) action = null;
+    nextZ = now + 0.6;
+  }
 
-    // Respira y mira alrededor despacito.
-    bodyPivot.scale.set(1, 1 + 0.018 * Math.sin(time * 2.1) * calm, 1);
-    head.rotation.set(0.04 * Math.sin(time * 1.3) * calm, 0.12 * Math.sin(time * 0.55) * calm, 0.05 * Math.sin(time * 0.9) * calm);
+  function update(time: number, delta: number, context: UpdateContext) {
+    now = time;
+    const calm = context.reducedMotion ? 0 : 1;
+    const ease = (speed: number) => 1 - Math.exp(-delta * speed);
+
+    // Acostarse y levantarse poco a poco.
+    sleepAmount += ((sleeping ? 1 : 0) - sleepAmount) * ease(3);
+    const lie = sleepAmount;
+    bodyPivot.position.y = -0.2 * lie;
+    stance.position.y = -0.2 * lie;
+    for (const leg of legs) {
+      leg.pivot.rotation.x = leg.front ? -1.4 * lie : 0;
+      leg.pivot.scale.y = 1 - (leg.front ? 0.35 : 0.75) * lie;
+    }
+
+    // Respira (más hondo y lento dormida) y mueve las orejas.
+    const breath = lie > 0.5 ? 0.03 * Math.sin(time * 1.3) : 0.018 * Math.sin(time * 2.1) * calm;
+    bodyPivot.scale.set(1, 1 + breath, 1);
     ears.forEach((ear, index) => { ear.rotation.x = 0.08 * Math.sin(time * 1.7 + index) * calm; });
-    let wag = 0.25 * Math.sin(time * 2.4) * calm;
+
+    // Te mira: gira la cabeza hacia la cámara (y hacia el cursor si está encima), dentro de un límite.
+    viewerLocal.copy(context.viewer.position);
+    root.worldToLocal(viewerLocal);
+    let yawTarget = THREE.MathUtils.clamp(Math.atan2(viewerLocal.x, viewerLocal.z - 0.58), -0.75, 0.75);
+    let pitchTarget = THREE.MathUtils.clamp(-Math.atan2(viewerLocal.y - HEAD_Y, Math.hypot(viewerLocal.x, viewerLocal.z - 0.58)), -0.3, 0.2);
+    if (context.pointer) {
+      yawTarget = THREE.MathUtils.clamp(yawTarget + context.pointer.x * 0.35, -0.85, 0.85);
+      pitchTarget = THREE.MathUtils.clamp(pitchTarget - context.pointer.y * 0.2, -0.35, 0.25);
+    }
+    if (lie > 0.05) {
+      yawTarget *= 1 - lie;
+      pitchTarget = pitchTarget * (1 - lie) + 0.28 * lie; // Dormida, la cabeza se recarga hacia abajo.
+    }
+    lookYaw += (yawTarget - lookYaw) * ease(4);
+    lookPitch += (pitchTarget - lookPitch) * ease(4);
+    head.rotation.set(lookPitch + 0.04 * Math.sin(time * 1.3) * calm, lookYaw + 0.06 * Math.sin(time * 0.55) * calm, 0.05 * Math.sin(time * 0.9) * calm);
+    head.position.y = HEAD_Y;
+
+    let wag = 0.25 * Math.sin(time * 2.4) * calm * (1 - lie);
     let jump = 0;
-    let bellSwing = 0.15 * Math.sin(time * 2.1) * calm;
+    let bellSwing = 0.15 * Math.sin(time * 2.1) * calm * (1 - lie);
+    let happy = false;
+    openMouth.visible = false;
 
     if (action) {
       const elapsed = time - action.started;
       if (action.name === "greet") {
-        // Saltito con aplastado al caer, cola feliz y campanita sonando.
+        // Saltito con "¡Muuu!", campanita sonando y cola feliz.
         const progress = Math.min(1, elapsed / 0.75);
-        jump = reducedMotion ? 0 : 0.32 * Math.sin(Math.PI * progress);
-        if (!reducedMotion && progress > 0.85) bodyPivot.scale.y *= 0.94;
+        jump = context.reducedMotion ? 0 : 0.3 * Math.sin(Math.PI * progress);
+        if (!context.reducedMotion && progress > 0.85) bodyPivot.scale.y *= 0.95;
+        openMouth.visible = elapsed < 0.9;
         wag = 0.7 * Math.sin(elapsed * 18);
         bellSwing = 0.6 * Math.sin(elapsed * 20) * Math.max(0, 1 - elapsed / 1.2);
         if (elapsed > 1.2) action = null;
+      } else if (action.name === "pet") {
+        // Cierra los ojitos contenta, ladea la cabeza y salen corazones.
+        happy = true;
+        head.rotation.z += 0.16 * Math.sin(elapsed * 5) * Math.min(1, elapsed * 3);
+        wag = 0.8 * Math.sin(elapsed * 15);
+        while (action.spawned < 4 && elapsed > action.spawned * 0.3) {
+          // A los lados de la cabeza (alternando), no encima de la cara, y sin salirse del cuadro al subir.
+          const side = action.spawned % 2 === 0 ? 1 : -1;
+          spawn(heartTexture, new THREE.Vector3(side * (0.32 + Math.random() * 0.12), 1.28 + Math.random() * 0.1, 0.55), 0.16, 0.42, 1.6);
+          action.spawned++;
+        }
+        if (elapsed > 1.8) action = null;
       } else if (action.name === "eat") {
         // Baja la cabeza al pasto, mastica y vuelve.
         const down = Math.min(1, elapsed / 0.4) * Math.min(1, Math.max(0, (2.2 - elapsed) / 0.4));
-        head.rotation.x += 0.55 * down;
-        head.position.y = 1.22 - 0.12 * down;
+        head.rotation.x = lookPitch * (1 - down) + 0.6 * down;
+        head.rotation.y = lookYaw * (1 - down);
+        head.position.y = HEAD_Y - 0.14 * down;
         head.rotation.z += 0.03 * Math.sin(elapsed * 14) * down;
         if (elapsed > 2.2) action = null;
       } else {
@@ -358,37 +613,89 @@ function buildMoka() {
         if (elapsed > 1.6) action = null;
       }
     }
-    if (!action || action.name !== "eat") head.position.y = 1.22;
 
     root.position.y = jump;
-    tail.rotation.set(0.1, wag, 0);
+    tail.rotation.set(0.1 + 0.4 * lie, wag, 0);
     bell.rotation.z = bellSwing;
+    smile.visible = !openMouth.visible;
 
-    // Parpadeo cada 2.5–5 s.
+    // Ojos: dormida → "‿"; contenta → "^"; si no, abiertos y parpadeando cada 2.5–5 s.
+    const asleep = lie > 0.5;
     if (time > nextBlink && blinkStart < 0) blinkStart = time;
     const blinkProgress = blinkStart < 0 ? -1 : (time - blinkStart) / 0.16;
     const openness = blinkProgress < 0 || blinkProgress > 1 ? 1 : Math.max(0.08, Math.abs(1 - 2 * blinkProgress));
-    eyes.forEach((eye) => { eye.scale.y = openness; });
     if (blinkProgress > 1) {
       blinkStart = -1;
       nextBlink = time + 2.5 + Math.random() * 2.5;
     }
+    eyes.forEach((eye) => {
+      eye.visible = !asleep && !happy;
+      eye.scale.y = openness;
+    });
+    happyEyes.forEach((item) => { item.visible = happy && !asleep; });
+    sleepyEyes.forEach((item) => { item.visible = asleep; });
+
+    // "Zzz" mientras duerme.
+    if (asleep && time > nextZ) {
+      spawn(zTexture, new THREE.Vector3(0.28, 1.15, 0.55), 0.13, 0.4, 2.4);
+      nextZ = time + 1.1;
+    }
+
+    // Partículas: suben, se balancean, crecen y se desvanecen.
+    for (let index = particles.length - 1; index >= 0; index--) {
+      const particle = particles[index];
+      const age = (time - particle.born) / particle.life;
+      if (age >= 1) {
+        effects.remove(particle.sprite);
+        particle.sprite.material.dispose();
+        particles.splice(index, 1);
+        continue;
+      }
+      particle.sprite.position.set(
+        particle.from.x + 0.06 * Math.sin(particle.sway + age * 6),
+        particle.from.y + particle.rise * age,
+        particle.from.z,
+      );
+      particle.sprite.scale.setScalar(particle.size * Math.min(1, age * 5) * (1 + age * 0.4));
+      particle.sprite.material.opacity = 1 - age * age;
+    }
   }
 
-  return { root, play, update };
+  return { root, body, play, setSleeping, update, textures: [bodySkin, headSkin, heartTexture, zTexture] };
 }
 
-/** Prado redondo con flores de colores, como en la ilustración de Moka. */
+// --- Prado -----------------------------------------------------------------
+
+/** Prado redondo con borde suave, flores de colores y matitas de pasto, como en la ilustración. */
 function buildMeadow() {
   const meadow = new THREE.Group();
-  const ground = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.75, 0.08, 64), material(COLORS.grass, { roughness: 1 }));
-  ground.position.y = -0.04;
+  const profile = [[0, 0], [1.55, 0], [1.63, -0.015], [1.68, -0.05], [1.69, -0.1], [1.65, -0.15], [1.5, -0.18], [0, -0.18]].map(([x, y]) => new THREE.Vector2(x, y));
+  const ground = new THREE.Mesh(new THREE.LatheGeometry(profile, 72), material(COLORS.grass, { roughness: 1, side: THREE.DoubleSide }));
   ground.receiveShadow = true;
   meadow.add(ground);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(1.72, 0.04, 8, 64), material(COLORS.grassEdge, { roughness: 1 }));
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.025, 8, 72), material(COLORS.grassEdge, { roughness: 1 }));
   rim.rotation.x = Math.PI / 2;
-  rim.position.y = -0.005;
+  rim.position.y = 0.005;
   meadow.add(rim);
+
+  // Matitas de pasto: muchas hojitas en un solo objeto (InstancedMesh) para no cargar el teléfono.
+  const bladesPerTuft = 3;
+  const tufts = 70;
+  const blades = new THREE.InstancedMesh(new THREE.ConeGeometry(0.014, 0.1, 4), material(COLORS.blade, { roughness: 0.9 }), tufts * bladesPerTuft);
+  const matrix = new THREE.Matrix4();
+  const quaternion = new THREE.Quaternion();
+  const euler = new THREE.Euler();
+  for (let tuft = 0; tuft < tufts; tuft++) {
+    const angle = tuft * 2.399 + 1.1;
+    const distance = 0.55 + ((tuft * 53) % 100) / 100;
+    for (let blade = 0; blade < bladesPerTuft; blade++) {
+      euler.set(0.35 * Math.cos(blade * 2.1 + tuft), blade * 2.1, 0.35 * Math.sin(blade * 2.1 + tuft));
+      quaternion.setFromEuler(euler);
+      matrix.compose(new THREE.Vector3(Math.cos(angle) * distance + (blade - 1) * 0.015, 0.045, Math.sin(angle) * distance), quaternion, new THREE.Vector3(1, 0.8 + (blade % 2) * 0.4, 1));
+      blades.setMatrixAt(tuft * bladesPerTuft + blade, matrix);
+    }
+  }
+  meadow.add(blades);
 
   const petalColors = ["#f6b7c8", "#c9b6e4", "#a9cbe8", "#fbe3a1", "#f9c9a8"].map((color) => material(color, { roughness: 0.7 }));
   const center = material("#f2c14e", { roughness: 0.6 });
