@@ -10,9 +10,12 @@ const enabled = () => "serviceWorker" in navigator && import.meta.env.PROD;
 export function registerOfflineApp() {
   if (!enabled()) return;
   // La primera instalación también cambia el controlador; solo hay "versión nueva" si ya había uno.
-  const hadController = Boolean(navigator.serviceWorker.controller);
+  // Se actualiza en cada cambio: en la primera visita no hay controlador, pero las versiones que
+  // lleguen mientras la página sigue abierta sí deben avisarse.
+  let controller = navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (hadController) window.dispatchEvent(new Event(UPDATE_READY_EVENT));
+    if (controller) window.dispatchEvent(new Event(UPDATE_READY_EVENT));
+    controller = navigator.serviceWorker.controller;
   });
 
   window.addEventListener("load", () => {
