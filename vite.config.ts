@@ -2,6 +2,8 @@ import { defineConfig, loadEnv, type HtmlTagDescriptor, type Plugin } from 'vite
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
+import { createHash } from 'node:crypto'
+import { readFileSync, writeFileSync } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
 import siteConfiguration from './.figma/make/site.json'
@@ -37,6 +39,7 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       kahyAiApi(),
       kahyDataApi(),
+      kahyOfflineBuild(),
       figmaSiteConfiguration(siteConfiguration),
       figmaErrorOverlayReplay(),
       figmaReactRefreshBoundaryFallback(),
@@ -105,6 +108,38 @@ function kahyAiApi(): Plugin {
         res.statusCode = status
         res.end(JSON.stringify(responseBody))
       })
+    },
+  }
+}
+
+/**
+ * Completa public/sw.js en el build: la lista de archivos de la app que el
+ * service worker descarga al instalarse (el JS y el CSS con hash, que cambian
+ * en cada build) y una versión. Así, después de UNA visita con internet, toda
+ * la app abre sin conexión, no solo las pantallas que alguien ya había visto.
+ * Las imágenes grandes y los juegos no van aquí: se guardan al usarse.
+ */
+function kahyOfflineBuild(): Plugin {
+  let base = '/'
+  return {
+    name: 'kahy-offline-build',
+    apply: 'build',
+    configResolved(config) {
+      base = config.base
+    },
+    writeBundle(options, bundle) {
+      const outDir = options.dir || 'dist'
+      const built = Object.keys(bundle).filter((file) => file !== 'index.html' && !file.endsWith('.map')).sort()
+      const extras = ['manifest.webmanifest', 'assets/kahy-logo-272.jpg', 'icons/icon-192.png']
+      const precache = [...built, ...extras].map((file) => `${base}${file}`)
+      const version = createHash('sha256').update(built.join('|')).digest('hex').slice(0, 12)
+      const swPath = path.join(outDir, 'sw.js')
+      const source = readFileSync(swPath, 'utf8')
+      const output = source
+        .replace('const VERSION = "dev";', `const VERSION = "${version}";`)
+        .replace('const PRECACHE = [];', `const PRECACHE = ${JSON.stringify(precache)};`)
+      if (output === source) throw new Error('kahy-offline-build: no se encontraron VERSION/PRECACHE en public/sw.js')
+      writeFileSync(swPath, output)
     },
   }
 }

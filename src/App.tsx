@@ -19,6 +19,8 @@ import { useEmotionCalendar } from "./hooks/useEmotionCalendar";
 import { useTaskPlans } from "./hooks/useTaskPlans";
 import { useDailyHabits } from "./hooks/useDailyHabits";
 import { getDeviceId, resetDeviceId, setDeviceId } from "./lib/deviceId";
+import { warmOfflineImages } from "./lib/offlineApp";
+import { closedBoxImage, flowers, mascots } from "./mock/data";
 import { COMPANION_REVEALS_KEY, forgetCompanionReveal } from "./lib/companionReveal";
 import { clearSession, logoutAccount, readSession, SESSION_EXPIRED_EVENT, type Session } from "./services/authApi";
 import { fetchRemoteProfile, saveRemoteProfile, deleteRemoteData, type RemoteProfile } from "./services/dataApi";
@@ -186,6 +188,18 @@ export default function App() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Imágenes del acompañante elegido (todas sus etapas): se guardan ya para que no falten sin conexión.
+  useEffect(() => {
+    if (stage !== "app" || !isRegistered) return;
+    if (profile.companionType === "mascota") {
+      const animal = mascots.find((item) => item.id === profile.mascot);
+      if (animal) warmOfflineImages([closedBoxImage, ...animal.stages, animal.sadImage, animal.blinkImage]);
+    } else {
+      const flower = flowers.find((item) => item.id === profile.flower);
+      if (flower) warmOfflineImages([...flower.stages, flower.wiltedImage]);
+    }
+  }, [stage, isRegistered, profile.companionType, profile.mascot, profile.flower]);
 
   useEffect(() => {
     if (!toast) return;

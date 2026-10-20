@@ -6,7 +6,7 @@
     "index": true
   },
   "icons": {
-    "icon": "/assets/kahy-logo.png"
+    "icon": "/icons/icon-192.png"
   },
   "openGraph": {
     "image": "/assets/kahy-logo.png"
