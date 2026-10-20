@@ -1,5 +1,6 @@
 import type { IncomingMessage } from 'node:http'
 import { detectSafetySignal, detectThirdPartySafetySignal, isOutOfScopeInformationRequest, scopeBoundaryCopy } from './chatGuards.js'
+import { AiBusyError, groqStructuredCompletion } from './groq.js'
 
 /**
  * Shared AI orchestration logic for KAHY's chat endpoint, used by the two
@@ -203,23 +204,40 @@ export async function getChatReply(rawMessages: unknown, clientId: string, perso
 
   const systemPrompt = buildSystemPrompt(personalContext)
 
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 30_000)
   try {
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 30_000)
-    const reply = resolved.name === 'groq'
+    const { reply, model } = resolved.name === 'groq'
       ? await callGroq(resolved, messages, controller.signal, systemPrompt)
-      : await callOpenAi(resolved, messages, controller.signal, systemPrompt)
-    clearTimeout(timeout)
+      : { reply: await callOpenAi(resolved, messages, controller.signal, systemPrompt), model: resolved.model }
 
     // Deterministic override: never trust the model's own openHelp for
     // whether to pop the crisis modal — it must follow mode=safety 1:1,
     // not the model's judgement call on a given response.
     reply.openHelp = reply.mode === 'safety'
-    return { status: 200, body: { reply, provider: resolved.name } }
+    reply.introduction = trimAutomaticOpener(reply.introduction)
+    return { status: 200, body: { reply, provider: resolved.name, model } }
   } catch (error) {
+    if (error instanceof AiBusyError) {
+      return { status: 429, body: { code: 'AI_BUSY', retryAfter: error.retryAfterSeconds, error: 'La IA en línea está atendiendo muchos mensajes. Respondió el modo local.' } }
+    }
     console.error('[KAHY AI]', error instanceof Error ? error.message : error)
     return { status: 502, body: { code: 'AI_UNAVAILABLE', error: 'La IA no está disponible en este momento. Se usará la orientación local.' } }
+  } finally {
+    clearTimeout(timeout)
   }
+}
+
+/**
+ * El prompt prohíbe abrir con "Veo que" o "Entiendo que", pero con
+ * razonamiento bajo el modelo a veces lo hace igual. Quitar esas dos
+ * palabras deja una frase correcta ("Veo que el cansancio…" → "El cansancio…").
+ */
+export function trimAutomaticOpener(text: unknown) {
+  if (typeof text !== 'string') return text
+  const rest = text.match(/^(?:veo|entiendo|noto) que\s+(.+)$/is)?.[1]
+  if (!rest || rest.length < 12) return text
+  return rest.charAt(0).toUpperCase() + rest.slice(1)
 }
 
 /**
@@ -254,22 +272,16 @@ async function callOpenAi(provider: ResolvedProvider, messages: KahyChatMessage[
 }
 
 async function callGroq(provider: ResolvedProvider, messages: KahyChatMessage[], signal: AbortSignal, systemPrompt: string) {
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' },
+  const { data, model } = await groqStructuredCompletion({
+    apiKey: provider.apiKey,
+    model: provider.model,
+    messages: [{ role: 'system', content: systemPrompt }, ...messages],
+    schemaName: 'kahy_reply',
+    schema: KAHY_REPLY_SCHEMA,
+    maxTokens: 1400,
     signal,
-    body: JSON.stringify({
-      model: provider.model,
-      max_tokens: 1400,
-      messages: [{ role: 'system', content: systemPrompt }, ...messages],
-      response_format: { type: 'json_schema', json_schema: { name: 'kahy_reply', strict: true, schema: KAHY_REPLY_SCHEMA } },
-    }),
   })
-  if (!response.ok) throw new Error(`Groq respondió ${response.status}`)
-  const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> }
-  const content = payload.choices?.[0]?.message?.content
-  if (!content) throw new Error('La respuesta de IA llegó vacía.')
-  return JSON.parse(content)
+  return { reply: data, model }
 }
 
 export async function readJsonBody(req: IncomingMessage) {

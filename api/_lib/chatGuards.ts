@@ -3,7 +3,7 @@
  * límite de alcance (KAHY no es un asistente general).
  *
  * ÚNICA copia. La usan las funciones de Vercel (kahyAi.ts, taskBreakdown.ts),
- * el servidor de desarrollo (server/kahyAi.ts) y el navegador
+ * el servidor de desarrollo (vite.config.ts) y el navegador
  * (src/mock/conversation.ts, src/lib/offlineConversation.ts). Vive en api/
  * porque el empaquetador de funciones de Vercel solo sigue importaciones
  * que no salen de esta carpeta (ver el encabezado de kahyAi.ts); Vite, en

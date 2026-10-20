@@ -5,7 +5,7 @@ import path from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
 import siteConfiguration from './.figma/make/site.json'
-import { getChatReply, getStatusPayload, readJsonBody } from './server/kahyAi'
+import { getChatReply, getStatusPayload, readJsonBody } from './api/_lib/kahyAi'
 import authHandler from './api/auth'
 import chatMemoryHandler from './api/data/chat-memory'
 import emotionsHandler from './api/data/emotions'
@@ -62,7 +62,7 @@ export default defineConfig(({ mode }) => {
 
 /**
  * Dev-server middleware: the actual chat/status logic lives in
- * server/kahyAi.ts, shared with the Vercel serverless functions under
+ * api/_lib/kahyAi.ts, shared with the Vercel serverless functions under
  * api/kahy/ that serve the deployed production build (Vite plugins with
  * `apply: 'serve'` never run outside `vite dev`/`vite preview`).
  */

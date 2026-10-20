@@ -1,4 +1,5 @@
 import { detectSafetySignal } from './chatGuards.js'
+import { AiBusyError, groqStructuredCompletion } from './groq.js'
 import { isRateLimited, resolveProvider, type ResolvedProvider } from './kahyAi.js'
 
 /**
@@ -68,11 +69,10 @@ export async function getTaskBreakdown(rawBody: unknown, clientId: string): Prom
     ? `Tarea general: "${task}".\nEste paso todavía se siente grande: "${step}".\nDivídelo en 2 a 4 micro-acciones. Energía disponible: ${energy}.`
     : `Tarea: "${task}".\nEnergía disponible: ${energy}.\nPropón los pasos.`
 
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 20_000)
   try {
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 20_000)
     const raw = await callProvider(provider, request, controller.signal)
-    clearTimeout(timeout)
     const steps = (Array.isArray(raw.steps) ? raw.steps : []).flatMap((item: unknown): BreakdownStep[] => {
       const entry = item as Record<string, unknown>
       const text = cleanText(entry?.text, 140)
@@ -82,29 +82,28 @@ export async function getTaskBreakdown(rawBody: unknown, clientId: string): Prom
     if (steps.length < 2) throw new Error('La IA devolvió muy pocos pasos.')
     return { status: 200, body: { steps, encouragement: cleanText(raw.encouragement, 160), provider: provider.name } }
   } catch (error) {
+    if (error instanceof AiBusyError) {
+      return { status: 429, body: { code: 'AI_BUSY', retryAfter: error.retryAfterSeconds, error: 'La IA en línea está atendiendo muchas solicitudes.' } }
+    }
     console.error('[KAHY breakdown]', error instanceof Error ? error.message : error)
     return { status: 502, body: { code: 'AI_UNAVAILABLE', error: 'La IA no está disponible en este momento.' } }
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
 async function callProvider(provider: ResolvedProvider, request: string, signal: AbortSignal): Promise<Record<string, unknown>> {
   if (provider.name === 'groq') {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' },
+    const { data } = await groqStructuredCompletion({
+      apiKey: provider.apiKey,
+      model: provider.model,
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: request }],
+      schemaName: 'kahy_breakdown',
+      schema: BREAKDOWN_SCHEMA,
+      maxTokens: 900,
       signal,
-      body: JSON.stringify({
-        model: provider.model,
-        max_tokens: 900,
-        messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: request }],
-        response_format: { type: 'json_schema', json_schema: { name: 'kahy_breakdown', strict: true, schema: BREAKDOWN_SCHEMA } },
-      }),
     })
-    if (!response.ok) throw new Error(`Groq respondió ${response.status}`)
-    const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> }
-    const content = payload.choices?.[0]?.message?.content
-    if (!content) throw new Error('La respuesta de IA llegó vacía.')
-    return JSON.parse(content)
+    return data
   }
 
   const response = await fetch('https://api.openai.com/v1/responses', {

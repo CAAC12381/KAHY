@@ -38,7 +38,7 @@ import { useDismissOnOutside, useEscapeKey } from "../lib/dismiss";
 import { emotionLabels, inferLocalEmotion } from "../lib/emotionLexicon";
 import { buildAdaptiveContext } from "../lib/personalization";
 import type { DemoProfile, MainView, Preferences } from "../types";
-import { getAiStatus, requestAiReply, type AiConnection, type ApiChatMessage } from "../services/chatApi";
+import { getAiStatus, requestAiReply, type AiConnection, type AiRequestError, type ApiChatMessage } from "../services/chatApi";
 
 type ScreeningSuggestion = { label: string; prompt: string };
 
@@ -55,9 +55,37 @@ function buildScreeningSuggestions(screenings: ScreeningsState): ScreeningSugges
   return suggestions.slice(0, 2);
 }
 
+/** Por qué respondió el motor local cuando se esperaba la IA en línea. Se muestra bajo esa respuesta. */
+type LocalFallback = "offline" | "busy" | "error";
+
+const fallbackCopy: Record<LocalFallback, string> = {
+  offline: "Respondida sin conexión, aquí en tu dispositivo.",
+  busy: "La IA en línea estaba ocupada; respondió el modo local.",
+  error: "La IA en línea no respondió a tiempo; respondió el modo local.",
+};
+
+const connectionLabels: Record<AiConnection, string> = {
+  live: "IA generativa conectada",
+  checking: "Comprobando conexión…",
+  offline: "Sin conexión · responde el motor local de este dispositivo",
+  busy: "IA ocupada unos segundos · mientras, responde el motor local",
+  error: "IA en línea sin respuesta · responde el motor local",
+  local: "Motor local activo · listo para conversar",
+};
+
+// Qué pasa con el texto en cada estado. Con "ocupada" o "sin respuesta" el texto sí se intentó enviar.
+const safetyStrip: Record<AiConnection, [string, string]> = {
+  live: ["IA activa:", "el texto se procesa para generar una respuesta; KAHY no crea expediente. Evita datos identificables."],
+  checking: ["IA activa:", "el texto se procesa para generar una respuesta; KAHY no crea expediente. Evita datos identificables."],
+  offline: ["Modo sin conexión:", "las respuestas se crean en este dispositivo y tu texto no sale del navegador."],
+  busy: ["Respaldo local:", "mientras la IA en línea se libera, las respuestas se crean en este dispositivo. KAHY no crea expediente."],
+  error: ["Respaldo local:", "la IA en línea no respondió, así que las respuestas se crean en este dispositivo. KAHY no crea expediente."],
+  local: ["Orientación local activa:", "el chat responde con un motor contextual dentro del navegador; no envía tu texto."],
+};
+
 type ChatMessage =
   | { id: number; role: "user"; text: string }
-  | { id: number; role: "assistant"; reply: ConversationReply };
+  | { id: number; role: "assistant"; reply: ConversationReply; fallback?: LocalFallback };
 
 const initialReply: ConversationReply = {
   mode: "standard",
@@ -174,6 +202,61 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
     else scroll.scrollTo({ top: scroll.scrollHeight, behavior: "smooth" });
   }, [messages, typing]);
 
+  // Tras un "IA ocupada", la etiqueta vuelve sola a "conectada" cuando pasa la espera que pidió el servidor.
+  const busyTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(busyTimer.current), []);
+
+  function markBusy(seconds: number) {
+    setAiConnection("busy");
+    window.clearTimeout(busyTimer.current);
+    busyTimer.current = window.setTimeout(() => setAiConnection((current) => current === "busy" ? (navigator.onLine ? "live" : "offline") : current), seconds * 1000);
+  }
+
+  /**
+   * Pide la respuesta a la IA en línea. Si no se puede, responde el motor
+   * local y devuelve el motivo, que se muestra bajo esa respuesta para que se
+   * sepa qué motor contestó. `history` termina con el mensaje de la persona.
+   */
+  async function fetchReply(history: ChatMessage[], clean: string): Promise<{ reply: ConversationReply; fallback?: LocalFallback }> {
+    try {
+      const apiMessages: ApiChatMessage[] = history.slice(-16).map((message) => message.role === "user"
+        ? { role: "user", content: message.text }
+        : { role: "assistant", content: summarizeReply(message.reply) });
+      const result = await requestAiReply(apiMessages, adaptive.summary);
+      window.clearTimeout(busyTimer.current);
+      // También las respuestas fijas del servidor (crisis, fuera de alcance) confirman que la IA está conectada.
+      setAiConnection("live");
+      return { reply: result.reply };
+    } catch (error) {
+      const earlierUserMessages = history.slice(0, -1).filter((message): message is Extract<ChatMessage, { role: "user" }> => message.role === "user").slice(-3).map((message) => message.text);
+      const reply = createReply(clean, currentTopic, { recentUserMessages: earlierUserMessages, turnCount: earlierUserMessages.length + 1, personalization: preferences.adaptivePersonalization ? adaptive.highlights : undefined });
+      const { code, retryAfter } = error as AiRequestError;
+      if (code === "AI_NOT_CONFIGURED") {
+        setAiConnection("local");
+        return { reply };
+      }
+      if (code === "OFFLINE") {
+        setAiConnection("offline");
+        return { reply, fallback: "offline" };
+      }
+      if (code === "AI_BUSY" || code === "RATE_LIMIT") {
+        markBusy(retryAfter ?? 30);
+        return { reply, fallback: "busy" };
+      }
+      setAiConnection("error");
+      return { reply, fallback: "error" };
+    }
+  }
+
+  /** Une la lectura emocional local con la del modelo y corrige el tema si el modelo lo dejó genérico. */
+  function finalizeReply(reply: ConversationReply, clean: string): ConversationReply {
+    const localEmotion = inferLocalEmotion(clean);
+    const modelEmotionUsable = reply.emotion && reply.emotion.primary !== "no_clara" && reply.emotion.confidence !== "baja" && reply.emotion.progress !== "sin_señal";
+    const emotion = !modelEmotionUsable && localEmotion.primary !== "no_clara" ? localEmotion : reply.emotion ?? localEmotion;
+    const localTopic = getTopic(clean);
+    return { ...reply, topic: reply.topic === "conversación" && localTopic !== "conversación" ? localTopic : reply.topic, emotion };
+  }
+
   async function send(text = value) {
     const clean = text.trim();
     if (!clean || sendingRef.current) return;
@@ -185,29 +268,13 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
     setTyping(true);
     if (inputRef.current) inputRef.current.style.height = "46px";
     const started = Date.now();
-    let reply: ConversationReply;
-    try {
-      const apiMessages: ApiChatMessage[] = nextMessages.slice(-16).map((message) => message.role === "user"
-        ? { role: "user", content: message.text }
-        : { role: "assistant", content: summarizeReply(message.reply) });
-      const result = await requestAiReply(apiMessages, adaptive.summary);
-      reply = result.reply;
-      setAiConnection(result.provider === "openai" || result.provider === "groq" ? "live" : "local");
-    } catch (error) {
-      const earlierUserMessages = messages.filter((message): message is Extract<ChatMessage, { role: "user" }> => message.role === "user").slice(-3).map((message) => message.text);
-      reply = createReply(clean, currentTopic, { recentUserMessages: earlierUserMessages, turnCount: earlierUserMessages.length + 1, personalization: preferences.adaptivePersonalization ? adaptive.highlights : undefined });
-      const errorCode = (error as Error & { code?: string }).code;
-      setAiConnection(errorCode === "OFFLINE" ? "offline" : errorCode === "AI_NOT_CONFIGURED" ? "local" : "error");
-    }
+    const fetched = await fetchReply(nextMessages, clean);
     const minimumDelay = detectSafetySignal(clean) ? 250 : 650;
     const remaining = Math.max(0, minimumDelay - (Date.now() - started));
     if (remaining) await new Promise((resolve) => window.setTimeout(resolve, remaining));
-    const localEmotion = inferLocalEmotion(clean);
-    const modelEmotionUsable = reply.emotion && reply.emotion.primary !== "no_clara" && reply.emotion.confidence !== "baja" && reply.emotion.progress !== "sin_señal";
-    const emotion = !modelEmotionUsable && localEmotion.primary !== "no_clara" ? localEmotion : reply.emotion ?? localEmotion;
-    const localTopic = getTopic(clean);
-    reply = { ...reply, topic: reply.topic === "conversación" && localTopic !== "conversación" ? localTopic : reply.topic, emotion };
-    setMessages((current) => [...current, { id: Date.now() + 1, role: "assistant", reply }]);
+    const reply = finalizeReply(fetched.reply, clean);
+    const emotion = reply.emotion ?? inferLocalEmotion(clean);
+    setMessages((current) => [...current, { id: Date.now() + 1, role: "assistant", reply, fallback: fetched.fallback }]);
     setCurrentTopic(reply.topic);
     if (reply.steps.length) {
       setPlan(reply.steps.map((step) => ({ text: `${step.horizon}: ${step.text}`, done: false })));
@@ -229,6 +296,32 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
     if (reply.mode !== "safety") garden.gainFromChat(emotion);
     if (reply.openHelp) window.setTimeout(onHelp, 350);
   }
+
+  /**
+   * Vuelve a pedir a la IA en línea la última respuesta que dio el motor
+   * local. Reemplaza esa respuesta; el registro emocional y el crecimiento
+   * del compañero ya se contaron con ella, así que no se repiten.
+   */
+  async function retryWithAi(messageId: number) {
+    const index = messages.findIndex((message) => message.id === messageId);
+    const userMessage = messages[index - 1];
+    if (sendingRef.current || index < 1 || userMessage?.role !== "user") return;
+    sendingRef.current = true;
+    setTyping(true);
+    const fetched = await fetchReply(messages.slice(0, index), userMessage.text);
+    if (!fetched.fallback) {
+      const reply = finalizeReply(fetched.reply, userMessage.text);
+      setMessages((current) => current.map((message) => message.id === messageId ? { id: message.id, role: "assistant", reply } : message));
+      setCurrentTopic(reply.topic);
+      if (reply.steps.length) setPlan(reply.steps.map((step) => ({ text: `${step.horizon}: ${step.text}`, done: false })));
+      if (reply.openHelp) window.setTimeout(onHelp, 350);
+    }
+    setTyping(false);
+    sendingRef.current = false;
+  }
+
+  const lastMessage = messages[messages.length - 1];
+  const canRetryWithAi = !typing && (aiConnection === "live" || aiConnection === "error") && lastMessage?.role === "assistant" && Boolean(lastMessage.fallback);
 
   useEffect(() => {
     if (!initialDraft || !inputRef.current) return;
@@ -303,7 +396,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
       <section className="chat-command-bar">
         <div className="chat-brand-persona">
           <BrandMark size="medium" />
-          <div><span className="eyebrow">Centro de orientación</span><h1>Conversación con KAHY</h1><p className={`ai-connection ${aiConnection}`}><span className="status-dot" /> {aiConnection === "live" ? "IA generativa conectada" : aiConnection === "checking" ? "Comprobando conexión…" : aiConnection === "offline" ? "Modo privado sin conexión · motor local activo" : aiConnection === "error" ? "Motor local activo · conexión temporalmente no disponible" : "Motor local activo · listo para conversar"}</p></div>
+          <div><span className="eyebrow">Centro de orientación</span><h1>Conversación con KAHY</h1><p className={`ai-connection ${aiConnection}`}><span className="status-dot" /> {connectionLabels[aiConnection]}</p></div>
         </div>
         {!lowData && preferences.showMascot && <ChatCompanionChip profile={profile} garden={garden} gaining={companionGaining} />}
         <div className="chat-command-actions">
@@ -316,7 +409,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
 
       {detailsOpen && <section ref={detailsRef} className="chat-disclosure"><div><BookOpenCheck size={21} /><span><strong>Conversación enfocada</strong><small>Acompaña bienestar, emociones y vida cotidiana; no responde como un asistente general.</small></span></div><div><ShieldCheck size={21} /><span><strong>Detección preventiva</strong><small>Moderación y frases explícitas activan ayuda; no se predice ni puntúa riesgo clínico.</small></span></div><div><Database size={21} /><span><strong>Fuentes pertinentes</strong><small>Solo muestra fuentes cuando respaldan el tema de la respuesta.</small></span></div></section>}
 
-      <section className="chat-safety-strip"><ShieldCheck size={18} /><p><strong>{aiConnection === "live" ? "IA activa:" : aiConnection === "offline" ? "Modo sin conexión:" : "Orientación local activa:"}</strong> {aiConnection === "live" ? "el texto se procesa para generar una respuesta; KAHY no crea expediente. Evita datos identificables." : aiConnection === "offline" ? "las respuestas se crean en este dispositivo y tu texto no sale del navegador." : "el chat responde con un motor contextual dentro del navegador; no envía tu texto."}</p><span>{lowData ? <><CloudOff size={15} /> Pocos datos</> : <><Sparkles size={15} /> Visual completo</>}</span></section>
+      <section className="chat-safety-strip"><ShieldCheck size={18} /><p><strong>{safetyStrip[aiConnection][0]}</strong> {safetyStrip[aiConnection][1]}</p><span>{lowData ? <><CloudOff size={15} /> Pocos datos</> : <><Sparkles size={15} /> Visual completo</>}</span></section>
 
       <div className="chat-workspace">
         <section className="conversation-panel" aria-label="Conversación de orientación">
@@ -324,7 +417,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
             <div className="conversation-day"><Sparkles size={13} /> {preferences.saveChatHistory ? "Conversación nueva · se guarda en este navegador" : preferences.rememberConversations ? "Conversación nueva · recuerda solo temas" : "Conversación nueva · no se guarda"}</div>
             {memory.entries.length > 0 && <div className="memory-banner"><MessageCircle size={14} /><span>La última vez hablamos de: {memory.entries.slice(-3).map((entry) => topicNames[entry.topic]).join(", ")}.</span></div>}
             {messages.length === 1 && preferences.adaptivePersonalization && adaptive.connectedSignals > 0 && <div className="memory-banner adaptive"><Sparkles size={14} /><span>KAHY conectará tus avances en hábitos, tareas, emociones y tamizajes para personalizar esta charla.</span></div>}
-            {messages.map((message) => message.role === "user" ? <div className="studio-message user" data-chat-message key={message.id}><div className="user-message">{message.text}</div></div> : <AssistantReply key={message.id} reply={message.reply} onChoice={send} onHelp={onHelp} navigate={navigate} disabled={typing} onOpenPlan={() => setPlanOpen(true)} />)}
+            {messages.map((message) => message.role === "user" ? <div className="studio-message user" data-chat-message key={message.id}><div className="user-message">{message.text}</div></div> : <AssistantReply key={message.id} reply={message.reply} fallback={message.fallback} onRetry={canRetryWithAi && message === lastMessage ? () => retryWithAi(message.id) : undefined} onChoice={send} onHelp={onHelp} navigate={navigate} disabled={typing} onOpenPlan={() => setPlanOpen(true)} />)}
             {typing && <div className="studio-message assistant" data-chat-message><BrandMark size="small" /><div className="thinking-card" role="status"><div className="thinking-dots"><i /><i /><i /></div><span>Organizando una respuesta segura y útil…</span></div></div>}
             {showPlanHint && <div className="plan-first-hint" role="status"><ListChecks size={19} /><div><strong>Tu respuesta incluye un plan</strong><span>Puedes revisarlo y marcar avances en <b>Plan de ahora</b>.</span></div><button onClick={() => { setShowPlanHint(false); setPlanOpen(true); }}>Ver plan <ArrowRight size={15} /></button><button className="plan-hint-close" onClick={() => setShowPlanHint(false)} aria-label="Cerrar aviso"><X size={15} /></button></div>}
             {messages.length === 1 && screeningSuggestions.length > 0 && <div className="screening-suggestion-row" aria-label="Sugerencias según tu tamizaje reciente">
@@ -370,7 +463,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
   );
 }
 
-function AssistantReply({ reply, onChoice, onHelp, navigate, disabled, onOpenPlan }: { reply: ConversationReply; onChoice: (text: string) => void; onHelp: () => void; navigate: (view: MainView) => void; disabled: boolean; onOpenPlan: () => void }) {
+function AssistantReply({ reply, fallback, onRetry, onChoice, onHelp, navigate, disabled, onOpenPlan }: { reply: ConversationReply; fallback?: LocalFallback; onRetry?: () => void; onChoice: (text: string) => void; onHelp: () => void; navigate: (view: MainView) => void; disabled: boolean; onOpenPlan: () => void }) {
   const sources = reply.sourceIds.map((id) => trustedSources.find((item) => item.id === id)).filter(Boolean);
   const conversational = reply.presentation === "conversation" && reply.mode !== "safety";
   const hasGuidance = Boolean(reply.insight || reply.steps.length || reply.question || reply.choices.length);
@@ -388,6 +481,7 @@ function AssistantReply({ reply, onChoice, onHelp, navigate, disabled, onOpenPla
       {conversational && reply.steps.length > 0 && <button className="inline-plan-summary" disabled={disabled} onClick={onOpenPlan}><ListChecks size={17} /><span><strong>{reply.steps.length} acciones preparadas</strong><small>{reply.steps[0].horizon}: {reply.steps[0].text}</small></span><ArrowRight size={17} /></button>}
       {reply.mode === "safety" ? <div className="assistant-question"><strong>{reply.question}</strong><div>{reply.choices.map((choice) => <button key={choice} disabled={disabled} onClick={() => reply.openHelp && choice.includes("Abrir") ? onHelp() : onChoice(choice)}>{choice}<ArrowRight size={15} /></button>)}</div></div> : conversational ? (reply.question || reply.choices.length > 0) && <div className="assistant-question conversational-followup">{reply.question && <strong>{reply.question}</strong>}<div>{reply.choices.map((choice) => <button key={choice} disabled={disabled} onClick={() => onChoice(choice)}>{choice}<ArrowRight size={15} /></button>)}</div></div> : hasGuidance && <button className="reopen-prompt" disabled={disabled} onClick={onOpenPlan}><ListChecks size={14} /> Abrir Plan de ahora</button>}
       {sources.length > 0 && <div className="reply-footer"><button onClick={() => navigate("resources")}><BookOpenCheck size={15} /> {sources.length} {sources.length === 1 ? "fuente verificada" : "fuentes verificadas"}</button><span>{sources.map((source) => source?.organization).join(" · ")}</span></div>}
+      {fallback && <div className="local-reply-note">{fallback === "offline" ? <WifiOff size={14} /> : <CloudOff size={14} />}<span>{fallbackCopy[fallback]}</span>{onRetry && <button onClick={onRetry} disabled={disabled}><RotateCcw size={14} /> Pedir respuesta a la IA</button>}</div>}
     </div>
   </article>;
 }
