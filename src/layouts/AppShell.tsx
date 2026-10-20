@@ -20,6 +20,7 @@ import { navItems } from "../mock/data";
 import type { MainView, MascotId, Preferences } from "../types";
 import Mascot from "../components/Mascot";
 import BrandMark from "../components/BrandMark";
+import ConnectionBanner from "../components/ConnectionBanner";
 
 const icons = {
   home: Home,
@@ -143,6 +144,7 @@ export default function AppShell({
           <button className="topbar-exit" onClick={onExit}><LogOut size={17} /><span>Salir</span></button>
           <button className="help-button" onClick={onHelp}>Necesito ayuda ahora</button>
         </header>
+        <ConnectionBanner />
         <main id="main-content" ref={mainRef} className={currentView === "chat" ? "content content--chat" : "content"}>{children}</main>
       </div>
 

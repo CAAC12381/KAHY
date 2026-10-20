@@ -1,6 +1,7 @@
 import { CheckCircle2, ExternalLink, Phone, ShieldAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import AppShell from "./layouts/AppShell";
+import ConnectionBanner from "./components/ConnectionBanner";
 import { AccessFlow, Onboarding, SplashScreen } from "./pages/AccessFlow";
 import ActivitiesPage, { type Activity } from "./pages/ActivitiesPage";
 import ChatPage from "./pages/ChatPage";
@@ -358,7 +359,7 @@ export default function App() {
 
   if (stage === "splash") return <div className={flowClasses}><SplashScreen />{accessibilityMenu}</div>;
   // onExplore conserva isRegistered: quien ya tiene perfil en este dispositivo lo retoma; quien no, entra como invitado.
-  if (stage === "access") return <div className={flowClasses}><AccessFlow resumeName={isRegistered ? profile.name : undefined} onExplore={() => setStage("app")} deviceId={deviceId} onLogin={completeLogin} onRegister={startRegistration} />{accessibilityMenu}</div>;
+  if (stage === "access") return <div className={flowClasses}><AccessFlow resumeName={isRegistered ? profile.name : undefined} onExplore={() => setStage("app")} deviceId={deviceId} onLogin={completeLogin} onRegister={startRegistration} /><ConnectionBanner context="access" />{accessibilityMenu}</div>;
   if (stage === "onboarding") return <div className={flowClasses}><Onboarding initialName={pendingName} preferences={preferences} onFinish={finishOnboarding} />{accessibilityMenu}</div>;
 
   return (

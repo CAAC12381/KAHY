@@ -5,11 +5,15 @@
  * immediately, this is a background mirror so the same data survives a
  * cleared cache or a different browser. If the database isn't configured
  * yet, the app should keep working exactly as it did before this existed.
+ *
+ * Writes go through the sync outbox (syncOutbox.ts): if they can't be sent
+ * now (offline, server error), they wait there and are retried in order.
  */
 
 import type { TaskPlan } from "../types";
 import type { HabitDay } from "../hooks/useDailyHabits";
 import { authHeaders, clearSession, SESSION_EXPIRED_EVENT } from "./authApi";
+import { enqueueSync } from "./syncOutbox";
 
 async function safeFetch<T>(input: string, init?: RequestInit): Promise<T | null> {
   try {
@@ -43,16 +47,12 @@ export async function fetchRemoteProfile(deviceId: string): Promise<RemoteProfil
 }
 
 export function saveRemoteProfile(deviceId: string, profile: RemoteProfile): void {
-  void safeFetch("/api/data/profile", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ deviceId, profile }),
-  });
+  enqueueSync("profile", deviceId, "/api/data/profile", { method: "PUT", body: { deviceId, profile } });
 }
 
 /** Deletes every table's rows for this deviceId — used by "borrar perfil guardado en este dispositivo". */
 export function deleteRemoteData(deviceId: string): void {
-  void safeFetch(`/api/data/profile?deviceId=${encodeURIComponent(deviceId)}`, { method: "DELETE" });
+  enqueueSync("all", deviceId, `/api/data/profile?deviceId=${encodeURIComponent(deviceId)}`, { method: "DELETE" });
 }
 
 export type RemoteScreeningResult = {
@@ -70,11 +70,7 @@ export async function fetchRemoteScreenings(deviceId: string): Promise<RemoteScr
 }
 
 export function saveRemoteScreening(deviceId: string, result: RemoteScreeningResult): void {
-  void safeFetch("/api/data/screenings", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ deviceId, result }),
-  });
+  enqueueSync(`screening:${result.id}`, deviceId, "/api/data/screenings", { method: "POST", body: { deviceId, result } });
 }
 
 export type RemoteMemoryEntry = { topic: string; at: number };
@@ -85,15 +81,11 @@ export async function fetchRemoteChatMemory(deviceId: string): Promise<RemoteMem
 }
 
 export function saveRemoteChatMemory(deviceId: string, topic: string): void {
-  void safeFetch("/api/data/chat-memory", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ deviceId, topic }),
-  });
+  enqueueSync(`chat-memory:${Date.now()}`, deviceId, "/api/data/chat-memory", { method: "POST", body: { deviceId, topic } });
 }
 
 export function clearRemoteChatMemory(deviceId: string): void {
-  void safeFetch(`/api/data/chat-memory?deviceId=${encodeURIComponent(deviceId)}`, { method: "DELETE" });
+  enqueueSync("chat-memory:clear", deviceId, `/api/data/chat-memory?deviceId=${encodeURIComponent(deviceId)}`, { method: "DELETE" });
 }
 
 export type RemotePetGarden = {
@@ -111,11 +103,7 @@ export async function fetchRemotePetGarden(deviceId: string): Promise<RemotePetG
 }
 
 export function saveRemotePetGarden(deviceId: string, state: RemotePetGarden): void {
-  void safeFetch("/api/data/pet-garden", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ deviceId, state }),
-  });
+  enqueueSync("pet-garden", deviceId, "/api/data/pet-garden", { method: "PUT", body: { deviceId, state } });
 }
 
 export type RemoteEmotionEntry = {
@@ -134,15 +122,11 @@ export async function fetchRemoteEmotions(deviceId: string): Promise<RemoteEmoti
 }
 
 export function saveRemoteEmotion(deviceId: string, entry: RemoteEmotionEntry): void {
-  void safeFetch("/api/data/emotions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ deviceId, entry }),
-  });
+  enqueueSync(`emotion:${entry.id}`, deviceId, "/api/data/emotions", { method: "POST", body: { deviceId, entry } });
 }
 
 export function clearRemoteEmotions(deviceId: string): void {
-  void safeFetch(`/api/data/emotions?deviceId=${encodeURIComponent(deviceId)}`, { method: "DELETE" });
+  enqueueSync("emotion:clear", deviceId, `/api/data/emotions?deviceId=${encodeURIComponent(deviceId)}`, { method: "DELETE" });
 }
 
 export async function fetchRemoteTaskPlans(deviceId: string): Promise<TaskPlan[] | null> {
@@ -151,17 +135,13 @@ export async function fetchRemoteTaskPlans(deviceId: string): Promise<TaskPlan[]
 }
 
 export function saveRemoteTaskPlan(deviceId: string, plan: TaskPlan): void {
-  void safeFetch("/api/data/task-plans", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ deviceId, plan }),
-  });
+  enqueueSync(`task-plan:${plan.id}`, deviceId, "/api/data/task-plans", { method: "PUT", body: { deviceId, plan } });
 }
 
 /** Sin planId borra todos los planes de este dispositivo. */
 export function deleteRemoteTaskPlan(deviceId: string, planId?: string): void {
   const plan = planId ? `&planId=${encodeURIComponent(planId)}` : "";
-  void safeFetch(`/api/data/task-plans?deviceId=${encodeURIComponent(deviceId)}${plan}`, { method: "DELETE" });
+  enqueueSync(planId ? `task-plan:${planId}` : "task-plan:clear", deviceId, `/api/data/task-plans?deviceId=${encodeURIComponent(deviceId)}${plan}`, { method: "DELETE" });
 }
 
 export async function fetchRemoteHabitDays(deviceId: string): Promise<HabitDay[] | null> {
@@ -170,9 +150,5 @@ export async function fetchRemoteHabitDays(deviceId: string): Promise<HabitDay[]
 }
 
 export function saveRemoteHabitDay(deviceId: string, day: HabitDay): void {
-  void safeFetch("/api/data/habits", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ deviceId, day }),
-  });
+  enqueueSync(`habit:${day.date}`, deviceId, "/api/data/habits", { method: "PUT", body: { deviceId, day } });
 }

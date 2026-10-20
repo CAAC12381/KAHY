@@ -539,6 +539,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .local-reply-note button { min-height: 32px; display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--purple-deep); font-size: .64rem; font-weight: 800; }
 .local-reply-note button:hover:not(:disabled) { border-color: var(--purple); }
 .local-reply-note button:disabled { opacity: .55; }
+/* Aviso de conexión: bajo la barra superior en la app; flotando abajo en las pantallas de acceso. */
+.connection-banner { flex: 0 0 auto; display: flex; align-items: flex-start; gap: 9px; padding: 9px clamp(16px, 4vw, 54px); border-bottom: 1px solid #ecd9a4; background: var(--yellow-soft); color: var(--ink); font-size: .78rem; line-height: 1.4; }
+.connection-banner > svg { flex: 0 0 auto; margin-top: 1px; color: var(--yellow-deep); }
+.connection-banner strong { font-weight: 800; }
+.connection-banner--back { border-bottom-color: #cfdcc6; background: #edf3e8; }
+.connection-banner--back > svg { color: var(--success); }
+.connection-banner.connection-banner--access { position: fixed; z-index: 90; right: 12px; bottom: max(14px, env(safe-area-inset-bottom)); left: 12px; max-width: 560px; margin: 0 auto; padding: 11px 14px; border: 1px solid #ecd9a4; border-radius: 16px; box-shadow: var(--shadow-sm); }
+.kahy-app--flow:has(.connection-banner--access) { padding-bottom: 92px; }
 .ai-connection.checking .status-dot { background: var(--line); }
 .ai-connection.offline .status-dot, .ai-connection.busy .status-dot, .ai-connection.error .status-dot { background: var(--yellow-deep); }
 .thinking-card { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 7px 16px 16px 16px; background: var(--purple-soft); color: var(--muted); font-size: .72rem; }
