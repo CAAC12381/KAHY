@@ -1,5 +1,5 @@
 import { ArrowRight, BookOpen, CalendarDays, Check, ClipboardList, Leaf, ListChecks, MessageCircle, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import EmotionCalendar from "../components/EmotionCalendar";
 import Mascot, { Flower } from "../components/Mascot";
 import PetGarden from "../components/PetGarden";
@@ -11,6 +11,7 @@ import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
 import type { TaskPlansApi } from "../hooks/useTaskPlans";
 import type { ScreeningsState } from "../hooks/useScreenings";
 import { advanceCompanionBox, hasRevealedCompanion, rememberCompanionReveal, type CompanionBoxState } from "../lib/companionReveal";
+import { companionKey, companionVoices, nextLine } from "../lib/companionVoices";
 import { closedBoxImage, flowers, mascots } from "../mock/data";
 import type { DemoProfile, MainView, Preferences } from "../types";
 
@@ -47,6 +48,11 @@ export default function HomePage({
   const [revealedAtLoad] = useState(() => hasRevealedCompanion(deviceId, profile.mascot));
   const [boxState, setBoxState] = useState<CompanionBoxState>(revealedAtLoad ? "open" : "closed");
   const [blinkActive, setBlinkActive] = useState(false);
+  // Al tocar al acompañante de arriba, su globo dice algo con su personalidad durante unos segundos.
+  const [tapLine, setTapLine] = useState<string | null>(null);
+  const [boop, setBoop] = useState(false);
+  const tapTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(tapTimer.current), []);
   const currentTask = [...taskPlans.active].sort((a, b) => b.updatedAt - a.updatedAt)[0];
   const currentNext = currentTask?.steps.find((step) => !step.done && step.text.trim());
   const displayName = profile.name === "Invitado" ? "" : `, ${profile.name}`;
@@ -58,6 +64,15 @@ export default function HomePage({
   // Solo el animalito bebé (el que vive en la caja) y contento tiene caja que abrir.
   const hasBox = !revealedAtLoad && profile.companionType === "mascota" && companionStage === 1 && garden.mood !== "triste";
   const boxVisible = hasBox && boxState !== "open";
+
+  function tapCompanion() {
+    const key = companionKey(profile.companionType, profile.mascot, profile.flower);
+    const kind = garden.isNeglected ? "missed" : "tap";
+    setTapLine(nextLine(`${key}:${kind}`, companionVoices[key][kind]));
+    setBoop(true);
+    window.clearTimeout(tapTimer.current);
+    tapTimer.current = window.setTimeout(() => setTapLine(null), 4500);
+  }
 
   function openBox() {
     setBoxState((current) => advanceCompanionBox(current, preferences.reducedMotion));
@@ -83,6 +98,8 @@ export default function HomePage({
     ? boxState === "primed"
       ? `¡Se movió! Toca una vez más para conocer a ${companionName}.`
       : "Toca la caja dos veces para descubrir quién está dentro."
+    : tapLine
+    ? tapLine
     : currentTask && currentNext
     ? `Seguimos con un paso de ${currentTask.title}.`
     : habits.completed.length
@@ -104,9 +121,11 @@ export default function HomePage({
             <Button variant="secondary" onClick={() => navigate("activities")}><Leaf size={19} /> Hacer una pausa</Button>
           </div>
         </div>
-        {preferences.showMascot && <div className="hero-mascot"><span className="speech-note">{companionMessage}</span>{profile.companionType === "mascota" ? (
+        {preferences.showMascot && <div className="hero-mascot"><span className="speech-note" role="status" aria-live="polite">{companionMessage}</span>{profile.companionType === "mascota" ? (
           <span className="mascot-box-wrap">
-            <Mascot id={profile.mascot} size="large" mood={garden.mood} stage={companionStage} blink={blinkActive} />
+            <button type="button" className={`companion-tap ${boop ? "companion-tap--boop" : ""}`} onClick={tapCompanion} onAnimationEnd={(event) => { if (event.animationName === "companion-boop") setBoop(false); }} aria-label={`Tocar a ${companionName} para que te diga algo`} tabIndex={boxVisible ? -1 : undefined} aria-hidden={boxVisible || undefined}>
+              <Mascot id={profile.mascot} size="large" mood={garden.mood} stage={companionStage} blink={blinkActive} />
+            </button>
             {boxVisible && (
               <button
                 type="button"
@@ -120,7 +139,7 @@ export default function HomePage({
               </button>
             )}
           </span>
-        ) : <Flower id={profile.flower} size="large" stage={companionStage} neglected={garden.isNeglected} />}</div>}
+        ) : <button type="button" className={`companion-tap ${boop ? "companion-tap--boop" : ""}`} onClick={tapCompanion} onAnimationEnd={(event) => { if (event.animationName === "companion-boop") setBoop(false); }} aria-label={`Tocar a tu ${companionName?.toLowerCase()} para que te diga algo`}><Flower id={profile.flower} size="large" stage={companionStage} neglected={garden.isNeglected} /></button>}</div>}
       </section>
 
       <div className="section-heading"><div><span className="eyebrow">Calendario emocional</span><h2>Lo que ha aparecido en tus conversaciones</h2></div><small>Se guardan etiquetas y fechas, no el texto</small></div>

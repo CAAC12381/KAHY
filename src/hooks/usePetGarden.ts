@@ -138,7 +138,8 @@ export function usePetGarden(deviceId: string) {
     setPulse((current) => current + 1);
   }
 
-  function care(action: CareAction) {
+  /** `line`: lo que responde el acompañante, con su personalidad (src/lib/companionVoices.ts). */
+  function care(action: CareAction, line?: string) {
     setState((current) => {
       const nextCounts = { ...current.careCounts, [action]: current.careCounts[action] + 1 };
       return {
@@ -151,12 +152,12 @@ export function usePetGarden(deviceId: string) {
       };
     });
     setPulse((current) => current + 1);
-    setMessage(careMessages[action]);
+    setMessage(line || careMessages[action]);
   }
 
-  function reactToEmotion(emotion?: EmotionInsight | null) {
+  function reactToEmotion(emotion?: EmotionInsight | null, line?: string) {
     setState((current) => ({ ...current, bond: Math.min(100, current.bond + 2) }));
-    setMessage(emotion ? emotionMessages[emotion.primary] || "Gracias por poner en palabras cómo va tu día." : "Cuando quieras, el chat puede ayudarnos a reconocer cómo va tu día.");
+    setMessage(line || (emotion ? emotionMessages[emotion.primary] || "Gracias por poner en palabras cómo va tu día." : "Cuando quieras, el chat puede ayudarnos a reconocer cómo va tu día."));
   }
 
   /** Call when the user marks a daily habit as done. */

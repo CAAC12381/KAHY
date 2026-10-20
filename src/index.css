@@ -353,11 +353,24 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .pet-garden-single { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .pet-slot-frame { position: relative; display: grid; place-items: center; width: min(320px, 100%); padding: 18px; border-radius: 26px; background: rgba(255,255,255,.7); box-shadow: var(--shadow-sm); }
 .pet-slot-frame--plant { background: rgba(255,255,255,.55); }
-.pet-slot-image { width: min(180px, 60%); height: min(180px, 60%); box-shadow: 0 14px 30px rgba(63,65,57,.12); }
+/* Tamaño fijo, no en %: el contenedor se ajusta a su contenido, así que con % la imagen (que se carga
+   al hacerse visible) medía 0×0, nunca se cargaba y el acompañante no aparecía en el teléfono. */
+.pet-slot-image { width: min(180px, 56vw); height: min(180px, 56vw); box-shadow: 0 14px 30px rgba(63,65,57,.12); }
 .flower-pot.pet-slot-image { box-shadow: none; background: transparent; }
 .pet-stage-tag { padding: 5px 13px; border-radius: 999px; background: var(--purple-soft); color: var(--purple-deep); font-size: .72rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
-.pet-bubble { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); max-width: min(240px, 90%); padding: 9px 13px; border-radius: 14px 14px 14px 3px; background: white; box-shadow: var(--shadow-sm); color: var(--ink); font-size: .74rem; line-height: 1.4; text-align: center; animation: fade-up .2s ease both; }
+/* Centrado sin transform: la animación fade-up lo reemplaza y el globo quedaba corrido a la derecha. */
+.pet-bubble { position: absolute; top: 10px; right: 0; left: 0; width: max-content; max-width: min(240px, 90%); margin: 0 auto; padding: 9px 13px; border-radius: 14px 14px 14px 3px; background: white; box-shadow: var(--shadow-sm); color: var(--ink); font-size: .74rem; line-height: 1.4; text-align: center; animation: fade-up .2s ease both; }
 .pet-bubble--hover { pointer-events: none; }
+/* El acompañante se puede tocar y responde con su personalidad (src/lib/companionVoices.ts). */
+.companion-tap { display: inline-flex; padding: 0; border: 0; border-radius: 28px; background: none; color: inherit; font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.companion-tap:focus-visible { outline: 3px solid var(--purple); outline-offset: 4px; }
+.companion-tap--boop { animation: companion-boop .45s ease; }
+@keyframes companion-boop { 0% { transform: scale(1); } 35% { transform: scale(.94); } 70% { transform: scale(1.04); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .companion-tap--boop { animation: none; } }
+.pet-bubble-slot .pet-bubble { z-index: 3; pointer-events: none; }
+.companion-preview { display: grid; gap: 4px; margin: 14px 0 0; padding: 12px 16px; border-radius: 16px; background: var(--pink-soft); color: var(--purple-deep); font-size: .9rem; font-style: italic; line-height: 1.45; }
+.companion-preview > span { color: var(--muted); font-size: .74rem; font-style: normal; font-weight: 750; }
+.pet-personality { display: inline-block; margin: 0 0 8px; padding: 4px 11px; border-radius: 999px; background: var(--pink-soft); color: var(--purple-deep); font-size: .74rem; font-weight: 750; }
 .pet-meters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 22px 0 16px; }
 .pet-meter { display: grid; gap: 6px; }
 .pet-meter span { color: var(--ink); font-size: .74rem; font-weight: 760; }

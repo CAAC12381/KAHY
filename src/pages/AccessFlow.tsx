@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Mascot, { Flower } from "../components/Mascot";
 import { Button, Card, DemoBadge, Progress } from "../components/ui";
 import { flowers, goals, informationStyles, locations, mascots } from "../mock/data";
+import { companionKey, companionVoices } from "../lib/companionVoices";
 import { loginAccount, MIN_PASSWORD_LENGTH, registerAccount, type Session } from "../services/authApi";
 import type { CompanionType, DemoProfile, FlowerId, MascotId, Preferences } from "../types";
 import BrandMark from "../components/BrandMark";
@@ -247,6 +248,8 @@ export function Onboarding({
       ) : (
         <div className="mascot-grid">{flowers.map((item) => <button className={flower === item.id ? "mascot-choice active" : "mascot-choice"} key={item.id} onClick={() => setFlower(item.id)}><Flower id={item.id} stage={3} size="medium" /><strong>{item.name}</strong><small>{item.description}</small>{flower === item.id && <span className="selected-check"><Check size={17} /></span>}</button>)}</div>
       )}
+      {/* Cada acompañante tiene su forma de hablar: aquí se escucha cómo saluda el que está elegido. */}
+      <p className="companion-preview" aria-live="polite"><span>{companionVoices[companionKey(companionType, mascot, flower)].personality}</span>“{companionVoices[companionKey(companionType, mascot, flower)].tap[0]}”</p>
     </div>,
   ];
 

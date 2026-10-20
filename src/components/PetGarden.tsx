@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { flowers, mascots } from "../mock/data";
 import type { CareAction, PetGardenApi } from "../hooks/usePetGarden";
 import { stageForGrowth } from "../hooks/usePetGarden";
+import { companionVoices, nextLine, talkTone, type CompanionKey } from "../lib/companionVoices";
 import type { CompanionType, EmotionInsight, FlowerId, MascotId } from "../types";
 import Mascot, { Flower } from "./Mascot";
 import { Card } from "./ui";
@@ -19,19 +20,6 @@ const plantCareLabels: CareButton[] = [
   { action: "water", label: "Regar", icon: Droplets },
   { action: "sun", label: "Dar sol", icon: Sun },
   { action: "prune", label: "Nutrir / Podar", icon: Sprout },
-];
-
-const hoverMessages = [
-  "Me alegra que estés aquí.",
-  "Hoy también lo estás haciendo lo mejor que puedes.",
-  "Vamos paso a paso, sin prisa.",
-  "Gracias por venir a verme.",
-  "Lo que sientes importa.",
-  "Está bien tomarte una pausa.",
-  "Cada pequeño paso cuenta.",
-  "Mereces tratarte con cariño.",
-  "Estoy contigo, a tu ritmo.",
-  "Respira hondo, aquí no hay apuro.",
 ];
 
 function stageLabel(stage: number, stageCount: number): string {
@@ -53,11 +41,12 @@ export default function PetGarden({
   emotion?: EmotionInsight | null;
   garden: PetGardenApi;
 }) {
-  const [speaking, setSpeaking] = useState(false);
   const [gaining, setGaining] = useState(false);
   const [evolving, setEvolving] = useState(false);
-  const [hoverMessage, setHoverMessage] = useState<string | null>(null);
-  const hoverIndex = useRef(Math.floor(Math.random() * hoverMessages.length));
+  // Lo que dice el acompañante (al tocarlo, al cuidarlo o al hablarle). Se oculta solo después de unos segundos.
+  const [bubble, setBubble] = useState<string | null>(null);
+  const bubbleTimer = useRef<number | undefined>(undefined);
+  const [boop, setBoop] = useState(false);
   const animal = mascots.find((item) => item.id === mascotId) ?? mascots[0];
   const flower = flowers.find((item) => item.id === flowerId) ?? flowers[0];
   const isMascot = companionType === "mascota";
@@ -65,7 +54,8 @@ export default function PetGarden({
   const companionLabel = isMascot ? animal.name : `tu ${flower.name.toLowerCase()}`;
   const stageCount = isMascot ? animal.stages.length : flower.stages.length;
   const stage = stageForGrowth(garden.growth, stageCount);
-  const companionKey = isMascot ? `mascota:${mascotId}` : `planta:${flowerId}`;
+  const companionKey: CompanionKey = isMascot ? `mascota:${mascotId}` : `planta:${flowerId}`;
+  const voice = companionVoices[companionKey];
   const previousStage = useRef(stage);
   const previousCompanionKey = useRef(companionKey);
   const mountedPulse = useRef(garden.pulse);
@@ -94,15 +84,36 @@ export default function PetGarden({
     return () => window.clearTimeout(timer);
   }, [stage, companionKey]);
 
-  function talk() {
-    setSpeaking(true);
-    window.setTimeout(() => setSpeaking(false), 2600);
+  useEffect(() => () => window.clearTimeout(bubbleTimer.current), []);
+
+  function say(line: string) {
+    setBubble(line);
+    window.clearTimeout(bubbleTimer.current);
+    bubbleTimer.current = window.setTimeout(() => setBubble(null), 4200);
   }
 
-  // Un mensaje positivo distinto cada vez que el cursor entra sobre el compañero.
+  // Al tocarlo (o pasar el mouse) dice algo con su personalidad; si lleva un día sin visitas, que te extrañó.
   function greet() {
-    hoverIndex.current = (hoverIndex.current + 1) % hoverMessages.length;
-    setHoverMessage(hoverMessages[hoverIndex.current]);
+    const kind = garden.isNeglected ? "missed" : "tap";
+    say(nextLine(`${companionKey}:${kind}`, voice[kind]));
+  }
+
+  function tap() {
+    greet();
+    setBoop(true);
+  }
+
+  function careFor(action: CareAction) {
+    const line = nextLine(`${companionKey}:care:${action}`, voice.care[action] ?? []);
+    garden.care(action, line);
+    say(line || garden.message);
+  }
+
+  function talkTo() {
+    const tone = talkTone(emotion?.primary);
+    const line = nextLine(`${companionKey}:talk:${tone}`, voice.talk[tone]);
+    garden.reactToEmotion(emotion, line);
+    say(line);
   }
 
   return (
@@ -111,6 +122,7 @@ export default function PetGarden({
         <div>
           <span className="eyebrow"><Sparkles size={14} /> Tu rincón de compañía</span>
           <h2>Cuida a {companionLabel}</h2>
+          <span className="pet-personality">{voice.personality}</span>
           <p>Crece cuando expresas, identificas o trabajas una emoción en el chat. Las emociones difíciles también cuentan.</p>
         </div>
         {garden.isNeglected && <span className="pet-alert">Te han extrañado un poco</span>}
@@ -118,22 +130,25 @@ export default function PetGarden({
 
       <div className="pet-garden-single">
         <div className={`pet-slot-frame ${isMascot ? "" : "pet-slot-frame--plant"} ${gaining ? "pet-slot-frame--gain" : ""} ${evolving ? "pet-slot-frame--evolve" : ""}`}>
-          <div
-            className={`pet-idle ${isMascot ? "pet-idle--breathe" : "pet-idle--sway"}`}
-            onMouseEnter={greet}
-            onMouseLeave={() => setHoverMessage(null)}
+          <button
+            type="button"
+            className={`companion-tap ${boop ? "companion-tap--boop" : ""}`}
+            onClick={tap}
+            onPointerEnter={(event) => { if (event.pointerType === "mouse") greet(); }}
+            onAnimationEnd={(event) => { if (event.animationName === "companion-boop") setBoop(false); }}
+            aria-label={`Tocar a ${companionLabel} para que te diga algo`}
           >
-            {isMascot ? (
-              <Mascot id={mascotId} size="large" mood={garden.mood} stage={stage} className="pet-slot-image" />
-            ) : (
-              <Flower id={flowerId} stage={stage} neglected={garden.isNeglected} size="large" className="pet-slot-image" />
-            )}
-          </div>
-          {speaking ? (
-            <span className="pet-bubble">{garden.message}</span>
-          ) : (
-            hoverMessage && <span className="pet-bubble pet-bubble--hover">{hoverMessage}</span>
-          )}
+            <span className={`pet-idle ${isMascot ? "pet-idle--breathe" : "pet-idle--sway"}`}>
+              {isMascot ? (
+                <Mascot id={mascotId} size="large" mood={garden.mood} stage={stage} className="pet-slot-image" />
+              ) : (
+                <Flower id={flowerId} stage={stage} neglected={garden.isNeglected} size="large" className="pet-slot-image" />
+              )}
+            </span>
+          </button>
+          <span className="pet-bubble-slot" role="status" aria-live="polite">
+            {bubble && <span className="pet-bubble" key={bubble}>{bubble}</span>}
+          </span>
           {gaining && (
             <span className="pet-sparkles" aria-hidden="true">
               <i /><i /><i /><i />
@@ -152,11 +167,11 @@ export default function PetGarden({
 
       <div className="pet-actions">
         {activeCareLabels.map(({ action, label, icon: Icon }) => (
-          <button key={action} onClick={() => { garden.care(action); talk(); }}>
+          <button key={action} onClick={() => careFor(action)}>
             <Icon size={18} /> {label}
           </button>
         ))}
-        <button className="pet-talk" onClick={() => { garden.reactToEmotion(emotion); talk(); }}>
+        <button className="pet-talk" onClick={talkTo}>
           <MessageCircle size={18} /> Hablar
         </button>
       </div>
