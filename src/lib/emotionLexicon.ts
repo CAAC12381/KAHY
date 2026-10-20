@@ -8,7 +8,7 @@ const signals: Array<{ emotion: EmotionName; words: string[] }> = [
   { emotion: "calma", words: ["calma", "tranquil", "en paz", "relajad", "seren", "ya bajó", "ya bajo"] },
   { emotion: "alivio", words: ["alivio", "me quité un peso", "me quite un peso", "por fin respir", "menos mal", "ya pasó", "ya paso"] },
   { emotion: "esperanza", words: ["esperanza", "tengo fe", "creo que puedo", "va a mejorar", "sí se puede", "si se puede", "ilusion"] },
-  { emotion: "tristeza", words: ["triste", "agüitad", "aguitad", "aguitao", "bajón", "bajon", "depre", "desanim", "moral por los suelos", "se me cayó el mundo", "se me cayo el mundo", "quiero llorar", "vacío", "vacio"] },
+  { emotion: "tristeza", words: ["triste", "agüitad", "aguitad", "aguitao", "bajón", "bajon", "depre", "desanim", "moral por los suelos", "se me cayó el mundo", "se me cayo el mundo", "quiero llorar", "no dejo de llorar", "llorando", "vacío", "vacio", "nada me importa", "todo me da igual", "me da igual todo", "sin ganas de nada"] },
   { emotion: "ansiedad", words: ["ansiedad", "ansios", "nervios", "inquiet", "no puedo dejar de pensar", "mente a mil", "me acelero", "traigo los nervios de punta"] },
   { emotion: "miedo", words: ["miedo", "temor", "asust", "pánico", "panico", "me da cosa", "me aterra", "tengo miedo"] },
   { emotion: "enojo", words: ["enoj", "coraje", "furios", "encabron", "hasta la madre", "me hierve", "me prende", "chingado"] },

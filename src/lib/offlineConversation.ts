@@ -19,7 +19,7 @@ function hasAny(text: string, phrases: string[]) {
   return phrases.some((phrase) => text.includes(phrase));
 }
 
-function detectIntent(input: string): LocalIntent {
+export function detectIntent(input: string): LocalIntent {
   const text = normalize(input);
   if (hasAny(text, ["solo quiero contarlo", "quiero desahogarme", "escuchame", "necesito sacarlo", "solo escuchame"])) return "listen";
   if (hasAny(text, ["ayudame a entender", "por que me pasa", "que me pasa", "no entiendo", "quiero entender", "que significa lo que siento"])) return "understand";
@@ -81,6 +81,85 @@ function emotionalOpening(input: string, turnCount: number) {
     `Parece haber ${label} detrás de esto. Tiene sentido detenernos a ordenar la situación antes de exigirte una solución completa.`,
     `Gracias por nombrarlo. La señal de ${label} importa, y podemos trabajar con ella sin convertirla en un diagnóstico ni en una conclusión sobre ti.`,
   ]);
+}
+
+// "me siento / estoy / ando …": lo que sigue suele ser cómo se siente la persona, con sus palabras.
+const FEELING_LEAD = /(?:^|[\s,.;¡¿])(?:me\s+siento|me\s+he\s+sentido|me\s+sent[ií]|me\s+estoy\s+sintiendo|estoy|ando|sigo|me\s+encuentro)\s+([^.,;:!?¿¡\n]{2,80})/iu;
+// Se corta antes de causas, tiempos y personas ("triste desde hace días", "mal conmigo"): solo queda el sentir.
+const FEELING_END = /\s+(?:desde|porque|pero|cuando|ya\s+que|por|con|conmigo|de|del|en|para|al?|hoy|hace|que|sin|y\s+(?:no|ya|me|nadie|todo|eso))\b/iu;
+// Sentires frecuentes que el léxico emocional no nombra como emoción (raíces, sin acentos).
+const EXTRA_FEELING_STEMS = ["fatal", "horrible", "pesim", "estresad", "preocupad", "hart", "desesperad", "deprimid", "desmotivad", "sin ganas", "de la fregada", "hecho pedazos", "hecha pedazos"];
+
+// Desgano: "ya nada me importa", "todo me da igual"… suele llegar como pregunta y no nombra una emoción.
+export const APATHY = /\b(?:(?:ya\s+)?nada\s+me\s+(?:importa|interesa|emociona|motiva|llena)|ya\s+no\s+me\s+importa\s+nada|todo\s+me\s+da\s+igual|me\s+da\s+igual\s+todo|no\s+tengo\s+ganas\s+de\s+nada)\b/;
+
+/** "Siento mucho lo de tu abuela": la primera frase ante una pérdida, con la persona que nombró. */
+export function acknowledgeLoss(input: string): string {
+  const match = input.match(/(?:muri[oó]|falleci[oó]|se\s+nos\s+fue|perd[ií]\s+a)\s+(mis?)\s+(\p{L}+)/iu);
+  if (!match) return "Siento mucho tu pérdida.";
+  return `Siento mucho lo de ${match[1].toLowerCase() === "mis" ? "tus" : "tu"} ${match[2].toLowerCase()}.`;
+}
+
+function capturedFeeling(input: string): string | null {
+  const raw = input.match(FEELING_LEAD)?.[1];
+  if (!raw) return null;
+  const feeling = raw.split(FEELING_END)[0].trim().replace(/\s+/g, " ");
+  if (!feeling || feeling.length > 40) return null;
+  const plain = normalize(feeling);
+  const words = plain.split(" ");
+  const known = inferLocalEmotion(feeling).primary !== "no_clara" || ["mal", "solo", "sola"].some((word) => words.includes(word)) || EXTRA_FEELING_STEMS.some((stem) => plain.includes(stem));
+  return known && !/^(?:bien|mejor|tranquil[oa]|feliz)$/i.test(feeling) ? feeling.toLowerCase() : null;
+}
+
+function feelingDuration(input: string): { kind: "unit"; unit: string } | { kind: "phrase"; phrase: string } | null {
+  const text = normalize(input);
+  const unit = text.match(/(?:desde\s+)?hace\s+(?:unos\s+|varios\s+|muchos\s+|un\s+par\s+de\s+)?(dias|semanas|meses|anos)\b/)?.[1];
+  if (unit) return { kind: "unit", unit: { dias: "días", semanas: "semanas", meses: "meses", anos: "años" }[unit] ?? unit };
+  const whole = text.match(/\b(toda la semana|todo el mes|todo el dia|todo el ano)\b/)?.[1];
+  if (whole) return { kind: "phrase", phrase: whole.replace("dia", "día").replace("ano", "año") };
+  if (/\b(ultimamente|estos dias|cada vez mas)\b/.test(text)) return { kind: "phrase", phrase: "últimamente" };
+  return null;
+}
+
+/**
+ * Primera frase de una respuesta local a alguien que cuenta cómo se siente.
+ * Repite SUS palabras ("muy triste y sola") en vez de etiquetarlas o
+ * adivinar su género, y reconoce cuánto tiempo lleva así si lo dijo.
+ * Devuelve null si el mensaje no dice cómo se siente.
+ */
+export function acknowledgeFeeling(input: string, turnCount = 0): string | null {
+  const text = normalize(input);
+  if (/\bno\s+(?:me\s+siento|estoy|ando)\s+(?:nada\s+)?bien\b/.test(text)) {
+    return "Que no te sientas bien ya es razón suficiente para hablarlo, aunque todavía no sepas bien qué es.";
+  }
+  if (APATHY.test(text)) {
+    return "Cuando nada parece importar, hasta preguntarse por qué cuesta trabajo. Esa sensación de vacío o desgano merece atención, no un regaño.";
+  }
+  const feeling = capturedFeeling(input);
+  const duration = feelingDuration(input);
+  if (feeling && duration?.kind === "unit") {
+    return stableChoice(input, turnCount, [
+      `Llevar ${duration.unit} sintiéndote ${feeling} es mucho que cargar.`,
+      `${duration.unit.charAt(0).toUpperCase()}${duration.unit.slice(1)} sintiéndote ${feeling}… eso desgasta, y tiene sentido que quieras hablarlo.`,
+    ]);
+  }
+  if (feeling && duration?.kind === "phrase") {
+    return duration.phrase === "últimamente"
+      ? `Sentirte ${feeling} últimamente es mucho que cargar.`
+      : `Pasar ${duration.phrase} sintiéndote ${feeling} desgasta.`;
+  }
+  if (feeling) {
+    return stableChoice(input, turnCount, [
+      `Sentirte ${feeling} pesa, y qué bueno que lo dijiste aquí.`,
+      `Gracias por contarme que te sientes ${feeling}; no siempre es fácil decirlo.`,
+    ]);
+  }
+  const emotion = inferLocalEmotion(input);
+  if (emotion.primary === "no_clara" || emotion.primary === "neutral") return null;
+  const label = emotionLabels[emotion.primary].toLowerCase();
+  return duration
+    ? `Se nota ${label} en lo que cuentas, y no de ahora: eso merece atención sin prisa.`
+    : `Se nota ${label} en lo que cuentas, y merece atención sin prisa.`;
 }
 
 function baseReply(input: string, previousTopic: ChatTopic, context: LocalConversationContext, intent: LocalIntent) {
@@ -223,7 +302,7 @@ export function createAdaptiveOfflineReply(input: string, previousTopic: ChatTop
       { horizon: "Prioridad", text: "Elige qué necesita atención primero: tu bienestar, una decisión, una conversación o una tarea concreta." },
       { horizon: "Siguiente paso", text: "Haz una acción suficientemente pequeña para poder revisarla después, en lugar de intentar resolver todo de una vez." },
     ],
-    question: "¿Qué te ayudaría más ahora: sentirte escuchado, entenderlo mejor o salir con un plan?",
+    question: "¿Qué te ayudaría más ahora: que te escuche, entenderlo mejor o salir con un plan?",
     choices: ["Solo quiero contarlo", "Ayúdame a entender", "Armemos un plan"],
   };
 }

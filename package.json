@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "format": "oxfmt",
-    "test": "node --experimental-strip-types --test tests/*.test.mjs"
+    "test": "node --experimental-strip-types --import ./tests/support/register.mjs --test tests/*.test.mjs"
   },
   "dependencies": {
     "@vercel/postgres": "^0.10.0",

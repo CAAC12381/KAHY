@@ -20,6 +20,7 @@ const crisis = [
   "nada tiene sentido ya", "tomé una sobredosis", "tomé demasiadas pastillas", "me tomé todas las pastillas", "mi papá no está respirando",
   "no puedo respirar", "está inconsciente", "hay violencia en mi casa ahora", "me están golpeando", "estoy en peligro",
   "quiero hacerle daño a alguien", "ME QUIERO MORIR!!!", "la neta ya no quiero vivir, estoy harta",
+  "ya nada tiene sentido", "mi vida no tiene sentido", "la vida ya no tiene ningún sentido", "no tiene sentido vivir así",
 ];
 
 const everyday = [
@@ -27,6 +28,7 @@ const everyday = [
   "esta tarea me mata", "la escuela me mata", "quiero matar el tiempo", "morí con ese meme", "estoy triste por mi examen",
   "¿cómo le digo a mi mamá que reprobé?", "hoy me siento mejor", "quiero aprender a meditar", "mi perro murió y lo extraño",
   "tengo ansiedad antes de exponer", "no quiero hacerme daño, solo quiero dormir", "¿Cómo cambio una llanta?",
+  "esta tarea no tiene sentido", "no tiene sentido seguir estudiando así",
 ];
 
 const thirdParty = [

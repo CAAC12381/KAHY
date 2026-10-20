@@ -58,6 +58,10 @@ const safetyPatterns = [
   /soy una carga para (todos|mi familia|los demas)/i,
   /ya no le veo sentido a (nada|la vida)/i,
   /nada tiene sentido ya/i,
+  // Desesperanza dicha de otras formas comunes (20 oct 2026: "ya nada tiene sentido" no se detectaba).
+  /ya nada tiene sentido/i,
+  /(mi|la) vida (ya )?no tiene (ningun )?sentido/i,
+  /no tiene sentido (vivir|seguir viviendo)/i,
   /sobredosis/i,
   /tome demasiadas pastillas/i,
   /me tome todas las pastillas/i,

@@ -1,5 +1,5 @@
 import type { EmotionInsight } from "../types";
-import { createAdaptiveOfflineReply, type LocalConversationContext } from "../lib/offlineConversation";
+import { acknowledgeFeeling, acknowledgeLoss, APATHY, createAdaptiveOfflineReply, detectIntent, type LocalConversationContext } from "../lib/offlineConversation";
 // Las frases de crisis viven en un solo archivo, compartido con el servidor (ver su encabezado).
 import { detectSafetySignal, detectThirdPartySafetySignal } from "../../api/_lib/chatGuards";
 
@@ -89,7 +89,7 @@ export function getTopic(input: string): ChatTopic {
     "no puedo dormir", "insomnio", "duermo mal", "desvelad", "trasnochando", "dormir bien", "pesadez para dormir",
     "no pego el ojo", "me la paso en vela", "ya no duermo nada", "me desvelo mucho", "traigo un desvelo",
   ])) return "sueño";
-  if (includesAny(text, [
+  if (APATHY.test(text) || includesAny(text, [
     "depres", "triste", "sin energia", "desanimo", "animo bajo", "vacio", "agotad", "sin ganas de nada", "no disfruto",
     "ando bien mal", "traigo la moral por los suelos", "me siento hecho bolas", "me siento hecha bolas", "no me nace hacer nada",
     "ya nada me llena", "me siento vacio por dentro", "me siento vacia por dentro", "no le veo caso a nada", "ya no puedo ni levantarme",
@@ -470,7 +470,7 @@ const followUpSeeds: Partial<Record<ChatTopic, FollowUpSeed>> = {
       { horizon: "Ajustar", text: "Agrega qué has intentado ya y qué resultado tuvo, aunque haya sido parcial." },
     ],
     question: "¿Seguimos preparando ejemplos o prefieres hablar de los nervios antes de la cita?",
-    choices: ["Seguir con ejemplos", "Hablar de los nervios", "Ya me siento preparado"],
+    choices: ["Seguir con ejemplos", "Hablar de los nervios", "Ya me siento con más confianza"],
     sourceIds: ["nimh-asq", "phq9-gad7-mx"],
   },
   apoyo: {
@@ -537,8 +537,8 @@ const initialTopicReplies: Partial<Record<ChatTopic, () => ConversationReply>> =
     sourceIds: ["who-ai-health", "linea-vida"],
   }),
   soledad: () => ({
-    mode: "support", topic: "soledad", label: "Soledad", title: "Sentirte solo no significa que algo esté mal contigo",
-    introduction: "La soledad puede aparecer incluso rodeado de gente, o por falta real de vínculos cercanos. Antes de resolverla toda, ayuda identificar si es una sensación pasajera o algo que se repite seguido.",
+    mode: "support", topic: "soledad", label: "Soledad", title: "Sentir soledad no significa que algo esté mal contigo",
+    introduction: "La soledad puede aparecer incluso con gente alrededor, o por falta real de vínculos cercanos. Antes de resolverla toda, ayuda identificar si es una sensación pasajera o algo que se repite seguido.",
     insight: "No es necesario tener muchos vínculos; a veces una sola conexión constante hace una diferencia real.",
     steps: [
       { horizon: "Ahora", text: "Piensa en una persona, aunque no sea muy cercana, a quien podrías escribirle algo breve hoy." },
@@ -603,7 +603,7 @@ const initialTopicReplies: Partial<Record<ChatTopic, () => ConversationReply>> =
   }),
   "diagnóstico": () => ({
     mode: "standard", topic: "diagnóstico", label: "Preparar una evaluación", title: "Un diagnóstico lo da una evaluación real, no un chat",
-    introduction: "Puedo ayudarte a llegar mejor preparado a esa cita, pero no puedo decirte qué tienes. Quien te evalúe podría usar herramientas de tamizaje validadas (como cuestionarios de ánimo, ansiedad o atención), pero incluso esas son un punto de partida, no el diagnóstico final.",
+    introduction: "Puedo ayudarte a llegar con más preparación a esa cita, pero no puedo decirte qué tienes. Quien te evalúe podría usar herramientas de tamizaje validadas (como cuestionarios de ánimo, ansiedad o atención), pero incluso esas son un punto de partida, no el diagnóstico final.",
     insight: "Un resultado positivo en cualquier cuestionario de tamizaje solo indica que conviene profundizar; nunca confirma por sí solo un trastorno.",
     steps: [
       { horizon: "Antes de la cita", text: "Anota ejemplos concretos con fecha aproximada: qué pasó, qué tanto interfirió y desde cuándo." },
@@ -616,7 +616,7 @@ const initialTopicReplies: Partial<Record<ChatTopic, () => ConversationReply>> =
   }),
   apoyo: () => ({
     mode: "support", topic: "apoyo", label: "Apoyar a otra persona", title: "Acompañar bien no significa cargar con todo",
-    introduction: "Ayuda saber qué necesita esa persona ahora mismo, sin asumir que tienes que resolverlo tú solo. Escuchar sin presionar y ayudarla a llegar a apoyo adecuado suele valer más que tener la respuesta perfecta.",
+    introduction: "Ayuda saber qué necesita esa persona ahora mismo, sin asumir que tienes que resolverlo sin ayuda. Escuchar sin presionar y ayudarla a llegar a apoyo adecuado suele valer más que tener la respuesta perfecta.",
     insight: "Tu bienestar también importa aquí. Acompañar a alguien en crisis por mucho tiempo sin apoyo propio puede agotarte a ti también.",
     steps: [
       { horizon: "Si hay peligro inmediato", text: "Si esa persona habla de quitarse la vida, se ha lastimado, o no puedes contactarla, no esperes: llama al 911 o dile que llame a Línea de la Vida 800 911 2000." },
@@ -642,7 +642,35 @@ const initialTopicReplies: Partial<Record<ChatTopic, () => ConversationReply>> =
   }),
 };
 
+// Temas en los que, si la persona cuenta cómo se siente, primero se acompaña y el plan queda como opción.
+const accompanyFirstBridge: Partial<Record<ChatTopic, string>> = {
+  "ánimo": "No hace falta encontrarle una explicación ahora para que cuente.",
+  soledad: "La soledad no siempre se nota desde fuera, y por eso decirla ya es un paso.",
+  duelo: "No hay una forma correcta ni un tiempo fijo para vivir una pérdida; pueden convivir tristeza, enojo, culpa y hasta momentos de calma.",
+  relaciones: "Cuando el problema es con alguien cercano suele doler doble: por lo que pasó y por lo que esa persona significa.",
+  "estrés": "Cuando todo aprieta a la vez, cuesta hasta saber por dónde empezar.",
+  "sueño": "Dormir mal vuelve todo más pesado al día siguiente.",
+};
+
+/**
+ * Respuesta del motor local (sin conexión o sin IA en línea). Si alguien
+ * cuenta cómo se siente, la tarjeta del tema llegaba como un plan con una
+ * explicación general ("Cuando la energía es baja, una lista grande…") que
+ * no reconocía lo que la persona dijo. Ahora, como pide el prompt de la IA en
+ * línea, primero acompaña con sus palabras; las acciones siguen disponibles
+ * en "Plan de ahora" y la advertencia del tema se conserva.
+ */
 export function createReply(input: string, previousTopic: ChatTopic = "inicio", context: LocalConversationContext = {}): ConversationReply {
+  const reply = composeReply(input, previousTopic, context);
+  const bridge = accompanyFirstBridge[reply.topic];
+  if (!bridge || reply.mode === "safety" || reply.presentation === "conversation" || reply.topic === previousTopic) return reply;
+  if (["plan", "regulate", "decide", "write"].includes(detectIntent(input))) return reply;
+  const acknowledgement = reply.topic === "duelo" ? acknowledgeLoss(input) : acknowledgeFeeling(input, context.turnCount);
+  if (!acknowledgement) return reply;
+  return { ...reply, presentation: "conversation", title: "", introduction: `${acknowledgement} ${bridge}` };
+}
+
+function composeReply(input: string, previousTopic: ChatTopic, context: LocalConversationContext): ConversationReply {
   const faqKey = detectFaq(input);
   if (faqKey && !detectSafetySignal(input)) return faqReply(faqKey, previousTopic);
 
@@ -734,7 +762,7 @@ export function createReply(input: string, previousTopic: ChatTopic = "inicio", 
   }
 
   if (topic === "ánimo") return {
-    mode: "support", topic, label: "Ánimo bajo", title: "Hagamos un plan que no dependa de sentirte motivado primero",
+    mode: "support", topic, label: "Ánimo bajo", title: "Hagamos un plan que no dependa de tener motivación primero",
     introduction: "Cuando la energía es baja, una lista grande puede convertirse en más evidencia de fracaso. Conviene proteger necesidades básicas, reducir el tamaño de la acción y añadir contacto humano.",
     insight: "Esto no determina si tienes depresión. Importan la duración, el impacto cotidiano y cualquier pensamiento de muerte o daño, que requiere atención humana inmediata.",
     steps: [
@@ -742,7 +770,7 @@ export function createReply(input: string, previousTopic: ChatTopic = "inicio", 
       { horizon: "Hoy", text: "Envía un mensaje específico: “No estoy bien y me ayudaría que me escribieras o estuvieras conmigo un rato”." },
       { horizon: "Continuidad", text: "Si esto persiste o interfiere con dormir, comer, estudiar o trabajar, prepara una consulta profesional con ejemplos concretos de esos cambios." },
     ],
-    question: "¿Qué está más afectado hoy: cuidarte, cumplir pendientes o sentirte acompañado?",
+    question: "¿Qué está más afectado hoy: cuidarte, cumplir pendientes o tener compañía?",
     choices: ["Cuidado básico", "Pendientes", "Necesito compañía"], sourceIds: ["nice-depression", "phq9-gad7-mx", "linea-vida"],
   };
 
