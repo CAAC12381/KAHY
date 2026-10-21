@@ -39,6 +39,7 @@ export default function Companion3DPage({ preferences }: { preferences: Preferen
   const [sleeping, setSleeping] = useState(false);
   const sleepingRef = useRef(false);
   const [line, setLine] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
 
   function say(kind: keyof typeof lines) {
     setLine(nextLine(lines[kind].listId, lines[kind].lines));
@@ -56,17 +57,25 @@ export default function Companion3DPage({ preferences }: { preferences: Preferen
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
-    try {
-      viewerRef.current = createMokaViewer(stage, {
-        reducedMotion,
-        // Tocarla la despierta si está dormida; si no, saluda.
-        onTap: () => (sleepingRef.current ? changeSleep(false) : play("greet")),
-      });
+    // Esculpir a Moka tarda un momento; si la persona sale antes de que termine, se libera al acabar.
+    let left = false;
+    createMokaViewer(stage, {
+      reducedMotion,
+      // Tocarla la despierta si está dormida; si no, saluda.
+      onTap: () => (sleepingRef.current ? changeSleep(false) : play("greet")),
+      onProgress: (fraction) => { if (!left) setProgress(Math.round(fraction * 100)); },
+    }).then((viewer) => {
+      if (left) {
+        viewer.dispose();
+        return;
+      }
+      viewerRef.current = viewer;
       setStatus("ready");
-    } catch {
-      setStatus("unsupported");
-    }
+    }).catch(() => {
+      if (!left) setStatus("unsupported");
+    });
     return () => {
+      left = true;
       window.clearTimeout(bubbleTimer.current);
       viewerRef.current?.dispose();
       viewerRef.current = null;
@@ -125,7 +134,7 @@ export default function Companion3DPage({ preferences }: { preferences: Preferen
         <div className="companion-3d-stage">
           {/* three.js pone aquí su lienzo; React no maneja este nodo, por eso va aparte de los avisos. */}
           <div className="companion-3d-canvas-host" ref={stageRef} role="img" aria-label="Moka en 3D: una vaquita color crema con manchas cafés, hocico rosa, cuernitos y una campanita, en un prado con flores." />
-          {status === "loading" && <span className="companion-3d-status">Preparando a Moka…</span>}
+          {status === "loading" && <span className="companion-3d-status" role="status">{progress > 0 ? `Esculpiendo a Moka… ${progress} %` : "Preparando a Moka…"}</span>}
           {status === "unsupported" && (
             <div className="companion-3d-fallback">
               <Mascot id="vaca" size="medium" />
@@ -152,7 +161,7 @@ export default function Companion3DPage({ preferences }: { preferences: Preferen
           <Button variant={sleeping ? "primary" : "secondary"} className="companion-3d-sleep" onClick={() => changeSleep(!sleeping)} disabled={!ready} aria-pressed={sleeping}>{sleeping ? <><Sun size={18} /> Despertar</> : <><Moon size={18} /> Dormir</>}</Button>
         </div>
         {sleeping && <p className="companion-3d-hint">Moka está dormida. Tócala o pulsa “Despertar” para jugar otra vez.</p>}
-        <p className="companion-3d-note"><DemoBadge>Prototipo</DemoBadge> Moka está hecha con figuras 3D; su estilo es distinto al de la acuarela.</p>
+        <p className="companion-3d-note"><DemoBadge>Prototipo</DemoBadge> Moka se esculpe en 3D aquí mismo al abrir esta sección (tarda un momento solo la primera vez); su estilo es distinto al de la acuarela.</p>
       </Card>
     </div>
   );
