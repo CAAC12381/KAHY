@@ -152,7 +152,13 @@ type SculptOptions = {
    * ejemplo, el cuerpo más la cabeza y las patas), para que una pieza "sienta" a sus vecinas.
    */
   occlusion?: { scene: Sdf; strength: number; tint: THREE.Color };
-  /** Cubo que contiene la pieza (centro y medio lado), con al menos dos celdas libres alrededor. */
+  /** Valores extra por vértice (por ejemplo, cuánto pelo lleva cada zona), calculados ya sobre la piel. */
+  attributes?: Record<string, (x: number, y: number, z: number) => number>;
+  /**
+   * Cubo que contiene la pieza (centro y medio lado). La pieza debe quedar a más de 3 celdas de
+   * cada cara: marching cubes no cierra la superficie en el borde, y lo que lo toque queda abierto
+   * (así quedó hueca la base de las pezuñas). `geometry.userData.touchesBounds` avisa si pasa.
+   */
   center: Vec;
   halfSize: number;
   /** Celdas por lado: más = más suave, pero más lento de calcular. */
@@ -174,7 +180,7 @@ export function yieldToPage() {
   });
 }
 
-export async function sculpt({ sdf, paint, occlusion, center, halfSize, resolution }: SculptOptions): Promise<THREE.BufferGeometry> {
+export async function sculpt({ sdf, paint, occlusion, attributes, center, halfSize, resolution }: SculptOptions): Promise<THREE.BufferGeometry> {
   const cubes = new MarchingCubes(resolution, new THREE.MeshBasicMaterial(), false, true, 160000);
   cubes.isolation = 0;
   const { size, size2, field, palette } = cubes;
@@ -223,9 +229,23 @@ export async function sculpt({ sdf, paint, occlusion, center, halfSize, resoluti
   (cubes.material as THREE.Material).dispose();
 
   const geometry = indexed(positions, normals, colors, center, halfSize);
+  const cell = halfSize / half;
+  const margin = halfSize - 3 * cell;
+  const position = geometry.attributes.position;
+  for (let vertex = 0; vertex < position.count; vertex++) {
+    if (Math.abs(position.getX(vertex) - center[0]) > margin || Math.abs(position.getY(vertex) - center[1]) > margin || Math.abs(position.getZ(vertex) - center[2]) > margin) {
+      geometry.userData.touchesBounds = true;
+      console.warn("[sculpt] La pieza toca el borde de su cubo y puede quedar abierta: agranda halfSize o mueve center.", center, halfSize);
+      break;
+    }
+  }
+  for (const [name, valueAt] of Object.entries(attributes ?? {})) {
+    const values = new Float32Array(position.count);
+    for (let vertex = 0; vertex < position.count; vertex++) values[vertex] = valueAt(position.getX(vertex), position.getY(vertex), position.getZ(vertex));
+    geometry.setAttribute(name, new THREE.BufferAttribute(values, 1));
+  }
   // Sombra de los pliegues: se calcula por vértice ya en la superficie (mucho menos trabajo que en toda la rejilla).
   if (occlusion) {
-    const position = geometry.attributes.position;
     const normalAttribute = geometry.attributes.normal;
     const colorAttribute = geometry.attributes.color;
     for (let vertex = 0; vertex < position.count; vertex++) {

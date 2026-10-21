@@ -33,7 +33,6 @@ type Options = {
 const COLORS = {
   grass: "#c3d9a8",
   grassEdge: "#a9c78c",
-  blade: "#9fc184",
   photoBackground: "#f6efe0",
 };
 
@@ -83,11 +82,14 @@ export async function createMokaViewer(container: HTMLElement, options: Options)
   rim.position.set(-1.5, 2.5, -3.5);
   scene.add(rim);
 
-  scene.add(buildMeadow());
+  // Viento del pasto: el tiempo se pasa al shader en cada cuadro.
+  const wind = { value: 0 };
+  scene.add(buildMeadow(wind));
   // En equipos modestos se esculpe con menos detalle para que cargue rápido.
   const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8;
   const modest = memory <= 4 || (navigator.hardwareConcurrency ?? 8) <= 4;
-  const moka = await buildMoka(modest ? 0.8 : 1, options.onProgress);
+  // Capas de pelo: menos en equipos modestos (cada capa es dibujar la figura otra vez).
+  const moka = await buildMoka(modest ? 0.8 : 1, options.onProgress, modest ? 7 : 11);
   scene.add(moka.root);
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -150,6 +152,7 @@ export async function createMokaViewer(container: HTMLElement, options: Options)
     timer.update(timestamp);
     // Tope de 0.1 s: al volver a la pestaña no da un salto, y en equipos lentos las transiciones no se quedan a medias.
     const delta = Math.min(timer.getDelta(), 0.1);
+    wind.value = options.reducedMotion ? 0 : timer.getElapsed();
     moka.update(timer.getElapsed(), delta, {
       reducedMotion: options.reducedMotion,
       viewer: camera,
@@ -215,7 +218,7 @@ function material(color: string, extra: THREE.MeshStandardMaterialParameters = {
 // --- Prado -----------------------------------------------------------------
 
 /** Prado redondo con borde suave, flores de colores y matitas de pasto, como en la ilustración. */
-function buildMeadow() {
+function buildMeadow(wind: { value: number }) {
   const meadow = new THREE.Group();
   const profile = [[0, 0], [1.55, 0], [1.63, -0.015], [1.68, -0.05], [1.69, -0.1], [1.65, -0.15], [1.5, -0.18], [0, -0.18]].map(([x, y]) => new THREE.Vector2(x, y));
   const ground = new THREE.Mesh(new THREE.LatheGeometry(profile, 72), material(COLORS.grass, { roughness: 1, side: THREE.DoubleSide }));
@@ -226,24 +229,7 @@ function buildMeadow() {
   rim.position.y = 0.005;
   meadow.add(rim);
 
-  // Matitas de pasto: muchas hojitas en un solo objeto (InstancedMesh) para no cargar el teléfono.
-  const bladesPerTuft = 3;
-  const tufts = 70;
-  const blades = new THREE.InstancedMesh(new THREE.ConeGeometry(0.014, 0.1, 4), material(COLORS.blade, { roughness: 0.9 }), tufts * bladesPerTuft);
-  const matrix = new THREE.Matrix4();
-  const quaternion = new THREE.Quaternion();
-  const euler = new THREE.Euler();
-  for (let tuft = 0; tuft < tufts; tuft++) {
-    const angle = tuft * 2.399 + 1.1;
-    const distance = 0.55 + ((tuft * 53) % 100) / 100;
-    for (let blade = 0; blade < bladesPerTuft; blade++) {
-      euler.set(0.35 * Math.cos(blade * 2.1 + tuft), blade * 2.1, 0.35 * Math.sin(blade * 2.1 + tuft));
-      quaternion.setFromEuler(euler);
-      matrix.compose(new THREE.Vector3(Math.cos(angle) * distance + (blade - 1) * 0.015, 0.045, Math.sin(angle) * distance), quaternion, new THREE.Vector3(1, 0.8 + (blade % 2) * 0.4, 1));
-      blades.setMatrixAt(tuft * bladesPerTuft + blade, matrix);
-    }
-  }
-  meadow.add(blades);
+  meadow.add(buildGrass(wind));
 
   const petalColors = ["#f6b7c8", "#c9b6e4", "#a9cbe8", "#fbe3a1", "#f9c9a8"].map((color) => material(color, { roughness: 0.7 }));
   const center = material("#f2c14e", { roughness: 0.6 });
@@ -272,4 +258,71 @@ function buildMeadow() {
     meadow.add(flower);
   }
   return meadow;
+}
+
+/**
+ * Pasto: unas 1800 hojas curvas y afiladas en varios verdes, dibujadas de una sola vez (InstancedMesh).
+ * Se mecen con el viento en la tarjeta gráfica (`wind` es el tiempo). Son altas, planas y verdes
+ * para que no se confundan con el pelo de Moka, que es corto, crema y suave.
+ */
+function buildGrass(wind: { value: number }) {
+  // Hoja: tira de 4 tramos que se angosta hasta la punta y se curva hacia +z.
+  const segments = 4;
+  const positions: number[] = [];
+  const indices: number[] = [];
+  for (let row = 0; row <= segments; row++) {
+    const t = row / segments;
+    const halfWidth = 0.011 * (1 - t * 0.92);
+    const bend = 0.035 * t * t;
+    positions.push(-halfWidth, t, bend, halfWidth, t, bend);
+    if (row < segments) {
+      const base = row * 2;
+      indices.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+
+  const grassMaterial = new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.85, side: THREE.DoubleSide });
+  grassMaterial.onBeforeCompile = (shader) => {
+    shader.uniforms.uWind = wind;
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nuniform float uWind;")
+      .replace("#include <begin_vertex>", `#include <begin_vertex>
+        // Se mece más la punta que la base; cada hoja con su propio ritmo según dónde está.
+        vec3 root = vec3(instanceMatrix[3][0], 0.0, instanceMatrix[3][2]);
+        float sway = sin(uWind * 1.6 + root.x * 4.0 + root.z * 3.0) * 0.6 + sin(uWind * 2.7 + root.z * 6.0) * 0.4;
+        transformed.z += sway * 0.12 * position.y * position.y;`);
+  };
+  grassMaterial.customProgramCacheKey = () => "kahy-grass";
+
+  const samples = 2000; // Puntos repartidos en todo el prado; se descartan los que caen bajo Moka.
+  const blades = new THREE.InstancedMesh(geometry, grassMaterial, samples);
+  const matrix = new THREE.Matrix4();
+  const quaternion = new THREE.Quaternion();
+  const euler = new THREE.Euler();
+  const greens = ["#86b46a", "#9cc47c", "#78a65f", "#afd08c", "#91bd73"].map((hex) => new THREE.Color(hex));
+  const color = new THREE.Color();
+  let placed = 0;
+  for (let index = 0; index < samples; index++) {
+    // Reparto en espiral (ángulo dorado) con un poco de desorden estable; sin pasto bajo la panza de Moka.
+    const angle = index * 2.39996 + Math.sin(index * 12.9898) * 0.3;
+    const distance = 1.55 * Math.sqrt((index + 0.5) / samples) + 0.02 * Math.sin(index * 78.233);
+    const x = Math.cos(angle) * distance;
+    const z = Math.sin(angle) * distance;
+    if ((x / 0.42) ** 2 + (z / 0.55) ** 2 < 1 || distance > 1.56) continue;
+    const height = 0.06 + 0.09 * (0.5 + 0.5 * Math.sin(index * 3.17));
+    euler.set(0.18 * Math.sin(index * 1.7), index * 1.37, 0.18 * Math.cos(index * 2.3));
+    quaternion.setFromEuler(euler);
+    matrix.compose(new THREE.Vector3(x, 0, z), quaternion, new THREE.Vector3(1, height, 1));
+    blades.setMatrixAt(placed, matrix);
+    color.copy(greens[index % greens.length]).multiplyScalar(0.9 + 0.2 * (0.5 + 0.5 * Math.sin(index * 5.3)));
+    blades.setColorAt(placed, color);
+    placed++;
+  }
+  blades.count = placed;
+  blades.receiveShadow = true;
+  return blades;
 }

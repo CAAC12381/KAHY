@@ -1,6 +1,7 @@
 import * as THREE from "three";
+import { furShells, skinMaterial, type FurOptions, type SpotSet } from "./furMaterial";
 import { fingerprint, loadGeometries, saveGeometries } from "./geometryStore";
-import { box, clamp, ellipsoid, roundCone, roundedCylinder, sculpt, smax, smin, smoothstep, sphere, surfaceAlong, withBound, wobble, type Paint, type Sdf, type Vec } from "./sculpt";
+import { box, clamp, ellipsoid, roundCone, roundedCylinder, sculpt, smax, smin, smoothstep, sphere, surfaceAlong, withBound, type Paint, type Sdf, type Vec } from "./sculpt";
 
 /**
  * Moka esculpida: vaquita color crema con manchas cafés, como peluche.
@@ -35,13 +36,6 @@ function tint(out: THREE.Color, color: THREE.Color, amount: number) {
   if (amount > 0) out.lerp(color, Math.min(1, amount));
 }
 
-/** Mancha 3D con borde irregular: `center` está sobre la piel y `radius` es el tamaño de la mancha. */
-function spotAmount(x: number, y: number, z: number, center: THREE.Vector3, radius: number, seed: number) {
-  const distance = Math.hypot(x - center.x, y - center.y, z - center.z);
-  const wavy = radius * (1 + 0.18 * wobble(x * 1.3 + seed, y * 1.3, z * 1.3 - seed));
-  return smoothstep(wavy + 0.012, wavy - 0.012, distance);
-}
-
 // --- Cuerpo ----------------------------------------------------------------
 
 const THIGHS: Vec[] = [[0.24, 0.43, 0.3], [-0.24, 0.43, 0.3], [0.24, 0.43, -0.32], [-0.24, 0.43, -0.32]];
@@ -57,20 +51,30 @@ const torsoSdf: Sdf = (x, y, z) => {
   return d;
 };
 
-function torsoPaint(): Paint {
-  const center: Vec = [0, 0.66, 0];
-  const spots = [
-    { at: surfaceAlong(torsoSdf, center, [1, 0.45, -0.3], 1), radius: 0.2 },
-    { at: surfaceAlong(torsoSdf, center, [-1, 0.2, 0.25], 1), radius: 0.19 },
-    { at: surfaceAlong(torsoSdf, center, [-0.3, 1, -0.6], 1), radius: 0.16 },
-    { at: surfaceAlong(torsoSdf, center, [0.45, -0.25, 0.8], 1), radius: 0.09 },
-    { at: surfaceAlong(torsoSdf, center, [-0.65, -0.35, -0.7], 1), radius: 0.12 },
-  ];
-  return (x, y, z, out) => {
-    out.copy(COLORS.fur);
-    spots.forEach((spot, index) => tint(out, COLORS.spot, spotAmount(x, y, z, spot.at, spot.radius, index * 1.7)));
+// Las manchas ya no se pintan por vértice (se veían escalonadas): se dibujan por píxel en furMaterial.ts.
+const torsoPaint: Paint = (x, y, z, out) => {
+  out.copy(COLORS.fur);
+};
+
+/** Color de mancha ÷ color de piel: en la tarjeta gráfica la mancha multiplica el color de la piel. */
+const SPOT_TINT = new THREE.Color(COLORS.spot.r / COLORS.fur.r, COLORS.spot.g / COLORS.fur.g, COLORS.spot.b / COLORS.fur.b);
+
+function spotSet(sdf: Sdf, center: Vec, spots: Array<{ direction: Vec; radius: number; seed: number }>): SpotSet {
+  return {
+    centers: spots.map((spot) => surfaceAlong(sdf, center, spot.direction, 1)),
+    radii: spots.map((spot) => spot.radius),
+    seeds: spots.map((spot) => spot.seed),
+    tint: SPOT_TINT,
   };
 }
+
+const torsoSpots = () => spotSet(torsoSdf, [0, 0.66, 0], [
+  { direction: [1, 0.45, -0.3], radius: 0.2, seed: 0 },
+  { direction: [-1, 0.2, 0.25], radius: 0.19, seed: 1.7 },
+  { direction: [-0.3, 1, -0.6], radius: 0.16, seed: 3.4 },
+  { direction: [0.45, -0.25, 0.8], radius: 0.09, seed: 5.1 },
+  { direction: [-0.65, -0.35, -0.7], radius: 0.12, seed: 6.8 },
+]);
 
 // --- Cabeza (coordenadas relativas a HEAD_ORIGIN) ----------------------------
 
@@ -104,14 +108,10 @@ const headSdf: Sdf = (x, y, z) => {
 
 function headPaint(): Paint {
   const center: Vec = [0, 0, 0];
-  const eyePatch = surfaceAlong(headSdf, center, [0.6, 0.35, 0.72], 1);
-  const backSpot = surfaceAlong(headSdf, center, [-0.45, 0.75, -0.45], 1);
   const cheeks = [surfaceAlong(headSdf, center, [0.62, -0.18, 0.75], 1), surfaceAlong(headSdf, center, [-0.62, -0.18, 0.75], 1)];
   return (x, y, z, out) => {
     out.copy(COLORS.fur);
     const cranium = craniumSdf(x, y, z);
-    tint(out, COLORS.spot, spotAmount(x, y, z, eyePatch, 0.15, 0.4));
-    tint(out, COLORS.spot, spotAmount(x, y, z, backSpot, 0.15, 2.9));
     for (const cheek of cheeks) tint(out, COLORS.blush, 0.65 * smoothstep(0.1, 0.02, Math.hypot(x - cheek.x, y - cheek.y, z - cheek.z)));
     tint(out, COLORS.snout, smoothstep(0.012, -0.012, muzzleSdf(x, y, z) - cranium));
     for (const [nx, ny, nz] of NOSTRILS) tint(out, COLORS.nostril, smoothstep(0.036, 0.028, Math.hypot(x - nx, y - ny, z - nz)));
@@ -119,6 +119,25 @@ function headPaint(): Paint {
     tint(out, COLORS.spot, smoothstep(0.012, -0.004, tuftSdf(x, y, z) - cranium));
   };
 }
+
+const headSpots = () => spotSet(headSdf, [0, 0, 0], [
+  { direction: [0.6, 0.35, 0.72], radius: 0.15, seed: 0.4 }, // Parche del ojo.
+  { direction: [-0.45, 0.75, -0.45], radius: 0.15, seed: 2.9 },
+]);
+
+const EYES: Vec[] = [[0.16, 0.07, 0.33], [-0.16, 0.07, 0.33]];
+
+/** Cuánto pelo lleva cada punto de la cabeza: nada en ojos, boca, fosas y cuernos; corto en el hocico. */
+const headFur = (x: number, y: number, z: number) => {
+  let amount = 1;
+  for (const [ex, ey, ez] of EYES) amount = Math.min(amount, smoothstep(0.09, 0.13, Math.hypot(x - ex, y - ey, z - ez)));
+  amount = Math.min(amount, smoothstep(0.05, 0.09, Math.hypot(x, y + 0.215, z - 0.43))); // Boca.
+  for (const [nx, ny, nz] of NOSTRILS) amount = Math.min(amount, smoothstep(0.035, 0.06, Math.hypot(x - nx, y - ny, z - nz)));
+  const cranium = craniumSdf(x, y, z);
+  amount *= 1 - 0.65 * smoothstep(0.012, -0.012, muzzleSdf(x, y, z) - cranium); // Hocico: pelito corto.
+  amount *= 1 - smoothstep(0.012, -0.004, hornsSdf(x, y, z) - cranium); // Cuernos: sin pelo.
+  return amount;
+};
 
 // --- Pata (relativa a la cadera: cuelga hacia -y; la pezuña toca el suelo en y = -0.415) ---
 
@@ -134,6 +153,8 @@ const legPaint: Paint = (x, y, z, out) => {
   // Rayita de la pezuña partida, al frente.
   if (y < -0.33 && z > 0) tint(out, COLORS.hoofLine, smoothstep(0.012, 0.004, Math.abs(x)));
 };
+
+const legFur = (_x: number, y: number) => smoothstep(-0.335, -0.31, y);
 
 // --- Oreja (base en el origen, se extiende hacia +x; el hueco rosa mira hacia +z) ---
 
@@ -178,8 +199,8 @@ type MokaGeometries = { torsoGeometry: THREE.BufferGeometry; headGeometry: THREE
  * colores, cambia la huella y la copia guardada en el dispositivo deja de usarse.
  */
 function modelFingerprint() {
-  const code = [torsoSdf, torsoPaint, craniumSdf, muzzleSdf, hornsSdf, tuftSdf, headSdf, headPaint, legSdf, legPaint, earCupSdf, earSdf, earPaint, spotAmount, torsoScene, headScene, legScene, sculpt, sculptMoka].map(String).join("|");
-  const sizes = JSON.stringify({ THIGHS, HORNS, TUFT, NOSTRILS, colors: Object.values(COLORS).map((color) => color.getHexString()), shade: [SHADE.strength, SHADE.tint.getHexString()] });
+  const code = [torsoSdf, torsoPaint, craniumSdf, muzzleSdf, hornsSdf, tuftSdf, headSdf, headPaint, headFur, legSdf, legPaint, legFur, earCupSdf, earSdf, earPaint, torsoScene, headScene, legScene, sculpt, sculptMoka].map(String).join("|");
+  const sizes = JSON.stringify({ THIGHS, HORNS, TUFT, NOSTRILS, EYES, colors: Object.values(COLORS).map((color) => color.getHexString()), shade: [SHADE.strength, SHADE.tint.getHexString()] });
   return fingerprint(code + sizes);
 }
 
@@ -213,15 +234,16 @@ function sculptMoka(detail: number, onProgress: (fraction: number) => void) {
       }
       const res = (value: number) => Math.round(value * detail);
       const torsoBound: Sdf = (x, y, z) => box(x, y, z, 0, 0.73, 0.03, 0.5, 0.52, 0.75);
-      const torsoGeometry = await sculpt({ sdf: withBound(torsoBound, torsoSdf), paint: torsoPaint(), occlusion: { scene: torsoScene, ...SHADE }, center: [0, 0.7, 0.01], halfSize: 0.8, resolution: res(84) });
+      const torsoGeometry = await sculpt({ sdf: withBound(torsoBound, torsoSdf), paint: torsoPaint, occlusion: { scene: torsoScene, ...SHADE }, attributes: { aFur: () => 1 }, center: [0, 0.7, 0.01], halfSize: 0.8, resolution: res(84) });
       report(0.45);
       const headBound: Sdf = (x, y, z) => sphere(x, y, z, 0, 0.06, 0.02, 0.52);
-      const headGeometry = await sculpt({ sdf: withBound(headBound, headSdf), paint: headPaint(), occlusion: { scene: headScene, ...SHADE }, center: [0, 0.05, 0.02], halfSize: 0.52, resolution: res(72) });
+      const headGeometry = await sculpt({ sdf: withBound(headBound, headSdf), paint: headPaint(), occlusion: { scene: headScene, ...SHADE }, attributes: { aFur: headFur }, center: [0, 0.05, 0.02], halfSize: 0.52, resolution: res(72) });
       report(0.85);
-      const legGeometry = await sculpt({ sdf: legSdf, paint: legPaint, occlusion: { scene: legScene, ...SHADE }, center: [0, -0.13, 0], halfSize: 0.3, resolution: res(40) });
+      // Cubo de la pata: de y -0.50 a 0.26. Antes la base de la pezuña (y -0.415) quedaba en el borde y salía hueca.
+      const legGeometry = await sculpt({ sdf: legSdf, paint: legPaint, occlusion: { scene: legScene, ...SHADE }, attributes: { aFur: legFur }, center: [0, -0.12, 0], halfSize: 0.38, resolution: res(46) });
       const earGeometries: THREE.BufferGeometry[] = []; // [crema, café]
       for (const outside of [COLORS.fur, COLORS.spot]) {
-        earGeometries.push(await sculpt({ sdf: earSdf, paint: earPaint(outside), occlusion: { scene: earSdf, strength: 0.35, tint: SHADE.tint }, center: [0.17, 0, 0], halfSize: 0.22, resolution: res(40) }));
+        earGeometries.push(await sculpt({ sdf: earSdf, paint: earPaint(outside), occlusion: { scene: earSdf, strength: 0.35, tint: SHADE.tint }, attributes: { aFur: (x, y, z) => 0.6 - 0.45 * smoothstep(0.012, 0.002, earCupSdf(x, y, z)) }, center: [0.17, 0, 0], halfSize: 0.22, resolution: res(40) }));
       }
       report(1);
       const pieces = [torsoGeometry, headGeometry, legGeometry, ...earGeometries];
@@ -240,8 +262,27 @@ function sculptMoka(detail: number, onProgress: (fraction: number) => void) {
 }
 
 /** `detail` < 1 baja la resolución en equipos modestos (la escultura tarda menos y pesa menos). */
-export async function buildMoka(detail = 1, onProgress: (fraction: number) => void = () => {}) {
-  const skin = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.74, sheen: 1, sheenRoughness: 0.5, sheenColor: new THREE.Color("#fff1dc") });
+export async function buildMoka(detail = 1, onProgress: (fraction: number) => void = () => {}, shellCount = 10) {
+  // Pelo: largo, densidad (mechones por unidad) y capas de cada pieza. Menos capas en equipos modestos.
+  const furOf = (length: number, density: number, shells: number): FurOptions => ({ length, density, shells: Math.max(3, shells) });
+  const torsoFur = furOf(0.024, 95, shellCount);
+  const headFurOptions = furOf(0.017, 110, shellCount);
+  const legFurOptions = furOf(0.013, 110, shellCount - 2);
+  const earFur = furOf(0.01, 120, shellCount - 4);
+  const torsoSpotSet = torsoSpots();
+  const headSpotSet = headSpots();
+  const meshOf = (geometry: THREE.BufferGeometry, mat: THREE.Material) => {
+    const item = new THREE.Mesh(geometry, mat);
+    item.castShadow = true;
+    item.receiveShadow = true;
+    return item;
+  };
+  /** Piel + capas de pelo (hijas de la piel, para que se muevan con ella). */
+  const furry = (geometry: THREE.BufferGeometry, spots: SpotSet | null, fur: FurOptions) => {
+    const skin = meshOf(geometry, skinMaterial(spots, fur));
+    skin.add(furShells(geometry, spots, fur));
+    return skin;
+  };
   const material = (color: string, extra: THREE.MeshPhysicalMaterialParameters = {}) => new THREE.MeshPhysicalMaterial({ color, roughness: 0.8, ...extra });
   const dark = material("#2b211d", { roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.08 });
   const shine = new THREE.MeshBasicMaterial({ color: "#ffffff" });
@@ -251,12 +292,6 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
   const spotMat = material("#8a5a38", { sheen: 1, sheenColor: new THREE.Color("#d9b08c") });
   const furMat = material("#fbf3e6", { sheen: 1, sheenRoughness: 0.5, sheenColor: new THREE.Color("#fff1dc") });
 
-  const meshOf = (geometry: THREE.BufferGeometry, mat: THREE.Material) => {
-    const item = new THREE.Mesh(geometry, mat);
-    item.castShadow = true;
-    item.receiveShadow = true;
-    return item;
-  };
 
   const { torsoGeometry, headGeometry, legGeometry, earGeometries } = await sculptMoka(detail, onProgress);
 
@@ -267,13 +302,13 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
   const stance = new THREE.Group();
   root.add(body);
   body.add(bodyPivot, stance);
-  bodyPivot.add(meshOf(torsoGeometry, skin));
+  bodyPivot.add(furry(torsoGeometry, torsoSpotSet, torsoFur));
 
   // Patas: misma escultura para las cuatro; cada una gira desde la cadera para doblarse al acostarse.
   const legs = THIGHS.map(([x, , z]) => {
     const pivot = new THREE.Group();
     pivot.position.set(x, 0.415, z);
-    pivot.add(meshOf(legGeometry, skin));
+    pivot.add(furry(legGeometry, null, legFurOptions));
     stance.add(pivot);
     return { pivot, front: z > 0 };
   });
@@ -310,7 +345,7 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
   const head = new THREE.Group();
   head.position.copy(HEAD_ORIGIN);
   bodyPivot.add(head);
-  head.add(meshOf(headGeometry, skin));
+  head.add(furry(headGeometry, headSpotSet, headFurOptions));
 
   // Boca sobre el hocico: sonrisa, y boca abierta con lengüita para el "¡Muuu!".
   const mouthAt = surfaceAlong(headSdf, [0, -0.235, 0], [0, 0, 1], 0.7);
@@ -366,7 +401,7 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
     ear.position.set(base.x - side * 0.035, 0.14, -0.05);
     ear.scale.x = side;
     ear.rotation.set(0, side * -0.4, side * -0.38);
-    ear.add(meshOf(earGeometries[side === 1 ? 0 : 1], skin));
+    ear.add(furry(earGeometries[side === 1 ? 0 : 1], null, earFur));
     head.add(ear);
     return ear;
   });

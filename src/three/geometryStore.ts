@@ -14,7 +14,8 @@ import * as THREE from "three";
 const DB_NAME = "kahy-3d";
 const STORE = "geometries";
 
-type StoredGeometry = { position: Float32Array; normal: Float32Array; color: Float32Array; index: Uint32Array };
+// Se guardan todos los atributos (posición, normal, color, pelo…) para no olvidar ninguno nuevo.
+type StoredGeometry = { attributes: Record<string, { array: Float32Array; itemSize: number }>; index: Uint32Array };
 
 /**
  * Abre el almacén, o null si no está disponible. Con límite de tiempo: si el navegador tarda
@@ -74,12 +75,10 @@ export async function loadGeometries(key: string): Promise<THREE.BufferGeometry[
   if (!db) return null;
   try {
     const stored = await withTimeout(done(db.transaction(STORE, "readonly").objectStore(STORE).get(key)), 3000) as StoredGeometry[] | null | undefined;
-    if (!Array.isArray(stored)) return null;
+    if (!Array.isArray(stored) || !stored.every((item) => item?.attributes?.position && item.index)) return null;
     return stored.map((item) => {
       const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute("position", new THREE.BufferAttribute(item.position, 3));
-      geometry.setAttribute("normal", new THREE.BufferAttribute(item.normal, 3));
-      geometry.setAttribute("color", new THREE.BufferAttribute(item.color, 3));
+      for (const [name, attribute] of Object.entries(item.attributes)) geometry.setAttribute(name, new THREE.BufferAttribute(attribute.array, attribute.itemSize));
       geometry.setIndex(new THREE.BufferAttribute(item.index, 1));
       geometry.computeBoundingSphere();
       return geometry;
@@ -100,9 +99,7 @@ export async function saveGeometries(key: string, prefix: string, geometries: TH
     const keys = await done(store.getAllKeys());
     for (const old of keys) if (typeof old === "string" && old.startsWith(prefix) && old !== key) store.delete(old);
     const data: StoredGeometry[] = geometries.map((geometry) => ({
-      position: geometry.attributes.position.array as Float32Array,
-      normal: geometry.attributes.normal.array as Float32Array,
-      color: geometry.attributes.color.array as Float32Array,
+      attributes: Object.fromEntries(Object.entries(geometry.attributes).map(([name, attribute]) => [name, { array: attribute.array as Float32Array, itemSize: attribute.itemSize }])),
       index: geometry.index!.array as Uint32Array,
     }));
     await done(store.put(data, key));
