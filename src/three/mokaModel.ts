@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { fingerprint, loadGeometries, saveGeometries } from "./geometryStore";
 import { box, clamp, ellipsoid, roundCone, roundedCylinder, sculpt, smax, smin, smoothstep, sphere, surfaceAlong, withBound, wobble, type Paint, type Sdf, type Vec } from "./sculpt";
 
 /**
@@ -172,6 +173,16 @@ const legScene: Sdf = (x, y, z) => (y > -0.05 ? Math.min(legSdf(x, y, z), ellips
 
 
 type MokaGeometries = { torsoGeometry: THREE.BufferGeometry; headGeometry: THREE.BufferGeometry; legGeometry: THREE.BufferGeometry; earGeometries: THREE.BufferGeometry[] };
+/**
+ * Huella del modelo: el código de todas las piezas y sus medidas. Si cambia algo de la forma o de los
+ * colores, cambia la huella y la copia guardada en el dispositivo deja de usarse.
+ */
+function modelFingerprint() {
+  const code = [torsoSdf, torsoPaint, craniumSdf, muzzleSdf, hornsSdf, tuftSdf, headSdf, headPaint, legSdf, legPaint, earCupSdf, earSdf, earPaint, spotAmount, torsoScene, headScene, legScene, sculpt, sculptMoka].map(String).join("|");
+  const sizes = JSON.stringify({ THIGHS, HORNS, TUFT, NOSTRILS, colors: Object.values(COLORS).map((color) => color.getHexString()), shade: [SHADE.strength, SHADE.tint.getHexString()] });
+  return fingerprint(code + sizes);
+}
+
 type SculptJob = { done: Promise<MokaGeometries>; progress: number; listeners: Set<(fraction: number) => void> };
 const sculpted = new Map<number, SculptJob>();
 
@@ -191,12 +202,21 @@ function sculptMoka(detail: number, onProgress: (fraction: number) => void) {
     };
     const created: SculptJob = { progress: 0, listeners, done: Promise.resolve() as unknown as Promise<MokaGeometries> };
     created.done = (async () => {
+      // ¿Ya se esculpió antes en este dispositivo, con este mismo modelo? Entonces se lee y listo.
+      const key = `moka:${detail}:${modelFingerprint()}`;
+      const saved = await loadGeometries(key);
+      if (saved?.length === 5) {
+        saved.forEach((geometry) => { geometry.userData.keep = true; });
+        report(1);
+        const [torsoGeometry, headGeometry, legGeometry, ...earGeometries] = saved;
+        return { torsoGeometry, headGeometry, legGeometry, earGeometries };
+      }
       const res = (value: number) => Math.round(value * detail);
       const torsoBound: Sdf = (x, y, z) => box(x, y, z, 0, 0.73, 0.03, 0.5, 0.52, 0.75);
-      const torsoGeometry = await sculpt({ sdf: withBound(torsoBound, torsoSdf), paint: torsoPaint(), occlusion: { scene: torsoScene, ...SHADE }, center: [0, 0.7, 0.01], halfSize: 0.8, resolution: res(88) });
+      const torsoGeometry = await sculpt({ sdf: withBound(torsoBound, torsoSdf), paint: torsoPaint(), occlusion: { scene: torsoScene, ...SHADE }, center: [0, 0.7, 0.01], halfSize: 0.8, resolution: res(84) });
       report(0.45);
       const headBound: Sdf = (x, y, z) => sphere(x, y, z, 0, 0.06, 0.02, 0.52);
-      const headGeometry = await sculpt({ sdf: withBound(headBound, headSdf), paint: headPaint(), occlusion: { scene: headScene, ...SHADE }, center: [0, 0.05, 0.02], halfSize: 0.52, resolution: res(76) });
+      const headGeometry = await sculpt({ sdf: withBound(headBound, headSdf), paint: headPaint(), occlusion: { scene: headScene, ...SHADE }, center: [0, 0.05, 0.02], halfSize: 0.52, resolution: res(72) });
       report(0.85);
       const legGeometry = await sculpt({ sdf: legSdf, paint: legPaint, occlusion: { scene: legScene, ...SHADE }, center: [0, -0.13, 0], halfSize: 0.3, resolution: res(40) });
       const earGeometries: THREE.BufferGeometry[] = []; // [crema, café]
@@ -204,7 +224,9 @@ function sculptMoka(detail: number, onProgress: (fraction: number) => void) {
         earGeometries.push(await sculpt({ sdf: earSdf, paint: earPaint(outside), occlusion: { scene: earSdf, strength: 0.35, tint: SHADE.tint }, center: [0.17, 0, 0], halfSize: 0.22, resolution: res(40) }));
       }
       report(1);
-      for (const geometry of [torsoGeometry, headGeometry, legGeometry, ...earGeometries]) geometry.userData.keep = true;
+      const pieces = [torsoGeometry, headGeometry, legGeometry, ...earGeometries];
+      for (const geometry of pieces) geometry.userData.keep = true;
+      void saveGeometries(key, "moka:", pieces);
       return { torsoGeometry, headGeometry, legGeometry, earGeometries };
     })();
     created.done.catch(() => sculpted.delete(detail)); // Si algo falla, el siguiente intento vuelve a esculpir.
