@@ -117,6 +117,7 @@ function inject(material: THREE.MeshPhysicalMaterial, uniforms: Record<string, T
   };
   // Todas las pieles comparten el mismo programa (solo cambian los valores), y todas las capas de pelo el suyo.
   material.customProgramCacheKey = () => (shell ? "kahy-fur-shell" : "kahy-skin");
+  material.userData.uniforms = uniforms; // Para cambiar valores después (p. ej. menos capas si el equipo va lento).
   if (shell) material.defines = { ...material.defines, FUR_SHELL: "" };
 }
 
@@ -125,6 +126,17 @@ export function skinMaterial(spots: SpotSet | null, fur: FurOptions) {
   const material = new THREE.MeshPhysicalMaterial(skinParameters());
   inject(material, { ...spotUniforms(spots), uFurLength: { value: fur.length }, uShellCount: { value: fur.shells }, uFurDensity: { value: fur.density } }, false);
   return material;
+}
+
+/**
+ * Cambia cuántas capas de pelo se dibujan (menos = más rápido). El pelo conserva su largo:
+ * las capas se reparten de nuevo entre la piel y la punta.
+ */
+export function setShellCount(shells: THREE.InstancedMesh, count: number) {
+  const visible = Math.max(2, Math.min(count, shells.instanceMatrix.count));
+  shells.count = visible;
+  const uniforms = (shells.material as THREE.Material).userData.uniforms as Record<string, THREE.IUniform> | undefined;
+  if (uniforms?.uShellCount) uniforms.uShellCount.value = visible;
 }
 
 /**

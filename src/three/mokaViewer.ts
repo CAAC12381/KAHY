@@ -1,14 +1,21 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { createMeadowLife } from "./meadowLife";
 import { buildMoka, type MokaAction } from "./mokaModel";
 
 export type { MokaAction };
 
 /**
- * Escena 3D de Moka: lienzo, luces, cámara que se gira con el dedo o el
- * mouse, el prado y la foto. El modelo (esculpido) y sus animaciones están en
- * mokaModel.ts; las herramientas para esculpir, en sculpt.ts.
+ * Escena 3D de Moka: lienzo, luces (de día y de noche), cámara que se gira con
+ * el dedo, el mouse o el teclado, el prado con su vida (meadowLife.ts) y la
+ * foto. El modelo y sus animaciones están en mokaModel.ts; las herramientas
+ * para esculpir, en sculpt.ts.
+ *
+ * Gestos sobre el lienzo:
+ * - Arrastrar en el fondo gira la cámara; dos dedos o la rueda acercan.
+ * - Tocar a Moka la hace saludar; arrastrar sobre ella la acaricia.
+ * - Con el lienzo enfocado: flechas giran, + y − acercan, Enter saluda.
  */
 
 export type MokaViewer = {
@@ -16,15 +23,17 @@ export type MokaViewer = {
   setSleeping: (sleeping: boolean) => void;
   setAutoRotate: (enabled: boolean) => void;
   resetView: () => void;
-  /** Foto de lo que se ve ahora, con fondo, como PNG (data URL). */
+  /** Foto con marco y nombre, como PNG (data URL). */
   takePhoto: () => string;
   dispose: () => void;
 };
 
 type Options = {
   reducedMotion: boolean;
-  /** Se llama cuando la persona toca a Moka (no cuando arrastra para girar). */
+  /** Se llama cuando la persona toca a Moka (sin arrastrar) o pulsa Enter con el lienzo enfocado. */
   onTap: () => void;
+  /** Se llama una vez por caricia (al arrastrar el dedo o el mouse sobre Moka). */
+  onPet?: () => void;
   /** Avance de la escultura, de 0 a 1 (solo la primera vez por visita). */
   onProgress?: (fraction: number) => void;
 };
@@ -36,19 +45,32 @@ const COLORS = {
   photoBackground: "#f6efe0",
 };
 
+// Luces de día y de noche (cuando Moka duerme todo se vuelve luz de luna, poco a poco).
+const LIGHT = {
+  day: { sky: new THREE.Color("#fff6e6"), ground: new THREE.Color("#c9c2a8"), hemi: 1.0, sun: new THREE.Color("#fff0d8"), sunPower: 2.0, rim: new THREE.Color("#fff4e0"), rimPower: 1.1, environment: 0.45, exposure: 1.1 },
+  night: { sky: new THREE.Color("#8ea2d8"), ground: new THREE.Color("#2e3452"), hemi: 0.55, sun: new THREE.Color("#c6d4ff"), sunPower: 0.6, rim: new THREE.Color("#a9b8ff"), rimPower: 0.9, environment: 0.16, exposure: 0.95 },
+};
+
 const CAMERA_START = new THREE.Vector3(2.3, 1.75, 3.4);
 const TARGET = new THREE.Vector3(0, 0.74, 0);
 
 export async function createMokaViewer(container: HTMLElement, options: Options): Promise<MokaViewer> {
   // Lanza un error si el navegador no tiene WebGL; la página muestra un aviso en ese caso.
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  let pixelRatio = Math.min(window.devicePixelRatio, 2);
+  renderer.setPixelRatio(pixelRatio);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
-  renderer.domElement.className = "moka-canvas";
-  container.appendChild(renderer.domElement);
+  renderer.toneMappingExposure = LIGHT.day.exposure;
+  const canvas = renderer.domElement;
+  canvas.className = "moka-canvas";
+  // El lienzo se puede enfocar con Tab y manejar con el teclado.
+  canvas.tabIndex = 0;
+  canvas.setAttribute("role", "application");
+  canvas.setAttribute("aria-roledescription", "vista 3D");
+  canvas.setAttribute("aria-label", "Moka en 3D. Flechas para girar la vista, más y menos para acercar, Enter para saludarla.");
+  container.appendChild(canvas);
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 50);
@@ -58,11 +80,12 @@ export async function createMokaViewer(container: HTMLElement, options: Options)
   const pmrem = new THREE.PMREMGenerator(renderer);
   const room = new RoomEnvironment();
   scene.environment = pmrem.fromScene(room, 0.04).texture;
-  scene.environmentIntensity = 0.45;
+  scene.environmentIntensity = LIGHT.day.environment;
   room.dispose();
   pmrem.dispose();
-  scene.add(new THREE.HemisphereLight("#fff6e6", "#c9c2a8", 1.0));
-  const sun = new THREE.DirectionalLight("#fff0d8", 2.0);
+  const hemisphere = new THREE.HemisphereLight(LIGHT.day.sky, LIGHT.day.ground, LIGHT.day.hemi);
+  scene.add(hemisphere);
+  const sun = new THREE.DirectionalLight(LIGHT.day.sun, LIGHT.day.sunPower);
   sun.position.set(2.2, 4.2, 3);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
@@ -76,15 +99,16 @@ export async function createMokaViewer(container: HTMLElement, options: Options)
   const fill = new THREE.DirectionalLight("#e4ecff", 0.45);
   fill.position.set(-3, 2, -1);
   scene.add(fill);
-
   // Luz de contorno desde atrás: separa la silueta de Moka del fondo claro.
-  const rim = new THREE.DirectionalLight("#fff4e0", 1.1);
+  const rim = new THREE.DirectionalLight(LIGHT.day.rim, LIGHT.day.rimPower);
   rim.position.set(-1.5, 2.5, -3.5);
   scene.add(rim);
 
   // Viento del pasto: el tiempo se pasa al shader en cada cuadro.
   const wind = { value: 0 };
   scene.add(buildMeadow(wind));
+  const life = createMeadowLife();
+  scene.add(life.group);
   // En equipos modestos se esculpe con menos detalle para que cargue rápido.
   const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8;
   const modest = memory <= 4 || (navigator.hardwareConcurrency ?? 8) <= 4;
@@ -92,7 +116,7 @@ export async function createMokaViewer(container: HTMLElement, options: Options)
   const moka = await buildMoka(modest ? 0.8 : 1, options.onProgress, modest ? 7 : 11);
   scene.add(moka.root);
 
-  const controls = new OrbitControls(camera, renderer.domElement);
+  const controls = new OrbitControls(camera, canvas);
   controls.target.copy(TARGET);
   controls.enableDamping = true;
   controls.enablePan = false;
@@ -104,32 +128,94 @@ export async function createMokaViewer(container: HTMLElement, options: Options)
   controls.autoRotate = !options.reducedMotion;
   controls.update();
 
-  // Tocar (sin arrastrar) a Moka avisa a la página; pasar el cursor encima la hace mirarlo.
+  // --- Gestos ----------------------------------------------------------------
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   let hovering = false;
-  let downAt: { x: number; y: number } | null = null;
-  const pointerOnMoka = (event: PointerEvent) => {
-    const rect = renderer.domElement.getBoundingClientRect();
+  // Un gesto que empezó sobre Moka es caricia (la cámara no se mueve); en el fondo, gira la cámara.
+  let gesture: { x: number; y: number; onMoka: boolean; travel: number; petted: boolean; lastX: number; lastY: number } | null = null;
+  const hitOnMoka = (event: PointerEvent) => {
+    const rect = canvas.getBoundingClientRect();
     pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
     raycaster.setFromCamera(pointer, camera);
-    return raycaster.intersectObject(moka.body, true).length > 0;
+    return raycaster.intersectObject(moka.body, true)[0]?.point ?? null;
   };
-  const onPointerDown = (event: PointerEvent) => { downAt = { x: event.clientX, y: event.clientY }; };
+  const onPointerDown = (event: PointerEvent) => {
+    if (gesture) {
+      // Segundo dedo (para acercar con dos dedos): deja de ser caricia y la cámara vuelve a responder.
+      if (gesture.onMoka) moka.rub(null);
+      gesture = null;
+      controls.enabled = true;
+      return;
+    }
+    const onMoka = hitOnMoka(event) !== null;
+    gesture = { x: event.clientX, y: event.clientY, onMoka, travel: 0, petted: false, lastX: event.clientX, lastY: event.clientY };
+    if (onMoka) {
+      controls.enabled = false; // Este listener corre antes que el de OrbitControls (fase de captura).
+      canvas.setPointerCapture?.(event.pointerId);
+    }
+  };
   const onPointerMove = (event: PointerEvent) => {
     hovering = event.pointerType === "mouse";
-    if (hovering && !downAt) renderer.domElement.style.cursor = pointerOnMoka(event) ? "pointer" : "";
+    if (gesture) {
+      gesture.travel += Math.hypot(event.clientX - gesture.lastX, event.clientY - gesture.lastY);
+      gesture.lastX = event.clientX;
+      gesture.lastY = event.clientY;
+      if (gesture.onMoka && gesture.travel > 6) {
+        const point = hitOnMoka(event);
+        moka.rub(point);
+        if (!gesture.petted && gesture.travel > 40) {
+          gesture.petted = true;
+          options.onPet?.();
+        }
+      }
+    } else if (hovering) {
+      canvas.style.cursor = hitOnMoka(event) ? "grab" : "";
+    }
+  };
+  const endGesture = (event: PointerEvent) => {
+    if (!gesture) return;
+    const tapped = gesture.onMoka && gesture.travel <= 6;
+    if (gesture.onMoka) moka.rub(null);
+    gesture = null;
+    controls.enabled = true;
+    if (tapped && event.type === "pointerup") options.onTap();
   };
   const onPointerLeave = () => { hovering = false; };
-  const onPointerUp = (event: PointerEvent) => {
-    const tapped = downAt && Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y) <= 6;
-    downAt = null;
-    if (tapped && pointerOnMoka(event)) options.onTap();
+  canvas.addEventListener("pointerdown", onPointerDown, { capture: true });
+  canvas.addEventListener("pointermove", onPointerMove);
+  canvas.addEventListener("pointerup", endGesture);
+  canvas.addEventListener("pointercancel", endGesture);
+  canvas.addEventListener("pointerleave", onPointerLeave);
+
+  // Teclado: girar y acercar alrededor del mismo centro, con los mismos límites que con el dedo.
+  const spherical = new THREE.Spherical();
+  const offset = new THREE.Vector3();
+  const onKeyDown = (event: KeyboardEvent) => {
+    let theta = 0;
+    let phi = 0;
+    let zoom = 1;
+    if (event.key === "ArrowLeft") theta = -0.26;
+    else if (event.key === "ArrowRight") theta = 0.26;
+    else if (event.key === "ArrowUp") phi = -0.15;
+    else if (event.key === "ArrowDown") phi = 0.15;
+    else if (event.key === "+" || event.key === "=") zoom = 0.88;
+    else if (event.key === "-" || event.key === "_") zoom = 1.14;
+    else if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      options.onTap();
+      return;
+    } else return;
+    event.preventDefault();
+    offset.copy(camera.position).sub(controls.target);
+    spherical.setFromVector3(offset);
+    spherical.theta += theta;
+    spherical.phi = THREE.MathUtils.clamp(spherical.phi + phi, controls.minPolarAngle, controls.maxPolarAngle);
+    spherical.radius = THREE.MathUtils.clamp(spherical.radius * zoom, controls.minDistance, controls.maxDistance);
+    camera.position.copy(controls.target).add(offset.setFromSpherical(spherical));
+    controls.update();
   };
-  renderer.domElement.addEventListener("pointerdown", onPointerDown);
-  renderer.domElement.addEventListener("pointermove", onPointerMove);
-  renderer.domElement.addEventListener("pointerleave", onPointerLeave);
-  renderer.domElement.addEventListener("pointerup", onPointerUp);
+  canvas.addEventListener("keydown", onKeyDown);
 
   const resize = () => {
     const width = Math.max(1, container.clientWidth);
@@ -147,19 +233,64 @@ export async function createMokaViewer(container: HTMLElement, options: Options)
   resizeObserver.observe(container);
   resize();
 
+  // Calidad automática: si durante 3 s seguidos va a menos de ~25 cuadros por segundo, primero baja la
+  // resolución y luego la mitad de las capas de pelo. Nunca vuelve a subir (evita que parpadee la calidad).
+  let quality = 2;
+  let slowSince = -1;
+  let frameAverage = 1 / 60;
+  const lowerQuality = () => {
+    if (quality === 2 && pixelRatio > 1) {
+      pixelRatio = 1;
+      renderer.setPixelRatio(1);
+      resize();
+    } else {
+      moka.setFurLayers(0.5);
+    }
+    quality--;
+  };
+
   const timer = new THREE.Timer();
   const frame = (timestamp: number) => {
     timer.update(timestamp);
+    const rawDelta = timer.getDelta();
     // Tope de 0.1 s: al volver a la pestaña no da un salto, y en equipos lentos las transiciones no se quedan a medias.
-    const delta = Math.min(timer.getDelta(), 0.1);
-    wind.value = options.reducedMotion ? 0 : timer.getElapsed();
-    moka.update(timer.getElapsed(), delta, {
+    const delta = Math.min(rawDelta, 0.1);
+    const time = timer.getElapsed();
+    wind.value = options.reducedMotion ? 0 : time;
+
+    // Noche: cuando Moka duerme, la luz pasa poco a poco a luz de luna.
+    const night = moka.night();
+    hemisphere.color.lerpColors(LIGHT.day.sky, LIGHT.night.sky, night);
+    hemisphere.groundColor.lerpColors(LIGHT.day.ground, LIGHT.night.ground, night);
+    hemisphere.intensity = THREE.MathUtils.lerp(LIGHT.day.hemi, LIGHT.night.hemi, night);
+    sun.color.lerpColors(LIGHT.day.sun, LIGHT.night.sun, night);
+    sun.intensity = THREE.MathUtils.lerp(LIGHT.day.sunPower, LIGHT.night.sunPower, night);
+    rim.color.lerpColors(LIGHT.day.rim, LIGHT.night.rim, night);
+    rim.intensity = THREE.MathUtils.lerp(LIGHT.day.rimPower, LIGHT.night.rimPower, night);
+    scene.environmentIntensity = THREE.MathUtils.lerp(LIGHT.day.environment, LIGHT.night.environment, night);
+    renderer.toneMappingExposure = THREE.MathUtils.lerp(LIGHT.day.exposure, LIGHT.night.exposure, night);
+
+    const interest = life.update(time, delta, night, options.reducedMotion, (out) => moka.perch(out));
+    moka.update(time, delta, {
       reducedMotion: options.reducedMotion,
       viewer: camera,
-      pointer: hovering ? pointer : null,
+      pointer: hovering && !gesture ? pointer : null,
+      interest,
     });
     controls.update();
     renderer.render(scene, camera);
+
+    if (quality > 0 && document.visibilityState === "visible") {
+      frameAverage += (Math.min(rawDelta, 0.25) - frameAverage) * 0.05;
+      if (frameAverage > 0.04) {
+        if (slowSince < 0) slowSince = time;
+        else if (time - slowSince > 3) {
+          lowerQuality();
+          slowSince = -1;
+          frameAverage = 1 / 60;
+        }
+      } else slowSince = -1;
+    }
   };
 
   // Solo se dibuja mientras la vista está en pantalla: ahorra batería al desplazarse fuera.
@@ -176,12 +307,40 @@ export async function createMokaViewer(container: HTMLElement, options: Options)
       controls.update();
     },
     takePhoto: () => {
-      const previous = scene.background;
-      scene.background = new THREE.Color(COLORS.photoBackground);
+      // Se dibuja con más resolución, sobre fondo (claro de día, azul de noche), y se le pone un marco con nombre y fecha.
+      const night = moka.night();
+      const previousBackground = scene.background;
+      scene.background = new THREE.Color(COLORS.photoBackground).lerp(new THREE.Color("#2b3150"), night);
+      renderer.setPixelRatio(Math.min(3, Math.max(2, pixelRatio)));
       renderer.render(scene, camera);
-      const url = renderer.domElement.toDataURL("image/png");
-      scene.background = previous;
-      renderer.render(scene, camera);
+      const shot = document.createElement("canvas");
+      const padding = Math.round(canvas.width * 0.04);
+      const caption = Math.round(canvas.width * 0.09);
+      shot.width = canvas.width + padding * 2;
+      shot.height = canvas.height + padding * 2 + caption;
+      const ctx = shot.getContext("2d")!;
+      ctx.fillStyle = "#fffefb";
+      ctx.fillRect(0, 0, shot.width, shot.height);
+      ctx.save();
+      const radius = padding * 0.8;
+      ctx.beginPath();
+      if (typeof ctx.roundRect === "function") ctx.roundRect(padding, padding, canvas.width, canvas.height, radius);
+      else ctx.rect(padding, padding, canvas.width, canvas.height); // Navegadores viejos: esquinas rectas.
+      ctx.clip();
+      ctx.drawImage(canvas, padding, padding);
+      ctx.restore();
+      ctx.fillStyle = "#684d72";
+      ctx.textBaseline = "middle";
+      ctx.font = `700 ${Math.round(caption * 0.42)}px Inter, "Segoe UI", system-ui, sans-serif`;
+      ctx.fillText("Moka · KAHY", padding, canvas.height + padding + caption / 2);
+      ctx.fillStyle = "#6d6f68";
+      ctx.font = `500 ${Math.round(caption * 0.28)}px Inter, "Segoe UI", system-ui, sans-serif`;
+      ctx.textAlign = "right";
+      ctx.fillText(new Date().toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }), shot.width - padding, canvas.height + padding + caption / 2);
+      const url = shot.toDataURL("image/png");
+      scene.background = previousBackground;
+      renderer.setPixelRatio(pixelRatio);
+      resize();
       return url;
     },
     dispose: () => {
@@ -189,10 +348,12 @@ export async function createMokaViewer(container: HTMLElement, options: Options)
       resizeObserver.disconnect();
       renderer.setAnimationLoop(null);
       timer.dispose();
-      renderer.domElement.removeEventListener("pointerdown", onPointerDown);
-      renderer.domElement.removeEventListener("pointermove", onPointerMove);
-      renderer.domElement.removeEventListener("pointerleave", onPointerLeave);
-      renderer.domElement.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("pointerdown", onPointerDown, { capture: true });
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerup", endGesture);
+      canvas.removeEventListener("pointercancel", endGesture);
+      canvas.removeEventListener("pointerleave", onPointerLeave);
+      canvas.removeEventListener("keydown", onKeyDown);
       controls.dispose();
       scene.traverse((object) => {
         if (!(object instanceof THREE.Mesh || object instanceof THREE.Sprite)) return;
@@ -204,9 +365,10 @@ export async function createMokaViewer(container: HTMLElement, options: Options)
         });
       });
       moka.textures.forEach((texture) => texture.dispose());
+      life.dispose();
       scene.environment?.dispose();
       renderer.dispose();
-      renderer.domElement.remove();
+      canvas.remove();
     },
   };
 }

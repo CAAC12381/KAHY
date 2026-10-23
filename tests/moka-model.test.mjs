@@ -8,8 +8,9 @@ import { test } from "node:test";
 
 // Lo poco del navegador que usa el modelo (los dibujitos de corazón y "z" se pintan en un canvas).
 globalThis.window ??= globalThis;
-const noop = () => {};
-globalThis.document ??= { createElement: () => ({ width: 0, height: 0, getContext: () => new Proxy({}, { get: () => noop }) }) };
+// Un "contexto 2D" falso que acepta cualquier llamada (también gradientes encadenados).
+const fake = new Proxy(function () {}, { get: (_, key) => (key === Symbol.toPrimitive ? () => 0 : fake), apply: () => fake });
+globalThis.document ??= { createElement: () => ({ width: 0, height: 0, getContext: () => fake }) };
 
 const { buildMoka } = await import("../src/three/mokaModel.ts");
 
@@ -52,4 +53,46 @@ test("cada parte con pelo lleva sus capas de pelo, que no proyectan sombra", asy
   moka.root.traverse((object) => { if (object.userData.furShells) shells.push(object); });
   assert.equal(shells.length, 1 + 1 + 4 + 2, "cuerpo, cabeza, cuatro patas y dos orejas");
   for (const layer of shells) assert.equal(layer.castShadow, false);
+});
+
+test("Moka puede hacer todo seguido sin errores: saludar, comer, acariciarla, dormir y despertar", async () => {
+  const THREE = await import("three");
+  const { createMeadowLife } = await import("../src/three/meadowLife.ts");
+  const moka = await buildMoka(0.8, () => {}, 4);
+  const life = createMeadowLife();
+  const camera = new THREE.PerspectiveCamera();
+  camera.position.set(2.3, 1.75, 3.4);
+  let time = 0;
+  const run = (seconds, reducedMotion = false) => {
+    for (let frame = 0; frame < seconds * 30; frame++) {
+      time += 1 / 30;
+      const interest = life.update(time, 1 / 30, moka.night(), reducedMotion, (out) => moka.perch(out));
+      moka.update(time, 1 / 30, { reducedMotion, viewer: camera, pointer: null, interest });
+      moka.root.updateMatrixWorld(true);
+    }
+  };
+  run(2);
+  for (const action of ["greet", "eat", "wag", "pet"]) {
+    moka.play(action);
+    run(2.6);
+  }
+  moka.rub(new THREE.Vector3(0.2, 0.9, 0.2));
+  run(1);
+  moka.rub(new THREE.Vector3(0.1, 1.2, 0.5));
+  run(1);
+  moka.rub(null);
+  moka.setSleeping(true);
+  run(4);
+  assert.ok(moka.night() > 0.95, "dormida, la escena se vuelve de noche");
+  moka.play("greet"); // Dormida no hace caso: no debe fallar.
+  run(1);
+  moka.setSleeping(false);
+  run(4);
+  assert.ok(moka.night() < 0.05, "despierta, vuelve el día");
+  run(10, true); // Con "reducir movimiento" también.
+  moka.setFurLayers(0.5);
+  let visibleLayers = 0;
+  moka.root.traverse((object) => { if (object.userData.furShells) visibleLayers = Math.max(visibleLayers, object.count); });
+  assert.ok(visibleLayers <= 3, "con calidad baja se dibujan menos capas de pelo");
+  for (const value of [moka.root.position.y, moka.root.rotation.y]) assert.ok(Number.isFinite(value));
 });

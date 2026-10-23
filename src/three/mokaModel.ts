@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { furShells, skinMaterial, type FurOptions, type SpotSet } from "./furMaterial";
+import { furShells, setShellCount, skinMaterial, type FurOptions, type SpotSet } from "./furMaterial";
 import { fingerprint, loadGeometries, saveGeometries } from "./geometryStore";
 import { box, clamp, ellipsoid, roundCone, roundedCylinder, sculpt, smax, smin, smoothstep, sphere, surfaceAlong, withBound, type Paint, type Sdf, type Vec } from "./sculpt";
 
@@ -15,7 +15,13 @@ import { box, clamp, ellipsoid, roundCone, roundedCylinder, sculpt, smax, smin, 
  */
 
 export type MokaAction = "greet" | "pet" | "eat" | "wag";
-export type UpdateContext = { reducedMotion: boolean; viewer: THREE.Camera; pointer: THREE.Vector2 | null };
+export type UpdateContext = {
+  reducedMotion: boolean;
+  viewer: THREE.Camera;
+  pointer: THREE.Vector2 | null;
+  /** Algo que le llama la atención (una mariposa), en coordenadas del mundo; a veces lo sigue con la mirada. */
+  interest: THREE.Vector3 | null;
+};
 
 const COLORS = {
   fur: new THREE.Color("#fbf3e6"),
@@ -406,7 +412,26 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
     return ear;
   });
 
-  // --- Efectos: corazones al acariciarla y "z" al dormir (sprites, siempre de frente a la cámara).
+  // Ramita de pasto que asoma por un lado de la boca mientras mastica.
+  const sprig = new THREE.Group();
+  sprig.position.set(0.035, mouthAt.y - 0.004, mouthAt.z - 0.004);
+  const sprigMaterial = material("#8dbb6c", { roughness: 0.8, side: THREE.DoubleSide });
+  for (const [angle, length] of [[-1.15, 0.11], [-0.75, 0.13], [-0.35, 0.09]] as const) {
+    const bladeGeometry = new THREE.PlaneGeometry(0.014, length);
+    bladeGeometry.translate(0, length / 2, 0);
+    const blade = new THREE.Mesh(bladeGeometry, sprigMaterial);
+    blade.rotation.set(0.5, 0, angle);
+    sprig.add(blade);
+  }
+  sprig.visible = false;
+  head.add(sprig);
+
+  // Punto del lomo donde a veces se posa una mariposa (ver meadowLife.ts).
+  const perch = new THREE.Object3D();
+  perch.position.set(0.12, 1.0, -0.14);
+  bodyPivot.add(perch);
+
+  // --- Efectos: corazones (al acariciarla) y "z" (al dormir): sprites, siempre de frente a la cámara.
   const spriteTexture = (draw: (ctx: CanvasRenderingContext2D) => void) => {
     const canvas = document.createElement("canvas");
     canvas.width = 64;
@@ -427,7 +452,7 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
     ctx.fill();
   });
   const zTexture = spriteTexture((ctx) => {
-    ctx.fillStyle = "#8a6aa0";
+    ctx.fillStyle = "#b9a6d6";
     ctx.font = "bold 46px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -438,6 +463,7 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
   type Particle = { sprite: THREE.Sprite; born: number; life: number; from: THREE.Vector3; sway: number; rise: number; size: number };
   const particles: Particle[] = [];
   function spawn(texture: THREE.Texture, from: THREE.Vector3, size: number, rise: number, life: number) {
+    if (particles.length > 24) return; // Tope: acariciar sin parar no llena la escena de corazones.
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }));
     sprite.position.copy(from);
     sprite.scale.setScalar(0.001);
@@ -445,7 +471,14 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
     particles.push({ sprite, born: now, life, from: from.clone(), sway: Math.random() * Math.PI * 2, rise, size });
   }
 
+  // --- Estado ------------------------------------------------------------------
+  type IdleKind = "ear" | "tilt" | "sniff" | "look" | "hop" | "swish";
+  const IDLE_DURATION: Record<IdleKind, number> = { ear: 0.45, tilt: 1.6, sniff: 1.4, look: 2.8, hop: 0.55, swish: 1 };
   let action: { name: MokaAction; started: number; spawned: number } | null = null;
+  let idle: { kind: IdleKind; started: number; side: number } | null = null;
+  let nextIdle = 5;
+  let rubbing: { point: THREE.Vector3; lastHeart: number } | null = null;
+  let happyUntil = 0;
   let sleeping = false;
   let sleepAmount = 0;
   let nextZ = 0;
@@ -455,16 +488,35 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
   let lookYaw = 0;
   let lookPitch = 0;
   const viewerLocal = new THREE.Vector3();
+  const interestLocal = new THREE.Vector3();
 
   function play(name: MokaAction) {
     if (sleeping) return;
     action = { name, started: now, spawned: 0 };
+    idle = null;
   }
 
   function setSleeping(value: boolean) {
     sleeping = value;
-    if (value) action = null;
+    if (value) {
+      action = null;
+      rubbing = null;
+    }
     nextZ = now + 0.6;
+  }
+
+  /** La mano (dedo o mouse) pasa sobre Moka en `worldPoint`; null cuando se suelta. */
+  function rub(worldPoint: THREE.Vector3 | null) {
+    if (!worldPoint) {
+      if (rubbing) happyUntil = now + 0.9; // Se queda contenta un momento después de la caricia.
+      rubbing = null;
+      return;
+    }
+    if (sleeping) return;
+    const local = root.worldToLocal(worldPoint.clone());
+    if (rubbing) rubbing.point.copy(local);
+    else rubbing = { point: local, lastHeart: now - 1 };
+    idle = null;
   }
 
   function update(time: number, delta: number, context: UpdateContext) {
@@ -482,17 +534,39 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
       leg.pivot.scale.y = 1 - (leg.front ? 0.35 : 0.75) * lie;
     }
 
+    // Vida propia: si nadie la toca, cada 4–9 s hace algo pequeño (oreja, cabeza, olfatear, mirar la mariposa…).
+    const awake = !sleeping && lie < 0.1;
+    if (action || rubbing || !awake) idle = null;
+    else if (!idle && time > nextIdle) {
+      const kinds: IdleKind[] = context.interest ? ["ear", "tilt", "sniff", "look", "look", "hop", "swish"] : ["ear", "tilt", "sniff", "hop", "swish"];
+      let kind = kinds[Math.floor(Math.random() * kinds.length)];
+      if (kind === "hop" && context.reducedMotion) kind = "tilt";
+      idle = { kind, started: time, side: Math.random() < 0.5 ? -1 : 1 };
+    }
+    if (idle && time - idle.started > IDLE_DURATION[idle.kind]) {
+      idle = null;
+      nextIdle = time + 4 + Math.random() * 5;
+    }
+    const idleT = idle ? (time - idle.started) / IDLE_DURATION[idle.kind] : 0;
+    const idleEnvelope = idle ? Math.sin(Math.PI * idleT) : 0;
+
     // Respira (más hondo y lento dormida) y mueve las orejas.
     const breath = lie > 0.5 ? 0.03 * Math.sin(time * 1.3) : 0.018 * Math.sin(time * 2.1) * calm;
-    bodyPivot.scale.set(1, 1 + breath, 1);
-    ears.forEach((ear, index) => { ear.rotation.x = 0.08 * Math.sin(time * 1.7 + index) * calm; });
+    let squash = 1;
+    ears.forEach((ear, index) => {
+      ear.rotation.x = 0.08 * Math.sin(time * 1.7 + index) * calm;
+      ear.rotation.z = (index === 0 ? 1 : -1) * -0.38;
+    });
 
-    // Te mira: gira la cabeza hacia la cámara (y hacia el cursor si está encima), dentro de un límite.
+    // Hacia dónde mira: a ti (la cámara), al cursor si está encima, a la mano que la acaricia o a la mariposa.
     viewerLocal.copy(context.viewer.position);
     root.worldToLocal(viewerLocal);
-    let yawTarget = clamp(Math.atan2(viewerLocal.x, viewerLocal.z - HEAD_ORIGIN.z), -0.75, 0.75);
-    let pitchTarget = clamp(-Math.atan2(viewerLocal.y - HEAD_ORIGIN.y, Math.hypot(viewerLocal.x, viewerLocal.z - HEAD_ORIGIN.z)), -0.3, 0.2);
-    if (context.pointer) {
+    let lookAt = viewerLocal;
+    if (idle?.kind === "look" && context.interest) lookAt = root.worldToLocal(interestLocal.copy(context.interest));
+    else if (rubbing) lookAt = interestLocal.copy(rubbing.point).lerp(viewerLocal, 0.5);
+    let yawTarget = clamp(Math.atan2(lookAt.x, lookAt.z - HEAD_ORIGIN.z), -0.8, 0.8);
+    let pitchTarget = clamp(-Math.atan2(lookAt.y - HEAD_ORIGIN.y, Math.hypot(lookAt.x, lookAt.z - HEAD_ORIGIN.z)), -0.35, 0.25);
+    if (context.pointer && lookAt === viewerLocal) {
       yawTarget = clamp(yawTarget + context.pointer.x * 0.35, -0.85, 0.85);
       pitchTarget = clamp(pitchTarget - context.pointer.y * 0.2, -0.35, 0.25);
     }
@@ -504,26 +578,61 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
     lookPitch += (pitchTarget - lookPitch) * ease(4);
     head.rotation.set(lookPitch + 0.04 * Math.sin(time * 1.3) * calm, lookYaw + 0.06 * Math.sin(time * 0.55) * calm, 0.05 * Math.sin(time * 0.9) * calm);
     head.position.y = HEAD_ORIGIN.y;
+    bodyPivot.rotation.y = 0;
 
     let wag = 0.25 * Math.sin(time * 2.4) * calm * (1 - lie);
     let jump = 0;
     let bellSwing = 0.15 * Math.sin(time * 2.1) * calm * (1 - lie);
-    let happy = false;
-    openMouth.visible = false;
+    let happy = time < happyUntil;
+    let mouthOpen = 0;
+    sprig.visible = false;
+
+    if (idle) {
+      if (idle.kind === "ear") {
+        const ear = ears[idle.side > 0 ? 0 : 1];
+        ear.rotation.x += 0.7 * Math.sin(idleT * Math.PI * 2) * (1 - idleT);
+        ear.rotation.z += (idle.side > 0 ? 1 : -1) * 0.25 * idleEnvelope;
+      } else if (idle.kind === "tilt") {
+        head.rotation.z += 0.3 * idleEnvelope * idle.side;
+      } else if (idle.kind === "sniff") {
+        head.rotation.x += 0.16 * idleEnvelope + 0.025 * Math.sin(time * 32) * idleEnvelope;
+      } else if (idle.kind === "hop") {
+        jump = 0.09 * Math.sin(Math.PI * idleT);
+      } else if (idle.kind === "swish") {
+        wag = 1.0 * Math.sin(idleT * Math.PI * 3) * idleEnvelope;
+      }
+    }
+
+    if (rubbing) {
+      // Acariciada: ojitos contentos, se inclina hacia la mano, mueve la cola y salen corazones donde la tocas.
+      happy = true;
+      head.rotation.z -= clamp(rubbing.point.x * 0.6, -0.25, 0.25);
+      wag = 0.8 * Math.sin(time * 15);
+      bellSwing = 0.3 * Math.sin(time * 12);
+      if (time - rubbing.lastHeart > 0.28) {
+        rubbing.lastHeart = time;
+        spawn(heartTexture, rubbing.point.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.1, 0.1, 0.06)), 0.13, 0.35, 1.3);
+      }
+    }
 
     if (action) {
       const elapsed = time - action.started;
       if (action.name === "greet") {
-        // Saltito con "¡Muuu!", campanita sonando y cola feliz.
-        const progress = Math.min(1, elapsed / 0.75);
-        jump = context.reducedMotion ? 0 : 0.3 * Math.sin(Math.PI * progress);
-        if (!context.reducedMotion && progress > 0.85) bodyPivot.scale.y *= 0.95;
-        openMouth.visible = elapsed < 0.9;
+        // Se agacha (0–0.15 s), salta con "¡Muuu!" (0.15–0.75 s), las orejas se levantan y al caer se aplasta un poquito.
+        const progress = clamp((elapsed - 0.15) / 0.6, 0, 1);
+        if (!context.reducedMotion) {
+          const crouch = elapsed < 0.15 ? Math.sin((elapsed / 0.15) * Math.PI * 0.5) : Math.max(0, 1 - (elapsed - 0.15) / 0.08);
+          const land = elapsed > 0.75 ? Math.max(0, 1 - (elapsed - 0.75) / 0.18) : 0;
+          squash = 1 - 0.08 * crouch - 0.06 * land;
+          jump = 0.3 * Math.sin(Math.PI * progress);
+        }
+        ears.forEach((ear, index) => { ear.rotation.z += (index === 0 ? 1 : -1) * 0.4 * Math.sin(Math.PI * progress); });
+        mouthOpen = elapsed > 0.12 && elapsed < 1.05 ? 1 : 0;
         wag = 0.7 * Math.sin(elapsed * 18);
-        bellSwing = 0.6 * Math.sin(elapsed * 20) * Math.max(0, 1 - elapsed / 1.2);
-        if (elapsed > 1.2) action = null;
+        bellSwing = 0.6 * Math.sin(elapsed * 20) * Math.max(0, 1 - elapsed / 1.3);
+        if (elapsed > 1.3) action = null;
       } else if (action.name === "pet") {
-        // Cierra los ojitos contenta, ladea la cabeza y salen corazones a los lados.
+        // Botón "Acariciar": se acurruca de lado, cierra los ojitos y salen corazones a los lados.
         happy = true;
         head.rotation.z += 0.16 * Math.sin(elapsed * 5) * Math.min(1, elapsed * 3);
         wag = 0.8 * Math.sin(elapsed * 15);
@@ -534,22 +643,36 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
         }
         if (elapsed > 1.8) action = null;
       } else if (action.name === "eat") {
-        // Baja la cabeza al pasto, mastica y vuelve.
-        const down = Math.min(1, elapsed / 0.4) * Math.min(1, Math.max(0, (2.2 - elapsed) / 0.4));
+        // Baja la cabeza al pasto, arranca una ramita, la mastica (boca que abre y cierra) y vuelve.
+        const down = Math.min(1, elapsed / 0.4) * Math.min(1, Math.max(0, (2.4 - elapsed) / 0.4));
         head.rotation.x = lookPitch * (1 - down) + 0.6 * down;
         head.rotation.y = lookYaw * (1 - down);
         head.position.y = HEAD_ORIGIN.y - 0.14 * down;
-        head.rotation.z += 0.03 * Math.sin(elapsed * 14) * down;
-        if (elapsed > 2.2) action = null;
+        const chewing = elapsed > 0.55 && elapsed < 2.3;
+        if (chewing) {
+          const chew = Math.abs(Math.sin((elapsed - 0.55) * 9));
+          mouthOpen = 0.35 + 0.5 * chew;
+          head.rotation.z += 0.025 * Math.sin(elapsed * 18);
+          sprig.visible = true;
+          sprig.rotation.z = 0.15 * Math.sin(elapsed * 9);
+        }
+        if (elapsed > 2.4) action = null;
       } else {
-        wag = 0.85 * Math.sin(elapsed * 16);
+        // Mover la cola: cola feliz y el cuerpo se menea con ella.
+        const envelope = Math.min(1, elapsed * 4) * Math.max(0, Math.min(1, (1.6 - elapsed) * 3));
+        wag = 0.9 * Math.sin(elapsed * 16);
+        bodyPivot.rotation.y = 0.07 * Math.sin(elapsed * 16 + Math.PI) * envelope * calm;
+        bellSwing = 0.35 * Math.sin(elapsed * 16) * envelope;
         if (elapsed > 1.6) action = null;
       }
     }
 
     root.position.y = jump;
+    bodyPivot.scale.set(1 + (1 - squash) * 0.5, (1 + breath) * squash, 1 + (1 - squash) * 0.5);
     tail.rotation.set(0.1 + 0.4 * lie, wag, 0);
     bell.rotation.z = bellSwing;
+    openMouth.visible = mouthOpen > 0;
+    openMouth.scale.set(1, Math.max(0.3, mouthOpen), 1);
     smile.visible = !openMouth.visible;
 
     // Ojos: dormida → "‿"; contenta → "^"; si no, abiertos y parpadeando cada 2.5–5 s.
@@ -589,5 +712,25 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
     }
   }
 
-  return { root, body, play, setSleeping, update, textures: [heartTexture, zTexture] };
+  /** Menos capas de pelo si el equipo va lento (el pelo conserva su largo). `fraction`: de 0 a 1. */
+  function setFurLayers(fraction: number) {
+    root.traverse((object) => {
+      if (object instanceof THREE.InstancedMesh && object.userData.furShells) setShellCount(object, Math.round(object.instanceMatrix.count * Math.min(1, fraction)));
+    });
+  }
+
+  return {
+    root,
+    body,
+    play,
+    setSleeping,
+    rub,
+    update,
+    setFurLayers,
+    /** 0 despierta … 1 dormida: la escena usa esto para oscurecerse (modo noche). */
+    night: () => sleepAmount,
+    /** Dónde se posa una mariposa (en el lomo), en coordenadas del mundo. */
+    perch: (out: THREE.Vector3) => perch.getWorldPosition(out),
+    textures: [heartTexture, zTexture],
+  };
 }
