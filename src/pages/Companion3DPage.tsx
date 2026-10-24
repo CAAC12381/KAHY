@@ -1,4 +1,4 @@
-import { Apple, Camera, Download, Hand, Heart, Moon, Pause, Play, RotateCcw, Share2, Sparkles, Sun, Volume2, VolumeX } from "lucide-react";
+import { Apple, Camera, Download, Flower, Hand, Heart, Moon, Pause, Play, RotateCcw, Share2, Sparkles, Sun, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Mascot from "../components/Mascot";
 import { Button, Card, DemoBadge, Modal } from "../components/ui";
@@ -24,13 +24,14 @@ const lines = {
   greet: { listId: "3d:moka:tap", lines: voice.tap },
   pet: { listId: "3d:moka:love", lines: voice.care.love ?? [] },
   eat: { listId: "3d:moka:food", lines: voice.care.food ?? [] },
-  wag: { listId: "3d:moka:wag", lines: ["¡Mira cómo muevo la cola! Así digo que estoy feliz.", "Muevo la cola y suena mi campanita. ¡Tilín, tilín!", "Cola feliz, vaquita feliz. ¡Muuu!"] },
+  wag: { listId: "3d:moka:wag", lines: ["¡Mira cómo muevo la cola! Así digo que estoy feliz.", "Muevo la cola como abanico. ¡Fiu, fiu!", "Cola feliz, vaquita feliz. ¡Muuu!"] },
+  smell: { listId: "3d:moka:smell", lines: ["Mmm… huele a primavera.", "¡Qué flor tan bonita! ¿Te la regalo?", "Huelo flores y me dan ganas de dar saltitos. ¡Muuu!"] },
   sleep: { listId: "3d:moka:sleep", lines: ["Zzz… cinco minutitos más…", "Voy a soñar con un prado enorme. Zzz…", "Muuu… buenas noches. Zzz…"] },
   wake: { listId: "3d:moka:wake", lines: ["¡Ya desperté! ¿Me extrañaste?", "Muuu… qué rica siesta. ¡Hola otra vez!", "Soñé que jugábamos a las escondidillas. ¡Tú ganabas!"] },
-  photo: { listId: "3d:moka:photo", lines: ["¡Salí bien guapa! ¿La guardamos?", "¡Muuu! Foto lista. ¿Salió mi campanita?", "Guárdala bien, que salí sonriendo."] },
+  photo: { listId: "3d:moka:photo", lines: ["¡Salí bien guapa! ¿La guardamos?", "¡Muuu! Foto lista. ¿Salió mi copete?", "Guárdala bien, que salí sonriendo."] },
 } satisfies Record<MokaAction | "sleep" | "wake" | "photo", { listId: string; lines: string[] }>;
 
-const actionSound: Record<MokaAction, MokaSound> = { greet: "moo", pet: "happy", eat: "munch", wag: "bell" };
+const actionSound: Record<MokaAction, MokaSound> = { greet: "moo", pet: "happy", eat: "munch", wag: "bell", smell: "sniff" };
 
 /** Convierte la foto (data URL) en archivo para compartirla. */
 async function photoFile(url: string) {
@@ -204,11 +205,12 @@ export default function Companion3DPage({ preferences }: { preferences: Preferen
             <Button variant="secondary" onClick={() => play("pet")} disabled={!awake}><Heart size={18} /> Acariciar</Button>
             <Button variant="secondary" onClick={() => play("eat")} disabled={!awake}><Apple size={18} /> Comer pasto</Button>
             <Button variant="secondary" onClick={() => play("wag")} disabled={!awake}><Sparkles size={18} /> Mover la cola</Button>
+            <Button variant="secondary" onClick={() => play("smell")} disabled={!awake}><Flower size={18} /> Oler una flor</Button>
             <Button variant={sleeping ? "primary" : "secondary"} className="companion-3d-sleep" onClick={() => changeSleep(!sleeping)} disabled={!ready} aria-pressed={sleeping}>{sleeping ? <><Sun size={18} /> Despertar</> : <><Moon size={18} /> Dormir</>}</Button>
           </div>
           {sleeping && <p className="companion-3d-hint">Moka está dormida. Tócala o pulsa “Despertar” para jugar otra vez.</p>}
           <p className="companion-3d-keys">Con teclado: <kbd>Tab</kbd> hasta Moka, <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> para girar, <kbd>+</kbd> <kbd>−</kbd> para acercar y <kbd>Enter</kbd> para saludarla.</p>
-          <p className="companion-3d-note"><DemoBadge>Prototipo</DemoBadge> Moka se esculpe en 3D aquí mismo al abrir esta sección (tarda un momento solo la primera vez); su estilo es distinto al de la acuarela.</p>
+          <p className="companion-3d-note"><DemoBadge>Prototipo</DemoBadge> Moka se esculpe en 3D aquí mismo al abrir esta sección (tarda un momento solo la primera vez), con el mismo estilo de plastilina que su ilustración.</p>
         </Card>
       </div>
 

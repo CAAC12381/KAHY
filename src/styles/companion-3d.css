@@ -30,7 +30,6 @@
   .companion-3d-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .companion-3d-actions .button { width: 100%; justify-content: center; gap: 6px; padding-inline: 10px; font-size: .88rem; white-space: nowrap; }
   .companion-3d-chip { padding-right: 10px; }
-  .companion-3d-actions .companion-3d-sleep { grid-column: 1 / -1; }
 }
 
 /* Controles de la vista (girar, centrar, foto) en la esquina inferior del recuadro. */

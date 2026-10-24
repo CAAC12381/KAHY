@@ -102,7 +102,7 @@ function spotUniforms(spots: SpotSet | null) {
 }
 
 function skinParameters(): THREE.MeshPhysicalMaterialParameters {
-  return { vertexColors: true, roughness: 0.74, sheen: 1, sheenRoughness: 0.5, sheenColor: new THREE.Color("#fff1dc") };
+  return { vertexColors: true, roughness: 0.78, sheen: 0.55, sheenRoughness: 0.55, sheenColor: new THREE.Color("#f7e6cc") };
 }
 
 function inject(material: THREE.MeshPhysicalMaterial, uniforms: Record<string, THREE.IUniform>, shell: boolean) {

@@ -4,15 +4,16 @@
  * que la persona los active; la preferencia se recuerda en este navegador.
  *
  * - moo: un "muuu" de caricatura (dos tonos que bajan, con vibrato y filtro).
- * - bell: la campanita (tres tonos que se apagan).
+ * - bell: campanita (tres tonos que se apagan): al mover la cola y al encender el sonido.
  * - munch: masticar (golpecitos de ruido filtrado).
  * - happy: dos notitas que suben (caricias).
  * - yawn: un suspiro suave al dormirse.
+ * - sniff: tres olfateos (soplidos cortos) y dos notitas contentas, al oler una flor.
  */
 
 const STORAGE_KEY = "kahy.3d-sound.v1";
 
-export type MokaSound = "moo" | "bell" | "munch" | "happy" | "yawn";
+export type MokaSound = "moo" | "bell" | "munch" | "happy" | "yawn" | "sniff";
 
 let context: AudioContext | null = null;
 
@@ -126,6 +127,25 @@ function notes(ctx: AudioContext, start: number, frequencies: number[], gap: num
   });
 }
 
+function sniff(ctx: AudioContext, start: number) {
+  const length = Math.floor(ctx.sampleRate * 0.09);
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let index = 0; index < length; index++) data[index] = (Math.random() * 2 - 1) * Math.sin((Math.PI * index) / length);
+  for (let puff = 0; puff < 3; puff++) {
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "highpass";
+    filter.frequency.value = 1800 + puff * 250;
+    const gain = ctx.createGain();
+    gain.gain.value = 0.12;
+    source.connect(filter).connect(gain).connect(ctx.destination);
+    source.start(start + puff * 0.16);
+  }
+  notes(ctx, start + 0.6, [784, 988, 1175], 0.1, 0.06);
+}
+
 function yawn(ctx: AudioContext, start: number) {
   const oscillator = ctx.createOscillator();
   oscillator.type = "triangle";
@@ -150,6 +170,7 @@ export function playSound(sound: MokaSound) {
     } else if (sound === "bell") bell(ctx, start);
     else if (sound === "munch") munch(ctx, start);
     else if (sound === "happy") notes(ctx, start, [880, 1175], 0.11, 0.07);
+    else if (sound === "sniff") sniff(ctx, start);
     else yawn(ctx, start);
   } catch {
     // Sin audio disponible.

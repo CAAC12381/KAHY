@@ -47,12 +47,12 @@ const COLORS = {
 
 // Luces de día y de noche (cuando Moka duerme todo se vuelve luz de luna, poco a poco).
 const LIGHT = {
-  day: { sky: new THREE.Color("#fff6e6"), ground: new THREE.Color("#c9c2a8"), hemi: 1.0, sun: new THREE.Color("#fff0d8"), sunPower: 2.0, rim: new THREE.Color("#fff4e0"), rimPower: 1.1, environment: 0.45, exposure: 1.1 },
+  day: { sky: new THREE.Color("#fff6e6"), ground: new THREE.Color("#c9c2a8"), hemi: 1.0, sun: new THREE.Color("#fff0d8"), sunPower: 2.0, rim: new THREE.Color("#fff4e0"), rimPower: 1.1, environment: 0.35, exposure: 1.0 },
   night: { sky: new THREE.Color("#8ea2d8"), ground: new THREE.Color("#2e3452"), hemi: 0.55, sun: new THREE.Color("#c6d4ff"), sunPower: 0.6, rim: new THREE.Color("#a9b8ff"), rimPower: 0.9, environment: 0.16, exposure: 0.95 },
 };
 
-const CAMERA_START = new THREE.Vector3(2.3, 1.75, 3.4);
-const TARGET = new THREE.Vector3(0, 0.74, 0);
+const CAMERA_START = new THREE.Vector3(1.95, 1.74, 2.9);
+const TARGET = new THREE.Vector3(0, 0.88, 0);
 
 export async function createMokaViewer(container: HTMLElement, options: Options): Promise<MokaViewer> {
   // Lanza un error si el navegador no tiene WebGL; la página muestra un aviso en ese caso.
@@ -76,7 +76,7 @@ export async function createMokaViewer(container: HTMLElement, options: Options)
   const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 50);
   camera.position.copy(CAMERA_START);
 
-  // Luz suave de cuarto (para el brillo de la campana y el pelaje) + sol cálido con sombra difusa.
+  // Luz suave de cuarto (para el brillo de los ojos, la nariz y el pelaje) + sol cálido con sombra difusa.
   const pmrem = new THREE.PMREMGenerator(renderer);
   const room = new RoomEnvironment();
   scene.environment = pmrem.fromScene(room, 0.04).texture;
@@ -223,8 +223,8 @@ export async function createMokaViewer(container: HTMLElement, options: Options)
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     // En pantallas verticales (teléfono) se abre el ángulo para que el ancho visible no se encoja
-    // y Moka no quede cortada a los lados; en cuadrado u horizontal se usan 35°.
-    const wideAspect = 1;
+    // y Moka (con sus orejas grandes) no quede cortada a los lados; en horizontal se usan 35°.
+    const wideAspect = 1.15;
     camera.fov = camera.aspect >= wideAspect ? 35 : THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(17.5)) * wideAspect / camera.aspect));
     camera.updateProjectionMatrix();
     renderer.render(scene, camera); // Cambiar el tamaño borra el lienzo: se redibuja de inmediato.
@@ -392,34 +392,142 @@ function buildMeadow(wind: { value: number }) {
   meadow.add(rim);
 
   meadow.add(buildGrass(wind));
-
-  const petalColors = ["#f6b7c8", "#c9b6e4", "#a9cbe8", "#fbe3a1", "#f9c9a8"].map((color) => material(color, { roughness: 0.7 }));
-  const center = material("#f2c14e", { roughness: 0.6 });
-  const stem = material("#8fb27a");
-  const petalGeometry = new THREE.SphereGeometry(0.035, 12, 8);
-  const centerGeometry = new THREE.SphereGeometry(0.028, 12, 8);
-  const stemGeometry = new THREE.CylinderGeometry(0.008, 0.008, 0.08, 6);
-
-  // Posiciones fijas (no aleatorias) para que el prado se vea igual cada vez.
-  for (let index = 0; index < 22; index++) {
-    const angle = index * 2.399 + 0.4; // Ángulo dorado: reparte las flores sin amontonarlas.
-    const distance = 0.75 + ((index * 37) % 10) / 12;
-    const flower = new THREE.Group();
-    flower.position.set(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);
-    flower.add(new THREE.Mesh(stemGeometry, stem).translateY(0.04));
-    const petals = petalColors[index % petalColors.length];
-    for (let petal = 0; petal < 5; petal++) {
-      const petalAngle = (petal / 5) * Math.PI * 2;
-      const item = new THREE.Mesh(petalGeometry, petals);
-      item.position.set(Math.cos(petalAngle) * 0.04, 0.09, Math.sin(petalAngle) * 0.04);
-      item.scale.set(1, 0.45, 1);
-      flower.add(item);
-    }
-    flower.add(new THREE.Mesh(centerGeometry, center).translateY(0.095));
-    flower.scale.setScalar(0.8 + ((index * 13) % 5) / 10);
-    meadow.add(flower);
-  }
+  meadow.add(buildFlowerBed());
   return meadow;
+}
+
+/** Número estable entre 0 y 1 a partir de un entero (el prado se ve igual cada vez). */
+function hash(index: number) {
+  const value = Math.sin(index * 127.1 + 311.7) * 43758.5453;
+  return value - Math.floor(value);
+}
+
+/**
+ * Flores de plastilina como las de la ilustración: cinco pétalos gorditos con su centro de otro color
+ * (rosa con amarillo, azul con amarillo, morada con naranja, amarilla con azul, blanca con rosa),
+ * hojas ovaladas y espigas de lavanda. Todo va en unas pocas mallas instanciadas (una llamada de
+ * dibujo por tipo de pieza), así cientos de pétalos no hacen lenta la escena.
+ */
+function buildFlowerBed() {
+  const bed = new THREE.Group();
+  const palette: Array<[string, string]> = [["#f2849d", "#f6c94a"], ["#78a3e6", "#f6c94a"], ["#a587df", "#f39150"], ["#f6cb4c", "#7393dd"], ["#f7eee0", "#ee7f97"], ["#f3918a", "#f6c94a"]];
+
+  type Flower = { position: THREE.Vector3; size: number; height: number; tilt: THREE.Euler; colors: [string, string] };
+  const flowers: Flower[] = [];
+  const lavenders: Array<{ position: THREE.Vector3; height: number; lean: number }> = [];
+  // Lejos de las patas de Moka; más tupido al frente y a los lados, como en la ilustración.
+  const free = (x: number, z: number) => (x / 0.55) ** 2 + (z / 0.72) ** 2 > 1;
+  for (let index = 0; flowers.length < 72 && index < 400; index++) {
+    const angle = index * 2.39996 + hash(index) * 0.5;
+    const distance = 0.62 + 0.9 * Math.sqrt(hash(index + 500));
+    const x = Math.cos(angle) * distance;
+    const z = Math.sin(angle) * distance;
+    if (!free(x, z) || distance > 1.52) continue;
+    const size = 1.0 + 0.7 * hash(index + 900);
+    flowers.push({
+      position: new THREE.Vector3(x, 0, z),
+      size,
+      height: 0.06 + 0.16 * hash(index + 1300),
+      // Las flores miran hacia arriba y un poco hacia afuera del prado.
+      tilt: new THREE.Euler(0.25 * Math.sin(angle) + 0.15 * (hash(index + 1700) - 0.5), 0, -0.25 * Math.cos(angle)),
+      colors: palette[Math.floor(hash(index + 2100) * palette.length)],
+    });
+  }
+  for (let index = 0; lavenders.length < 12 && index < 200; index++) {
+    const angle = index * 2.1 + 1.3;
+    const distance = 0.9 + 0.55 * hash(index + 3000);
+    const x = Math.cos(angle) * distance;
+    const z = Math.sin(angle) * distance;
+    if (!free(x, z) || distance > 1.5) continue;
+    lavenders.push({ position: new THREE.Vector3(x, 0, z), height: 0.26 + 0.14 * hash(index + 3100), lean: 0.2 * (hash(index + 3200) - 0.5) });
+  }
+
+  const clay = (extra: THREE.MeshStandardMaterialParameters = {}) => new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.72, ...extra });
+  // Pétalo: gota aplanada que sale del centro; la hoja: óvalo grueso con la punta afilada.
+  const petalGeometry = new THREE.SphereGeometry(1, 14, 10);
+  petalGeometry.scale(0.05, 0.02, 0.036);
+  petalGeometry.translate(0.046, 0, 0);
+  const centerGeometry = new THREE.SphereGeometry(0.026, 14, 10);
+  centerGeometry.scale(1, 0.75, 1);
+  const stemGeometry = new THREE.CylinderGeometry(0.007, 0.009, 1, 6);
+  stemGeometry.translate(0, 0.5, 0);
+  const leafGeometry = new THREE.SphereGeometry(1, 12, 8);
+  leafGeometry.scale(0.065, 0.013, 0.027);
+  leafGeometry.translate(0.06, 0, 0);
+  const beadGeometry = new THREE.SphereGeometry(0.017, 10, 8);
+
+  const petals = new THREE.InstancedMesh(petalGeometry, clay(), flowers.length * 5);
+  const centers = new THREE.InstancedMesh(centerGeometry, clay({ roughness: 0.6 }), flowers.length);
+  const stems = new THREE.InstancedMesh(stemGeometry, clay({ color: "#7fae63" }), flowers.length + lavenders.length);
+  const leaves = new THREE.InstancedMesh(leafGeometry, clay(), flowers.length * 2 + lavenders.length * 2);
+  const beads = new THREE.InstancedMesh(beadGeometry, clay(), lavenders.length * 14);
+
+  const matrix = new THREE.Matrix4();
+  const head = new THREE.Matrix4();
+  const local = new THREE.Matrix4();
+  const quaternion = new THREE.Quaternion();
+  const scale = new THREE.Vector3();
+  const color = new THREE.Color();
+  const leafGreens = ["#7fae63", "#8dbb6f", "#74a35c"];
+  let petal = 0;
+  let stem = 0;
+  let leaf = 0;
+  let bead = 0;
+
+  const addLeaves = (position: THREE.Vector3, size: number, seed: number) => {
+    for (let side = 0; side < 2; side++) {
+      const turn = seed * 2.3 + side * Math.PI + (hash(seed + side) - 0.5);
+      quaternion.setFromEuler(new THREE.Euler(0, turn, 0.35 + 0.25 * hash(seed + 7 + side), "YXZ"));
+      matrix.compose(position.clone().setY(0.012), quaternion, scale.setScalar(size));
+      leaves.setMatrixAt(leaf, matrix);
+      leaves.setColorAt(leaf++, color.set(leafGreens[(seed + side) % leafGreens.length]));
+    }
+  };
+
+  flowers.forEach((flower, index) => {
+    // Tallo, del suelo a la flor.
+    matrix.compose(flower.position, quaternion.identity(), scale.set(flower.size, flower.height, flower.size));
+    stems.setMatrixAt(stem, matrix);
+    stems.setColorAt(stem++, color.set("#7fae63"));
+    addLeaves(flower.position, flower.size, index);
+    // Cabeza de la flor: arriba del tallo, inclinada; cada pétalo gira alrededor del centro y se levanta un poco (copa).
+    head.compose(flower.position.clone().setY(flower.height), quaternion.setFromEuler(flower.tilt), scale.setScalar(flower.size));
+    for (let index5 = 0; index5 < 5; index5++) {
+      local.makeRotationY((index5 / 5) * Math.PI * 2 + index).multiply(new THREE.Matrix4().makeRotationZ(0.22));
+      petals.setMatrixAt(petal, matrix.multiplyMatrices(head, local));
+      petals.setColorAt(petal++, color.set(flower.colors[0]).multiplyScalar(0.94 + 0.08 * hash(index * 5 + index5)));
+    }
+    centers.setMatrixAt(index, matrix.multiplyMatrices(head, local.makeTranslation(0, 0.012, 0)));
+    centers.setColorAt(index, color.set(flower.colors[1]));
+  });
+
+  // Lavanda: tallo alto y una espiga de bolitas moradas, más claras hacia la punta.
+  lavenders.forEach((lavender, index) => {
+    quaternion.setFromEuler(new THREE.Euler(lavender.lean, 0, -lavender.lean));
+    matrix.compose(lavender.position, quaternion, scale.set(1, lavender.height, 1));
+    stems.setMatrixAt(stem, matrix);
+    stems.setColorAt(stem++, color.set("#7fae63"));
+    addLeaves(lavender.position, 0.8, index + 100);
+    const top = new THREE.Vector3(0, 1, 0).applyQuaternion(quaternion);
+    for (let index14 = 0; index14 < 14; index14++) {
+      const along = lavender.height * (0.52 + 0.5 * (index14 / 13));
+      const turn = index14 * 2.4;
+      const radius = 0.018 * (1 - 0.4 * (index14 / 13));
+      const position = lavender.position.clone().addScaledVector(top, along).add(new THREE.Vector3(Math.cos(turn) * radius, 0, Math.sin(turn) * radius));
+      matrix.compose(position, quaternion.identity(), scale.setScalar(1 - 0.35 * (index14 / 13)));
+      beads.setMatrixAt(bead, matrix);
+      beads.setColorAt(bead++, color.set("#9a7fd2").lerp(new THREE.Color("#c6b0f0"), index14 / 13));
+    }
+  });
+
+  for (const mesh of [petals, centers, stems, leaves, beads]) {
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    bed.add(mesh);
+  }
+  return bed;
 }
 
 /**

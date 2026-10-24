@@ -37,7 +37,7 @@ export const companionVoices: Record<CompanionKey, CompanionVoice> = {
       "¡Muuu! Qué gusto que vengas a verme.",
       "¿Jugamos a las escondidillas? Yo cuento… uno, dos… ¡muu, ya me perdí!",
       "Te quiero muuucho. Así, con muchas ues.",
-      "Si suena mi campanita es que estoy feliz. ¡Tilín!",
+      "Me encontré una flor rosa y la olí por ti. ¡Huele a sol!",
       "Hoy soñé con un prado enorme y tú también salías.",
       "¿Un abrazo de vaquita? Son grandes y calientitos.",
       "¡Me hiciste cosquillas! Otra vez, otra vez.",
@@ -49,15 +49,15 @@ export const companionVoices: Record<CompanionKey, CompanionVoice> = {
     ],
     care: {
       food: ["¡Ñam! Pastito fresco, mi favorito. Muuuchas gracias.", "Con la pancita llena hasta me dan ganas de bailar."],
-      play: ["¡Te gané! Bueno, empate. Bueno… ¿otra?", "Corrimos tanto que se me movió la campanita. ¡Qué divertido!"],
+      play: ["¡Te gané! Bueno, empate. Bueno… ¿otra?", "Corrimos tanto que se me despeinó el copete. ¡Qué divertido!"],
       love: ["Ay, qué rico apapacho. Me quedo quietita para que dure más.", "Cuando me mimas siento el corazón como pastito al sol."],
     },
     talk: {
       pesada: ["Si hoy pesa, me echo aquí a tu ladito. No hay que hacer nada más.", "Las vaquitas también tenemos días nublados. Se pasan mejor en compañía."],
       inquieta: ["Respiremos como vaquita: inhalo lento… y suelto un muuu largo.", "Cuando todo se mueve mucho, yo me quedo en mi prado. Ven, aquí está tranquilo."],
       intensa: ["Ese coraje suena fuerte. Cuéntamelo; yo no me asusto, solo muevo la cola.", "Si algo no salió, no pasa nada. Hasta yo me tropiezo con mis propias patas."],
-      luminosa: ["¡Eso me pone muuuy contenta! Cuéntame más.", "Qué bonito momento. Lo guardo en mi campanita para acordarme."],
-      sinSeñal: ["Cuando quieras platicar en el chat, aquí te espero con la campanita lista.", "¿Cómo va tu día? Si lo cuentas en el chat, yo también me entero."],
+      luminosa: ["¡Eso me pone muuuy contenta! Cuéntame más.", "Qué bonito momento. Lo guardo entre mis flores para acordarme."],
+      sinSeñal: ["Cuando quieras platicar en el chat, aquí te espero entre las flores.", "¿Cómo va tu día? Si lo cuentas en el chat, yo también me entero."],
     },
   },
   "mascota:pollito": {

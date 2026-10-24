@@ -39,19 +39,20 @@ test("cada pieza esculpida de Moka está cerrada, lejos del borde de su cubo y c
   moka.root.traverse((object) => {
     if (object.isMesh && object.geometry.userData.keep) sculpted.add(object.geometry);
   });
-  assert.equal(sculpted.size, 5, "cuerpo, cabeza, pata y dos orejas");
+  assert.equal(sculpted.size, 6, "cuerpo, cabeza, pata, oreja (la otra es su reflejo), nariz y copete");
   for (const geometry of sculpted) {
     assert.ok(!geometry.userData.touchesBounds, "una pieza toca el borde de su cubo");
     assert.equal(openEdges(geometry), 0, "una pieza tiene hoyos");
-    assert.ok(geometry.attributes.aFur, "falta la cantidad de pelo por vértice");
   }
+  // Todas llevan pelo (y dicen cuánto en cada vértice) menos la nariz, que es lisa.
+  assert.equal([...sculpted].filter((geometry) => geometry.attributes.aFur).length, 5, "falta la cantidad de pelo por vértice");
 });
 
 test("cada parte con pelo lleva sus capas de pelo, que no proyectan sombra", async () => {
   const moka = await buildMoka(0.8, () => {}, 4);
   const shells = [];
   moka.root.traverse((object) => { if (object.userData.furShells) shells.push(object); });
-  assert.equal(shells.length, 1 + 1 + 4 + 2, "cuerpo, cabeza, cuatro patas y dos orejas");
+  assert.equal(shells.length, 1 + 1 + 4 + 2 + 1, "cuerpo, cabeza, cuatro patas, dos orejas y el copete");
   for (const layer of shells) assert.equal(layer.castShadow, false);
 });
 
@@ -72,9 +73,9 @@ test("Moka puede hacer todo seguido sin errores: saludar, comer, acariciarla, do
     }
   };
   run(2);
-  for (const action of ["greet", "eat", "wag", "pet"]) {
+  for (const action of ["greet", "eat", "wag", "pet", "smell"]) {
     moka.play(action);
-    run(2.6);
+    run(3.2);
   }
   moka.rub(new THREE.Vector3(0.2, 0.9, 0.2));
   run(1);
