@@ -76,10 +76,10 @@ export const flowers: Array<{
   /** Shown instead of the current stage when the companion has been neglected. */
   wiltedImage: string;
 }> = [
-  { id: "Clavel", name: "Clavel", description: "Resistente y colorido", stages: [seedInHandsImage, petAsset("plantas/Clavel/Fase2.jpg"), petAsset("plantas/Clavel/Florecida.jpg")], wiltedImage: petAsset("plantas/Clavel/Marchita.jpg") },
-  { id: "Gerbera", name: "Gerbera", description: "Alegre y luminosa", stages: [seedInHandsImage, petAsset("plantas/Gerbera/Fase2.jpg"), petAsset("plantas/Gerbera/Florecida.jpg")], wiltedImage: petAsset("plantas/Gerbera/Marchita.jpg") },
-  { id: "Orquidea", name: "Orquídea", description: "Delicada y serena", stages: [seedInHandsImage, petAsset("plantas/Orquidea/Fase2.jpg"), petAsset("plantas/Orquidea/Florecida-v2.jpg")], wiltedImage: petAsset("plantas/Orquidea/Marchita.jpg") },
-  { id: "Tulipan", name: "Tulipán", description: "Sencillo y constante", stages: [seedInHandsImage, petAsset("plantas/Tulipan/Fase2.jpg"), petAsset("plantas/Tulipan/Florecida-v2.jpg")], wiltedImage: petAsset("plantas/Tulipan/Marchita.jpg") },
+  { id: "Clavel", name: "Clavel", description: "Resistente y colorido", stages: [seedInHandsImage, petAsset("plantas/Clavel/Capullo.jpg"), petAsset("plantas/Clavel/Florecida.jpg")], wiltedImage: petAsset("plantas/Clavel/Marchita.jpg") },
+  { id: "Gerbera", name: "Gerbera", description: "Alegre y luminosa", stages: [seedInHandsImage, petAsset("plantas/Gerbera/Capullo.jpg"), petAsset("plantas/Gerbera/Florecida.jpg")], wiltedImage: petAsset("plantas/Gerbera/Marchita.jpg") },
+  { id: "Orquidea", name: "Orquídea", description: "Delicada y serena", stages: [seedInHandsImage, petAsset("plantas/Orquidea/Capullo.jpg"), petAsset("plantas/Orquidea/Florecida-v2.jpg")], wiltedImage: petAsset("plantas/Orquidea/Marchita.jpg") },
+  { id: "Tulipan", name: "Tulipán", description: "Sencillo y constante", stages: [seedInHandsImage, petAsset("plantas/Tulipan/Capullo.jpg"), petAsset("plantas/Tulipan/Florecida-v2.jpg")], wiltedImage: petAsset("plantas/Tulipan/Marchita.jpg") },
 ];
 
 export const locations = ["Morelia", "Uruapan", "Zamora", "Zitácuaro", "Huetamo", "Lázaro Cárdenas", "Otra zona de Michoacán"];
