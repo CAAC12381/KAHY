@@ -73,10 +73,10 @@ export const flowers: Array<{
   /** Shown instead of the current stage when the companion has been neglected. */
   wiltedImage: string;
 }> = [
-  { id: "Clavel", name: "Clavel", description: "Resistente y colorido", stages: [1, 2, 3].map((phase) => petAsset(`plantas/Clavel/Fase${phase}.jpg`)), wiltedImage: petAsset("plantas/Clavel/Fase4.jpg") },
-  { id: "Gerbera", name: "Gerbera", description: "Alegre y luminosa", stages: [1, 2, 3].map((phase) => petAsset(`plantas/Gerbera/Fase${phase}.jpg`)), wiltedImage: petAsset("plantas/Gerbera/Fase4.jpg") },
-  { id: "Orquidea", name: "Orquídea", description: "Delicada y serena", stages: [1, 2, 3].map((phase) => petAsset(`plantas/Orquidea/Fase${phase}.jpg`)), wiltedImage: petAsset("plantas/Orquidea/Fase4.jpg") },
-  { id: "Tulipan", name: "Tulipán", description: "Sencillo y constante", stages: [1, 2, 3].map((phase) => petAsset(`plantas/Tulipan/Fase${phase}.jpg`)), wiltedImage: petAsset("plantas/Tulipan/Fase4.jpg") },
+  { id: "Clavel", name: "Clavel", description: "Resistente y colorido", stages: [petAsset("plantas/Clavel/Fase1.jpg"), petAsset("plantas/Clavel/Fase2.jpg"), petAsset("plantas/Clavel/Florecida.jpg")], wiltedImage: petAsset("plantas/Clavel/Fase4.jpg") },
+  { id: "Gerbera", name: "Gerbera", description: "Alegre y luminosa", stages: [petAsset("plantas/Gerbera/Fase1.jpg"), petAsset("plantas/Gerbera/Fase2.jpg"), petAsset("plantas/Gerbera/Florecida.jpg")], wiltedImage: petAsset("plantas/Gerbera/Fase4.jpg") },
+  { id: "Orquidea", name: "Orquídea", description: "Delicada y serena", stages: [petAsset("plantas/Orquidea/Fase1.jpg"), petAsset("plantas/Orquidea/Fase2.jpg"), petAsset("plantas/Orquidea/Florecida.jpg")], wiltedImage: petAsset("plantas/Orquidea/Fase4.jpg") },
+  { id: "Tulipan", name: "Tulipán", description: "Sencillo y constante", stages: [petAsset("plantas/Tulipan/Fase1.jpg"), petAsset("plantas/Tulipan/Fase2.jpg"), petAsset("plantas/Tulipan/Florecida.jpg")], wiltedImage: petAsset("plantas/Tulipan/Fase4.jpg") },
 ];
 
 export const locations = ["Morelia", "Uruapan", "Zamora", "Zitácuaro", "Huetamo", "Lázaro Cárdenas", "Otra zona de Michoacán"];
