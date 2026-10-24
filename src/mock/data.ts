@@ -64,6 +64,9 @@ export const mascots: Array<{
   },
 ];
 
+/** Every flower starts the same way: a seed in cupped hands. */
+const seedInHandsImage = petAsset("plantas/Semilla.jpg");
+
 export const flowers: Array<{
   id: FlowerId;
   name: string;
@@ -73,10 +76,10 @@ export const flowers: Array<{
   /** Shown instead of the current stage when the companion has been neglected. */
   wiltedImage: string;
 }> = [
-  { id: "Clavel", name: "Clavel", description: "Resistente y colorido", stages: [petAsset("plantas/Clavel/Fase1.jpg"), petAsset("plantas/Clavel/Fase2.jpg"), petAsset("plantas/Clavel/Florecida.jpg")], wiltedImage: petAsset("plantas/Clavel/Marchita.jpg") },
-  { id: "Gerbera", name: "Gerbera", description: "Alegre y luminosa", stages: [petAsset("plantas/Gerbera/Fase1.jpg"), petAsset("plantas/Gerbera/Fase2.jpg"), petAsset("plantas/Gerbera/Florecida.jpg")], wiltedImage: petAsset("plantas/Gerbera/Marchita.jpg") },
-  { id: "Orquidea", name: "Orquídea", description: "Delicada y serena", stages: [petAsset("plantas/Orquidea/Fase1.jpg"), petAsset("plantas/Orquidea/Fase2.jpg"), petAsset("plantas/Orquidea/Florecida-v2.jpg")], wiltedImage: petAsset("plantas/Orquidea/Marchita.jpg") },
-  { id: "Tulipan", name: "Tulipán", description: "Sencillo y constante", stages: [petAsset("plantas/Tulipan/Fase1.jpg"), petAsset("plantas/Tulipan/Fase2.jpg"), petAsset("plantas/Tulipan/Florecida-v2.jpg")], wiltedImage: petAsset("plantas/Tulipan/Marchita.jpg") },
+  { id: "Clavel", name: "Clavel", description: "Resistente y colorido", stages: [seedInHandsImage, petAsset("plantas/Clavel/Fase2.jpg"), petAsset("plantas/Clavel/Florecida.jpg")], wiltedImage: petAsset("plantas/Clavel/Marchita.jpg") },
+  { id: "Gerbera", name: "Gerbera", description: "Alegre y luminosa", stages: [seedInHandsImage, petAsset("plantas/Gerbera/Fase2.jpg"), petAsset("plantas/Gerbera/Florecida.jpg")], wiltedImage: petAsset("plantas/Gerbera/Marchita.jpg") },
+  { id: "Orquidea", name: "Orquídea", description: "Delicada y serena", stages: [seedInHandsImage, petAsset("plantas/Orquidea/Fase2.jpg"), petAsset("plantas/Orquidea/Florecida-v2.jpg")], wiltedImage: petAsset("plantas/Orquidea/Marchita.jpg") },
+  { id: "Tulipan", name: "Tulipán", description: "Sencillo y constante", stages: [seedInHandsImage, petAsset("plantas/Tulipan/Fase2.jpg"), petAsset("plantas/Tulipan/Florecida-v2.jpg")], wiltedImage: petAsset("plantas/Tulipan/Marchita.jpg") },
 ];
 
 export const locations = ["Morelia", "Uruapan", "Zamora", "Zitácuaro", "Huetamo", "Lázaro Cárdenas", "Otra zona de Michoacán"];
