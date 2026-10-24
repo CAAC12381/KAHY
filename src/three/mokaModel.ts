@@ -28,19 +28,20 @@ export type UpdateContext = {
   interest: THREE.Vector3 | null;
 };
 
-// Tomados de la ilustración.
+// Tomados de la ilustración (medidos en vaca-grande.jpg y ajustados para que, ya con luz, se vean igual).
 const COLORS = {
-  fur: new THREE.Color("#efdcc0"),
-  spot: new THREE.Color("#a96f45"),
-  hoof: new THREE.Color("#4d403c"),
-  hoofLine: new THREE.Color("#3d3330"),
-  nose: new THREE.Color("#4f4643"),
-  blush: new THREE.Color("#f08f8c"),
-  horn: new THREE.Color("#cdb59b"),
-  innerEar: new THREE.Color("#eea096"),
-  tuft: new THREE.Color("#f3dfb6"),
-  tail: new THREE.Color("#a96f45"),
-  tailTuft: new THREE.Color("#8f5d38"),
+  fur: new THREE.Color("#f2d6b2"),
+  spot: new THREE.Color("#a6643b"),
+  ear: new THREE.Color("#94573a"),
+  hoof: new THREE.Color("#6a5750"),
+  hoofLine: new THREE.Color("#4a3d38"),
+  nose: new THREE.Color("#4f4640"),
+  blush: new THREE.Color("#ee8576"),
+  horn: new THREE.Color("#dcae88"),
+  innerEar: new THREE.Color("#eda088"),
+  tuft: new THREE.Color("#f3dcb6"),
+  tail: new THREE.Color("#a6643b"),
+  tailTuft: new THREE.Color("#8a5232"),
 };
 
 const HEAD_ORIGIN = new THREE.Vector3(0, 1.13, 0.58);
@@ -108,7 +109,7 @@ const torsoSpots = () => spotSet(torsoSdf, [0, 0.66, 0], [
 // --- Cabeza (coordenadas relativas a HEAD_ORIGIN) ----------------------------
 
 // Cuernitos color arena a los lados del copete, apuntando hacia afuera y arriba.
-const HORNS: Array<[Vec, Vec]> = [[[0.27, 0.24, -0.08], [0.39, 0.39, -0.1]], [[-0.27, 0.24, -0.08], [-0.39, 0.39, -0.1]]];
+const HORNS: Array<[Vec, Vec]> = [[[0.27, 0.24, -0.07], [0.41, 0.42, -0.08]], [[-0.27, 0.24, -0.07], [-0.41, 0.42, -0.08]]];
 // Nariz: un frijol grande gris oscuro al frente de la trompita, con dos fosas ovaladas.
 const NOSE: Vec = [0, -0.125, 0.345];
 const NOSTRILS: Vec[] = [[0.09, -0.108, 0.443], [-0.09, -0.108, 0.443]];
@@ -124,7 +125,7 @@ const craniumSdf: Sdf = (x, y, z) => {
 };
 /** Trompita crema bajo la nariz (la nariz oscura va pegada encima, como pieza aparte). */
 const snoutSdf: Sdf = (x, y, z) => ellipsoid(x, y, z, 0, -0.15, 0.22, 0.25, 0.18, 0.2);
-const hornsSdf: Sdf = (x, y, z) => Math.min(roundCone(x, y, z, HORNS[0][0], HORNS[0][1], 0.056, 0.032), roundCone(x, y, z, HORNS[1][0], HORNS[1][1], 0.056, 0.032));
+const hornsSdf: Sdf = (x, y, z) => Math.min(roundCone(x, y, z, HORNS[0][0], HORNS[0][1], 0.062, 0.038), roundCone(x, y, z, HORNS[1][0], HORNS[1][1], 0.062, 0.038));
 
 const headSdf: Sdf = (x, y, z) => {
   let d = smin(craniumSdf(x, y, z), snoutSdf(x, y, z), 0.08);
@@ -151,29 +152,32 @@ const nosePaint: Paint = (_x, _y, _z, out) => { out.copy(COLORS.nose); };
  */
 type Strand = { points: THREE.Vector3[]; radii: number[]; bounds: THREE.Sphere };
 const STRANDS = [
-  // [hacia dónde cae (0 = al frente, + = a la izquierda de Moka), qué tan abajo llega, grosor, qué tan esponjado]
-  // Al frente, caen sobre la frente (un poco desparejos, como pelo de verdad).
-  [0.02, 0.98, 0.062, 1], [0.24, 0.94, 0.058, 0.9], [-0.22, 0.96, 0.058, 1], [0.47, 0.9, 0.055, 0.85], [-0.5, 0.88, 0.055, 0.9],
-  [0.74, 0.8, 0.05, 0.8], [-0.76, 0.82, 0.05, 0.8], [1.02, 0.66, 0.046, 0.7], [-1.0, 0.68, 0.046, 0.7],
-  // Arriba: rizos cortos más esponjados que dan volumen.
-  [0.12, 0.62, 0.06, 1.5], [-0.14, 0.6, 0.06, 1.5], [0.42, 0.55, 0.055, 1.3], [-0.45, 0.56, 0.055, 1.3],
+  // [hacia dónde cae (0 = al frente, + = a la izquierda de Moka), qué tan abajo llega, grosor, qué tan
+  //  esponjado, cuánto se curva la punta hacia un lado]. Terminan en punta y no son parejos: así se ven
+  //  como mechones de pelo y no como dedos.
+  // Al frente, caen sobre la frente.
+  [0, 1.08, 0.06, 1, 0.3], [0.2, 0.98, 0.055, 0.9, -0.35], [-0.18, 1.02, 0.056, 1, 0.35], [0.4, 1.03, 0.052, 0.85, 0.3], [-0.42, 0.96, 0.052, 0.9, -0.3],
+  [0.62, 0.9, 0.05, 0.8, -0.25], [-0.65, 0.92, 0.05, 0.8, 0.25], [0.88, 0.76, 0.046, 0.7, 0.2], [-0.9, 0.74, 0.046, 0.7, -0.2],
+  // Arriba: rizos más cortos y esponjados que dan volumen (uno casi parado al centro).
+  [0.1, 0.66, 0.058, 1.6, -0.5], [-0.12, 0.64, 0.058, 1.6, 0.5], [0.35, 0.58, 0.054, 1.4, 0.45], [-0.38, 0.6, 0.054, 1.4, -0.45], [0, 0.45, 0.056, 1.9, 0.6],
   // Atrás y a los lados de atrás.
-  [1.6, 0.5, 0.05, 1], [-1.6, 0.5, 0.05, 1], [2.5, 0.52, 0.05, 1], [-2.5, 0.52, 0.05, 1], [Math.PI, 0.55, 0.052, 1],
+  [1.5, 0.52, 0.05, 1, 0.3], [-1.5, 0.52, 0.05, 1, -0.3], [2.4, 0.5, 0.05, 1, 0.3], [-2.4, 0.5, 0.05, 1, -0.3], [Math.PI, 0.55, 0.05, 1, 0.2],
 ] as const;
 const TUFT_CENTER: Vec = [0, 0.03, -0.03];
 const STRAND_STEPS = 6;
-const strands: Strand[] = STRANDS.map(([azimuth, reach, thickness, fluff]) => {
+const strands: Strand[] = STRANDS.map(([azimuth, reach, thickness, fluff, curl]) => {
   const points: THREE.Vector3[] = [];
   const radii: number[] = [];
   for (let step = 0; step < STRAND_STEPS; step++) {
     const t = step / (STRAND_STEPS - 1);
     const polar = 0.05 + (reach - 0.05) * t; // Desde la coronilla hasta qué tan abajo cae.
-    const direction: Vec = [Math.sin(polar) * Math.sin(azimuth), Math.cos(polar), Math.sin(polar) * Math.cos(azimuth)];
+    const turn = azimuth + curl * t * t; // La punta se curva hacia un lado.
+    const direction: Vec = [Math.sin(polar) * Math.sin(turn), Math.cos(polar), Math.sin(polar) * Math.cos(turn)];
     const surface = surfaceAlong(craniumSdf, TUFT_CENTER, direction, 0.7);
     // Esponjado: el mechón sale de la raíz, hace un arco bajito y cae con la punta un poco despegada.
-    const lift = 0.03 + 0.045 * fluff * Math.sin(Math.PI * 0.9 * t);
+    const lift = 0.035 + 0.055 * fluff * Math.sin(Math.PI * 0.9 * t);
     points.push(surface.addScaledVector(new THREE.Vector3(...direction).normalize(), lift));
-    radii.push(thickness * 1.15 * (1 - 0.6 * t));
+    radii.push(thickness * 1.42 * (1 - 0.74 * t)); // Termina en punta.
   }
   // Esfera que envuelve el mechón: si el punto ya está más cerca de otro mechón, este ni se calcula.
   const bounds = new THREE.Sphere().setFromPoints(points);
@@ -221,7 +225,7 @@ const mouthSpot = surfaceAlong(headSdf, [MOUTH[0], MOUTH[1], 0], [0, 0, 1], 0.7)
 /** Cuánto pelo lleva cada punto de la cabeza: nada en ojos, boca y cuernos; corto en la trompita. */
 const headFur = (x: number, y: number, z: number) => {
   let amount = 1;
-  for (const eye of eyeSpots) amount = Math.min(amount, smoothstep(0.07, 0.1, Math.hypot(x - eye.x, y - eye.y, z - eye.z)));
+  for (const eye of eyeSpots) amount = Math.min(amount, smoothstep(0.075, 0.11, Math.hypot(x - eye.x, y - eye.y, z - eye.z)));
   amount = Math.min(amount, smoothstep(0.04, 0.08, Math.hypot(x - mouthSpot.x, y - mouthSpot.y, z - mouthSpot.z))); // Boca.
   const cranium = craniumSdf(x, y, z);
   amount *= 1 - 0.55 * smoothstep(0.012, -0.012, snoutSdf(x, y, z) - cranium); // Trompita: pelito corto.
@@ -262,7 +266,7 @@ const earSdf: Sdf = (x, y, z) => {
 };
 
 const earPaint: Paint = (x, y, z, out) => {
-  out.copy(COLORS.spot);
+  out.copy(COLORS.ear);
   tint(out, COLORS.innerEar, smoothstep(0.012, 0.002, earCupSdf(x, y, z)));
 };
 
@@ -381,8 +385,8 @@ function sculptMoka(detail: number, onProgress: (fraction: number) => void) {
 export async function buildMoka(detail = 1, onProgress: (fraction: number) => void = () => {}, shellCount = 10) {
   // Pelo: largo, densidad (mechones por unidad) y capas de cada pieza. Menos capas en equipos modestos.
   const furOf = (length: number, density: number, shells: number): FurOptions => ({ length, density, shells: Math.max(3, shells) });
-  const torsoFur = furOf(0.022, 100, shellCount);
-  const headFurOptions = furOf(0.016, 115, shellCount);
+  const torsoFur = furOf(0.018, 115, shellCount);
+  const headFurOptions = furOf(0.014, 125, shellCount);
   const legFurOptions = furOf(0.013, 110, shellCount - 2);
   const earFur = furOf(0.012, 125, shellCount - 3);
   const tuftFur = furOf(0.01, 150, shellCount - 4);
@@ -487,11 +491,11 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
   for (const spot of eyeSpots) {
     const socket = onSkin(spot, -0.016);
     const eye = new THREE.Group();
-    const ball = meshOf(new THREE.SphereGeometry(0.058, 28, 18), dark);
+    const ball = meshOf(new THREE.SphereGeometry(0.066, 28, 18), dark);
     ball.scale.set(0.92, 1, 0.62);
     eye.add(ball);
-    eye.add(new THREE.Mesh(new THREE.SphereGeometry(0.017, 12, 8), shine).translateX(0.019).translateY(0.024).translateZ(0.03));
-    eye.add(new THREE.Mesh(new THREE.SphereGeometry(0.008, 10, 6), shine).translateX(-0.017).translateY(-0.02).translateZ(0.032));
+    eye.add(new THREE.Mesh(new THREE.SphereGeometry(0.019, 12, 8), shine).translateX(0.022).translateY(0.027).translateZ(0.034));
+    eye.add(new THREE.Mesh(new THREE.SphereGeometry(0.009, 10, 6), shine).translateX(-0.019).translateY(-0.023).translateZ(0.036));
     socket.add(eye);
     eyes.push(eye);
     const happy = meshOf(arcGeometry, dark); // "^": ojitos contentos.

@@ -87,7 +87,7 @@ diffuseColor.rgb *= mix(vec3(1.0), uSpotTint, spot);
   vec3 center = vec3(kahyHash(cell + 17.1), kahyHash(cell + 31.7), kahyHash(cell + 47.3)) * 0.5 + 0.25;
   float thickness = (1.0 - vShell) * 0.5 + 0.06; // Más delgado hacia la punta.
   if (kahyHash(cell) < vShell * 0.7 || length(fract(strandPos) - center) > thickness) discard;
-  diffuseColor.rgb *= mix(0.8, 1.06, vShell); // Raíz en sombra, puntas con luz.
+  diffuseColor.rgb *= mix(0.82, 1.0, vShell); // Raíz en sombra; las puntas, del color de la piel (sin halo blanco).
 #else
   diffuseColor.rgb *= mix(1.0, 0.88, vFur); // Entre los mechones se ve la piel, un poco más oscura.
 #endif
