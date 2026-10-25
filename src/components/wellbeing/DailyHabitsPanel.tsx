@@ -1,17 +1,14 @@
-import { Check, Droplet, Footprints, MonitorOff, NotebookPen, Sparkles, type LucideIcon } from "lucide-react";
-import type { Habit } from "../../hooks/useDailyHabits";
+import { Sparkles } from "lucide-react";
+import { useState } from "react";
+import type { AddHabitResult } from "../../hooks/useDailyHabits";
+import type { Habit, HabitIcon, HabitSuggestion } from "../../lib/habitCatalog";
 import { emotionLabels } from "../../lib/emotionLexicon";
 import { capitalizeFirst, fromDayKey } from "../../lib/dayKey";
 import type { EmotionEntry } from "../../types";
+import AddHabitForm from "./AddHabitForm";
+import HabitItem from "./HabitItem";
 import ProgressRing from "./ProgressRing";
 import { cx, toneFor, toneStyles } from "./tones";
-
-const habitIcons: Record<string, LucideIcon> = {
-  water: Droplet,
-  move: Footprints,
-  "screen-break": MonitorOff,
-  "mood-note": NotebookPen,
-};
 
 type Props = {
   dayKey: string;
@@ -19,13 +16,33 @@ type Props = {
   habits: Habit[];
   completed: string[];
   onToggle: (id: string) => void;
+  /** Solo se usan cuando la fecha es hoy. */
+  onAdd?: (label: string, icon?: HabitIcon) => AddHabitResult;
+  onRemove?: (id: string) => void;
+  suggestions?: HabitSuggestion[];
+  canAddMore?: boolean;
+  customRemaining?: number;
   emotions: EmotionEntry[];
   /** Nombre del compañero (mascota o flor). null si el usuario ocultó la mascota. */
   companionName?: string | null;
 };
 
 /** Columna derecha: hábitos de la fecha seleccionada en el calendario. */
-export default function DailyHabitsPanel({ dayKey, isToday, habits, completed, onToggle, emotions, companionName }: Props) {
+export default function DailyHabitsPanel({
+  dayKey,
+  isToday,
+  habits,
+  completed,
+  onToggle,
+  onAdd,
+  onRemove,
+  suggestions = [],
+  canAddMore = false,
+  customRemaining = 0,
+  emotions,
+  companionName,
+}: Props) {
+  const [newHabitId, setNewHabitId] = useState<string | null>(null);
   const date = fromDayKey(dayKey);
   const doneCount = habits.filter((habit) => completed.includes(habit.id)).length;
   const dateLabel = capitalizeFirst(date.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" }));
@@ -77,44 +94,36 @@ export default function DailyHabitsPanel({ dayKey, isToday, habits, completed, o
         </div>
       )}
 
-      <ul className="flex flex-col gap-2">
-        {habits.map((habit) => {
-          const done = completed.includes(habit.id);
-          const Icon = habitIcons[habit.id] ?? Sparkles;
-          return (
-            <li key={habit.id}>
-              <button
-                type="button"
-                // aria-disabled en vez de disabled: la regla global button:disabled los deslavaría
-                onClick={() => isToday && onToggle(habit.id)}
-                aria-disabled={!isToday}
-                aria-pressed={done}
-                className={cx(
-                  "flex min-h-12 w-full items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left text-sm font-bold transition-all duration-200",
-                  done
-                    ? "border-transparent bg-[var(--sage-soft)] text-[var(--sage-deep)]"
-                    : "border-[var(--line)] bg-white text-[var(--ink)]",
-                  isToday && !done && "hover:-translate-y-px hover:border-[var(--purple)] hover:shadow-sm",
-                  !isToday && "!cursor-default",
-                  !isToday && !done && "opacity-70",
-                )}
-              >
-                <span
-                  className={cx(
-                    "grid size-6 shrink-0 place-items-center rounded-full border-[1.5px] transition-all duration-200",
-                    done ? "border-[var(--sage-deep)] bg-[var(--sage-deep)] text-white" : "border-[var(--line)] text-transparent",
-                  )}
-                  aria-hidden="true"
-                >
-                  <Check size={14} strokeWidth={3} />
-                </span>
-                <span className="flex-1">{habit.label}</span>
-                <Icon size={17} className="shrink-0 opacity-60" aria-hidden="true" />
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+      {habits.length > 0 ? (
+        <ul className="flex flex-col gap-2">
+          {habits.map((habit) => (
+            <HabitItem
+              key={habit.id}
+              habit={habit}
+              done={completed.includes(habit.id)}
+              editable={isToday}
+              isNew={habit.id === newHabitId}
+              onToggle={onToggle}
+              onRemove={onRemove}
+            />
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-xl bg-white/70 px-3.5 py-3 text-sm text-[var(--muted)]">Ese día no había hábitos en tu lista.</p>
+      )}
+
+      {isToday && onAdd && (
+        <AddHabitForm
+          suggestions={suggestions}
+          canAddMore={canAddMore}
+          remaining={customRemaining}
+          onAdd={(label, icon) => {
+            const result = onAdd(label, icon);
+            if (result.ok) setNewHabitId(result.habit.id);
+            return result;
+          }}
+        />
+      )}
 
       {!isToday && (
         <p className="text-xs text-[var(--muted)]">Los hábitos se marcan el mismo día. Los días anteriores son solo para consultar.</p>
@@ -137,7 +146,9 @@ function FeedbackNote({
   companionName?: string | null;
 }) {
   let message: string;
-  if (!isToday) {
+  if (total === 0) {
+    message = "Añade un hábito pequeño para empezar.";
+  } else if (!isToday) {
     message = done > 0 ? `Ese día completaste ${done} de ${total} hábitos.` : "Ese día no hubo hábitos marcados, y está bien.";
   } else if (done === 0) {
     message = "Empieza por el que se sienta más fácil. Uno ya cuenta.";
@@ -147,7 +158,7 @@ function FeedbackNote({
     message = "¡Completaste todos los hábitos de hoy!";
   }
 
-  const complete = done >= total;
+  const complete = total > 0 && done >= total;
 
   return (
     <div
