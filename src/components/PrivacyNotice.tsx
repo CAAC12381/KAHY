@@ -24,7 +24,7 @@ export function PrivacyContactEmail() {
 export function PrivacySummary() {
   return (
     <p>
-      {PRIVACY_CONTACT.responsible || "El equipo de KAHY"} usará tu correo, tu perfil y tu avance, incluidos <strong>datos sensibles sobre tu salud emocional</strong> (resultados de tamizaje y etiquetas del calendario emocional), para crear tu cuenta, respaldar tu avance y mostrártelo. No los vendemos ni los usamos para publicidad. Sin cuenta, todo se queda solo en tu dispositivo.
+      KAHY{PRIVACY_CONTACT.responsible ? `, a cargo de ${PRIVACY_CONTACT.responsible},` : ""} usará tu correo, tu perfil y tu avance, incluidos <strong>datos sensibles sobre tu salud emocional</strong> (resultados de tamizaje y etiquetas del calendario emocional), para crear tu cuenta, respaldar tu avance y mostrártelo. No los vendemos ni los usamos para publicidad. Sin cuenta, todo se queda solo en tu dispositivo.
     </p>
   );
 }
