@@ -105,7 +105,12 @@ export function useScreenings(deviceId: string, onCompleted?: (result: Screening
   const latestPhq9 = latestOf("phq9");
   const showSupportBanner = Boolean(latestPhq9?.item9Positive) && !supportAcknowledged;
 
-  return { results, saveResult, latestOf, historyOf, showSupportBanner, acknowledgeSupport, reset };
+  /** Al crear la cuenta: sube los resultados que hasta ahora solo estaban en este dispositivo. */
+  function uploadAll(accountDataId: string) {
+    results.forEach((result) => saveRemoteScreening(accountDataId, result));
+  }
+
+  return { results, saveResult, latestOf, historyOf, showSupportBanner, acknowledgeSupport, reset, uploadAll };
 }
 
 export type ScreeningsState = ReturnType<typeof useScreenings>;

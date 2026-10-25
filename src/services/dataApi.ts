@@ -1,5 +1,8 @@
 /**
- * Best-effort sync with the Postgres-backed /api/data/* endpoints.
+ * Best-effort sync with the Postgres-backed /api/data/* endpoints — only with
+ * an account: without a session nothing is read from or sent to the server
+ * (see syncOutbox.ts), so someone exploring without an account keeps
+ * everything on their own device.
  * Every function swallows its own errors and resolves to null/false instead
  * of throwing: localStorage stays the source of truth the UI reads
  * immediately, this is a background mirror so the same data survives a
@@ -19,6 +22,7 @@ async function safeFetch<T>(input: string, init?: RequestInit): Promise<T | null
   try {
     // Con cuenta, el servidor identifica los datos por la sesión y no por el deviceId que viaja en la petición.
     const session = authHeaders();
+    if (!session.Authorization) return null;
     const response = await fetch(input, { ...init, headers: { ...(init?.headers as Record<string, string> | undefined), ...session } });
     if (response.status === 401 && session.Authorization) {
       clearSession();
@@ -70,7 +74,7 @@ export async function fetchRemoteScreenings(deviceId: string): Promise<RemoteScr
 }
 
 export function saveRemoteScreening(deviceId: string, result: RemoteScreeningResult): void {
-  enqueueSync(`screening:${result.id}`, deviceId, "/api/data/screenings", { method: "POST", body: { deviceId, result } });
+  enqueueSync(`screening:${result.id}:${result.completedAt}`, deviceId, "/api/data/screenings", { method: "POST", body: { deviceId, result } });
 }
 
 export type RemoteMemoryEntry = { topic: string; at: number };
@@ -81,7 +85,7 @@ export async function fetchRemoteChatMemory(deviceId: string): Promise<RemoteMem
 }
 
 export function saveRemoteChatMemory(deviceId: string, topic: string): void {
-  enqueueSync(`chat-memory:${Date.now()}`, deviceId, "/api/data/chat-memory", { method: "POST", body: { deviceId, topic } });
+  enqueueSync(`chat-memory:${Date.now()}:${topic}`, deviceId, "/api/data/chat-memory", { method: "POST", body: { deviceId, topic } });
 }
 
 export function clearRemoteChatMemory(deviceId: string): void {

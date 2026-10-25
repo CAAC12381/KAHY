@@ -16,6 +16,9 @@
  *   navegador ya apunta a otros datos (inició sesión en otra cuenta, cerró
  *   sesión), se descarta: nunca se mezclan datos de dos personas.
  * - La clave empieza con "kahy.", así que "Salir" la borra junto con lo demás.
+ * - Sin sesión no se encola nada: quien usa KAHY sin cuenta lo usa solo en su
+ *   dispositivo (el servidor tampoco aceptaría esos datos). Al crear la cuenta,
+ *   App.tsx sube lo que ya había en el dispositivo.
  */
 
 import { getDeviceId } from "../lib/deviceId";
@@ -55,6 +58,7 @@ export function pendingSyncCount(): number {
 }
 
 export function enqueueSync(key: string, deviceId: string, url: string, init: { method: string; body?: unknown }) {
+  if (!authHeaders().Authorization) return;
   const family = key.endsWith(":clear") ? key.slice(0, -"clear".length) : null;
   const kept = read().filter((item) => {
     if (key === "all") return false;
@@ -73,6 +77,7 @@ async function send(item: OutboxItem): Promise<SendResult> {
   if (!navigator.onLine) return "retry";
   try {
     const session = authHeaders();
+    if (!session.Authorization) return "done"; // Pendiente de antes de cerrar sesión: ya no le corresponde a nadie.
     const response = await fetch(item.url, {
       method: item.method,
       headers: { ...(item.body ? { "Content-Type": "application/json" } : {}), ...session },

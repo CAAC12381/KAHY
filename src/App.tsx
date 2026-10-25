@@ -11,7 +11,7 @@ import ProfilePage from "./pages/ProfilePage";
 import ResourcesPage from "./pages/ResourcesPage";
 import ScreeningPage from "./pages/ScreeningPage";
 import SpecialistsPage from "./pages/SpecialistsPage";
-import { Button, DemoBadge, Modal } from "./components/ui";
+import { Button, Card, DemoBadge, Modal } from "./components/ui";
 import AccessibilityMenu from "./components/AccessibilityMenu";
 import { usePetGarden } from "./hooks/usePetGarden";
 import { useScreenings } from "./hooks/useScreenings";
@@ -19,11 +19,16 @@ import { useChatHistory } from "./hooks/useChatHistory";
 import { useEmotionCalendar } from "./hooks/useEmotionCalendar";
 import { useTaskPlans } from "./hooks/useTaskPlans";
 import { useDailyHabits } from "./hooks/useDailyHabits";
+import { uploadStoredChatMemory } from "./hooks/useChatMemory";
+import { ResetPasswordForm } from "./components/PasswordRecovery";
+import PrivacyNotice from "./components/PrivacyNotice";
+import BrandMark from "./components/BrandMark";
+import { PRIVACY_HASH } from "./data/privacy";
 import { getDeviceId, resetDeviceId, setDeviceId } from "./lib/deviceId";
 import { warmOfflineImages } from "./lib/offlineApp";
 import { closedBoxImage, flowers, mascots } from "./mock/data";
 import { COMPANION_REVEALS_KEY, forgetCompanionReveal } from "./lib/companionReveal";
-import { clearSession, logoutAccount, readSession, SESSION_EXPIRED_EVENT, type Session } from "./services/authApi";
+import { clearSession, logoutAccount, readSession, saveSession, SESSION_EXPIRED_EVENT, type Session } from "./services/authApi";
 import { fetchRemoteProfile, saveRemoteProfile, deleteRemoteData, type RemoteProfile } from "./services/dataApi";
 import type { DemoProfile, MainView, Preferences, ToastMessage } from "./types";
 import "./styles/accounts-directory.css";
@@ -133,6 +138,20 @@ function profileFromRemote(current: DemoProfile, remote: RemoteProfile): DemoPro
   };
 }
 
+const RESET_HASH_PREFIX = "#restablecer=";
+
+/**
+ * Lee el token del enlace del correo (#restablecer=…) y lo quita de la barra de direcciones de
+ * inmediato, para que no quede en el historial ni se comparta por error al copiar la dirección.
+ */
+function takeResetToken(): string | null {
+  const { hash } = window.location;
+  if (!hash.startsWith(RESET_HASH_PREFIX)) return null;
+  window.history.replaceState(null, "", window.location.pathname + window.location.search);
+  const token = hash.slice(RESET_HASH_PREFIX.length);
+  return /^[A-Za-z0-9_-]{20,200}$/.test(token) ? token : null;
+}
+
 function syncProfile(deviceId: string, profile: DemoProfile, preferences: Preferences) {
   saveRemoteProfile(deviceId, {
     name: profile.name,
@@ -160,6 +179,9 @@ export default function App() {
   const [isRegistered, setIsRegistered] = useState(Boolean(restoredRegistration));
   const [showHelp, setShowHelp] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
+  // Aviso de privacidad: se abre con cualquier enlace a #aviso-de-privacidad, desde cualquier pantalla.
+  const [privacyOpen, setPrivacyOpen] = useState(() => window.location.hash === PRIVACY_HASH);
+  const [resetToken, setResetToken] = useState<string | null>(takeResetToken);
   const garden = usePetGarden(deviceId);
   const habits = useDailyHabits(deviceId, (habitId, date) => garden.rewardMilestone(`habit:${date}:${habitId}`, 4, "¡Un hábito cumplido! Eso también me ayuda a crecer."));
   const screenings = useScreenings(deviceId, (result) => garden.rewardMilestone(`screening:${result.id}:${result.completedAt}`, 3, "Conocerte un poco mejor también fortalece nuestro camino."));
@@ -201,6 +223,21 @@ export default function App() {
       if (flower) warmOfflineImages([...flower.stages, flower.wiltedImage]);
     }
   }, [stage, isRegistered, profile.companionType, profile.mascot, profile.flower]);
+
+  useEffect(() => {
+    const onHash = () => {
+      if (window.location.hash === PRIVACY_HASH) setPrivacyOpen(true);
+      const token = takeResetToken();
+      if (token) setResetToken(token);
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  function closePrivacy() {
+    setPrivacyOpen(false);
+    if (window.location.hash === PRIVACY_HASH) window.history.replaceState(null, "", window.location.pathname + window.location.search);
+  }
 
   useEffect(() => {
     if (!toast) return;
@@ -248,9 +285,25 @@ export default function App() {
     setAccount(session);
   }
 
+  /**
+   * Sin cuenta nada sale del dispositivo; al crearla se sube lo que ya había aquí (tamizajes, calendario,
+   * hábitos, tareas, compañero y temas del chat si se recuerdan), ya con el consentimiento dado.
+   */
+  function uploadLocalData(dataId: string) {
+    screenings.uploadAll(dataId);
+    emotionCalendar.uploadAll(dataId);
+    habits.uploadAll(dataId);
+    taskPlans.uploadAll(dataId);
+    garden.uploadAll(dataId);
+    if (preferences.rememberConversations) uploadStoredChatMemory(dataId);
+  }
+
   /** `created` llega cuando el registro abrió una cuenta real; sin él, el perfil queda solo en este dispositivo. */
   function startRegistration(name: string, rememberConversations: boolean, created?: { session: Session; dataId: string }) {
-    if (created) adoptAccount(created.session, created.dataId);
+    if (created) {
+      adoptAccount(created.session, created.dataId);
+      uploadLocalData(created.dataId);
+    }
     setPendingName(name || "Invitado");
     setPreferences((prev) => ({ ...prev, rememberConversations }));
     setStage("onboarding");
@@ -282,7 +335,29 @@ export default function App() {
     setIsRegistered(true);
     saveRegistration(profile, preferences);
     syncProfile(dataId, profile, preferences);
+    uploadLocalData(dataId);
     notify("Cuenta creada. Desde ahora tu avance se respalda y puedes entrar desde otro dispositivo.");
+  }
+
+  /**
+   * Contraseña nueva guardada (enlace del correo). El servidor cerró todas las sesiones de esa cuenta:
+   * si este navegador no tenía sesión, o tenía la de la misma cuenta, entra con la nueva; si tenía
+   * abierta otra cuenta, no se mezclan datos: se avisa y se queda en la que estaba.
+   */
+  async function finishPasswordReset(session: Session, dataId: string) {
+    setResetToken(null);
+    if (account && account.email !== session.email) {
+      notify(`Listo, cambiaste la contraseña de ${session.email}. Para entrar a esa cuenta, sal de la sesión actual e inicia sesión con tu contraseña nueva.`);
+      return;
+    }
+    saveSession(session);
+    if (account) {
+      setAccount(session);
+      notify("Listo, tu contraseña cambió. Se cerró la sesión en tus otros dispositivos.");
+      return;
+    }
+    await completeLogin(session, dataId);
+    notify("Listo, tu contraseña cambió y ya entraste a tu cuenta.");
   }
 
   /** Cierra la sesión sin borrar nada de la cuenta: solo limpia este navegador (conserva los ajustes de accesibilidad). */
@@ -372,10 +447,16 @@ export default function App() {
   // "kahy-app--flow" para poder desplazarse, a diferencia de la app, que tiene alto fijo y desplaza por dentro.
   const flowClasses = `${preferenceClasses(preferences)} kahy-app--flow`;
 
-  if (stage === "splash") return <div className={flowClasses}><SplashScreen />{accessibilityMenu}</div>;
+  const privacyModal = privacyOpen && <Modal title="Aviso de privacidad" onClose={closePrivacy}><PrivacyNotice /><Button className="full-width" onClick={closePrivacy}>Entendido</Button></Modal>;
+
+  // El enlace del correo para restablecer la contraseña tiene prioridad sobre cualquier otra pantalla.
+  if (resetToken) {
+    return <div className={flowClasses}><main className="form-page"><Card className="auth-card auth-card--login"><div className="auth-card-heading"><div className="auth-card-brand"><BrandMark size="small" /><span><strong>KAHY</strong><small>Recuperar tu cuenta</small></span></div><DemoBadge>Enlace de un solo uso</DemoBadge></div><ResetPasswordForm token={resetToken} onDone={finishPasswordReset} onCancel={() => setResetToken(null)} /></Card></main>{privacyModal}{accessibilityMenu}</div>;
+  }
+  if (stage === "splash") return <div className={flowClasses}><SplashScreen />{privacyModal}{accessibilityMenu}</div>;
   // onExplore conserva isRegistered: quien ya tiene perfil en este dispositivo lo retoma; quien no, entra como invitado.
-  if (stage === "access") return <div className={flowClasses}><AccessFlow resumeName={isRegistered ? profile.name : undefined} onExplore={() => setStage("app")} deviceId={deviceId} onLogin={completeLogin} onRegister={startRegistration} /><ConnectionBanner context="access" />{accessibilityMenu}</div>;
-  if (stage === "onboarding") return <div className={flowClasses}><Onboarding initialName={pendingName} preferences={preferences} onFinish={finishOnboarding} />{accessibilityMenu}</div>;
+  if (stage === "access") return <div className={flowClasses}><AccessFlow resumeName={isRegistered ? profile.name : undefined} onExplore={() => setStage("app")} deviceId={deviceId} onLogin={completeLogin} onRegister={startRegistration} /><ConnectionBanner context="access" />{privacyModal}{accessibilityMenu}</div>;
+  if (stage === "onboarding") return <div className={flowClasses}><Onboarding initialName={pendingName} preferences={preferences} onFinish={finishOnboarding} />{privacyModal}{accessibilityMenu}</div>;
 
   return (
     <div className={preferenceClasses(preferences)}>
@@ -392,6 +473,7 @@ export default function App() {
       </AppShell>
 
       {showHelp && <Modal title="Ayuda inmediata" onClose={() => setShowHelp(false)}><div className="help-modal"><DemoBadge>Información oficial · sin llamada automática</DemoBadge><div className="urgent-note"><ShieldAlert size={28} /><div><h3>Si hay peligro inmediato</h3><p>Contacta al 911 o acude al servicio de urgencias más cercano. Este prototipo no puede detectar, atender ni monitorear una emergencia.</p></div></div><div className="help-option"><Phone size={22} /><div><strong>Línea de la Vida</strong><p>800 911 2000 · orientación nacional 24 horas, todos los días.</p></div></div><a className="button button--secondary full-width" href="https://www.gob.mx/conasama/es/articulos/linea-de-la-vida-800-911-2000?idiom=es" target="_blank" rel="noreferrer">Ver fuente oficial <ExternalLink size={17} /></a><p className="fine-print">No se realiza ninguna llamada desde KAHY. En una implementación real, este flujo requeriría revisión profesional, pruebas y protocolos operativos.</p><Button className="full-width" onClick={() => setShowHelp(false)}>Entendido</Button></div></Modal>}
+      {privacyModal}
       {toast && <div className="toast" role="status" key={toast.id}><CheckCircle2 size={19} />{toast.text}</div>}
       {accessibilityMenu}
     </div>

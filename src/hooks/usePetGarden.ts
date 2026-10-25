@@ -207,6 +207,8 @@ export function usePetGarden(deviceId: string) {
     gainFromHabit,
     gainFromChat,
     rewardMilestone,
+    /** Al crear la cuenta: sube el avance del compañero que hasta ahora solo estaba en este dispositivo. */
+    uploadAll: (accountDataId: string) => saveRemotePetGarden(accountDataId, state),
   };
 }
 

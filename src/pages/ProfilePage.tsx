@@ -1,4 +1,4 @@
-import { BookOpen, Brain, ClipboardList, Database, Eye, History, Info, Leaf, Palette, PawPrint, RotateCcw, ShieldCheck, Sparkles, Type, UserRound } from "lucide-react";
+import { BookOpen, Brain, ClipboardList, Database, Eye, FileText, History, Info, Leaf, Palette, PawPrint, RotateCcw, ShieldCheck, Sparkles, Type, UserRound } from "lucide-react";
 import { useState } from "react";
 import AccountPanel from "../components/AccountPanel";
 import Mascot, { Flower } from "../components/Mascot";
@@ -8,6 +8,7 @@ import type { ChatHistoryApi } from "../hooks/useChatHistory";
 import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
 import type { ScreeningsState } from "../hooks/useScreenings";
 import { flowers, mascots } from "../mock/data";
+import { PRIVACY_HASH } from "../data/privacy";
 import type { Session } from "../services/authApi";
 import type { DemoProfile, FlowerId, MainView, MascotId, Preferences } from "../types";
 
@@ -56,7 +57,7 @@ export default function ProfilePage({ profile, preferences, setProfile, setPrefe
           </>
         )}
       </Card>
-      <Card className="about-card"><div className="settings-title"><Info size={21} /><div><h2>Control de tu información</h2><p>{account ? "Puedes consultar las fuentes o eliminar tu cuenta con todos sus datos." : "Puedes consultar las fuentes o borrar el perfil local para comenzar de nuevo."}</p></div></div><div className="about-links"><button onClick={() => navigate("resources")}><Database size={18} /> Ver base de fuentes</button><button onClick={() => navigate("resources")}><BookOpen size={18} /> Leer recursos generales</button><button onClick={() => navigate("screening")}><ClipboardList size={18} /> Ir a Tamizaje</button></div>{screenings.results.length > 0 && <Button variant="ghost" onClick={() => { screenings.reset(); notify("Se borró tu historial de tamizaje guardado."); }}><RotateCcw size={16} /> Borrar historial de tamizaje</Button>}{(isRegistered || account) && <Button variant={account ? "danger" : "ghost"} onClick={onResetRegistration}><RotateCcw size={18} /> {account ? "Eliminar mi cuenta y mis datos" : "Borrar perfil local"}</Button>}</Card>
+      <Card className="about-card"><div className="settings-title"><Info size={21} /><div><h2>Control de tu información</h2><p>{account ? "Puedes consultar las fuentes o eliminar tu cuenta con todos sus datos." : "Puedes consultar las fuentes o borrar el perfil local para comenzar de nuevo."}</p></div></div><div className="about-links"><a href={PRIVACY_HASH}><FileText size={18} /> Aviso de privacidad</a><button onClick={() => navigate("resources")}><Database size={18} /> Ver base de fuentes</button><button onClick={() => navigate("resources")}><BookOpen size={18} /> Leer recursos generales</button><button onClick={() => navigate("screening")}><ClipboardList size={18} /> Ir a Tamizaje</button></div>{screenings.results.length > 0 && <Button variant="ghost" onClick={() => { screenings.reset(); notify("Se borró tu historial de tamizaje guardado."); }}><RotateCcw size={16} /> Borrar historial de tamizaje</Button>}{(isRegistered || account) && <Button variant={account ? "danger" : "ghost"} onClick={onResetRegistration}><RotateCcw size={18} /> {account ? "Eliminar mi cuenta y mis datos" : "Borrar perfil local"}</Button>}</Card>
     </div></div>
   </div>;
 }

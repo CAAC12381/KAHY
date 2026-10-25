@@ -232,8 +232,8 @@ function faqReply(key: FaqKey, topic: ChatTopic): ConversationReply {
         introduction: "Este chat funciona sin expediente clínico. Cuando la IA está conectada, el texto se envía al proveedor solo para generar la respuesta y no se almacena en KAHY; en modo local, el mensaje ni siquiera sale de tu navegador.",
         insight: "Evita compartir nombre completo, domicilio exacto u otros datos que te identifiquen.",
         steps: [
-          { horizon: "Lo que se guarda", text: "Solo tu perfil y preferencias de interfaz, y únicamente en este dispositivo si te registraste." },
-          { horizon: "Lo que no se guarda", text: "El historial del chat, tu ubicación real ni tu información de salud." },
+          { horizon: "Lo que se guarda", text: "Sin cuenta, todo se queda en este dispositivo. Con cuenta, tu perfil y tu avance (incluidos tamizajes y calendario emocional) se respaldan con tu consentimiento." },
+          { horizon: "Lo que no se guarda", text: "El texto del chat en el servidor de KAHY ni tu ubicación real. Detalles en el aviso de privacidad, en Perfil." },
         ],
         question: "¿Quieres continuar con lo que estábamos hablando?",
         choices: ["Sí, continuar", "Ver base de fuentes", "Otra pregunta"],

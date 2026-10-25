@@ -1,4 +1,4 @@
-import { currentAccount, loginAccount, logoutSession, registerAccount } from './_lib/auth.js'
+import { currentAccount, loginAccount, logoutSession, registerAccount, requestPasswordReset, resetPassword } from './_lib/auth.js'
 import { ensureSchema } from './_lib/db.js'
 
 type VercelLikeRequest = {
@@ -14,13 +14,15 @@ type VercelLikeResponse = {
 
 /**
  * POST /api/auth  — body: { action, ... }
- *   register { email, password, deviceId } -> 201 { token, email, dataId }
- *   login    { email, password }           -> 200 { token, email, dataId }
- *   me       (Authorization: Bearer)       -> 200 { email, dataId } | 401
- *   logout   (Authorization: Bearer)       -> 200 { ok: true }
+ *   register      { email, password, deviceId, privacyVersion } -> 201 { token, email, dataId }
+ *   login         { email, password }           -> 200 { token, email, dataId }
+ *   me            (Authorization: Bearer)       -> 200 { email, dataId } | 401
+ *   logout        (Authorization: Bearer)       -> 200 { ok: true }
+ *   requestReset  { email }                     -> 200 { ok, message } (exista o no la cuenta) | 503 MAIL_NOT_CONFIGURED
+ *   resetPassword { token, password }           -> 200 { token, email, dataId } | 400 INVALID_RESET_LINK
  *
- * Un solo archivo para las cuatro acciones a propósito: el plan Hobby de
- * Vercel admite 12 funciones por despliegue y api/ ya usa 10.
+ * Un solo archivo para todas las acciones a propósito: el plan Hobby de
+ * Vercel admite 12 funciones por despliegue y api/ ya usa 11.
  */
 export default async function handler(req: VercelLikeRequest, res: VercelLikeResponse) {
   res.setHeader('Cache-Control', 'no-store')
@@ -37,6 +39,8 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
       : body.action === 'login' ? await loginAccount(body, clientId)
       : body.action === 'me' ? await currentAccount(req.headers.authorization)
       : body.action === 'logout' ? await logoutSession(req.headers.authorization)
+      : body.action === 'requestReset' ? await requestPasswordReset(body, clientId)
+      : body.action === 'resetPassword' ? await resetPassword(body, clientId)
       : { status: 400, body: { error: 'Acción no reconocida.' } }
     return res.status(result.status).json(result.body)
   } catch (error) {

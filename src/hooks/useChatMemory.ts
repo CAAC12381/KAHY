@@ -27,12 +27,16 @@ function writeMemory(entries: ChatMemoryEntry[]) {
   }
 }
 
+/** Al crear la cuenta: sube los temas recordados que hasta ahora solo estaban en este dispositivo. */
+export function uploadStoredChatMemory(accountDataId: string) {
+  readMemory().forEach((entry) => saveRemoteChatMemory(accountDataId, entry.topic));
+}
+
 /**
  * Topic-only memory of recent conversations, opt-in via rememberConversations.
  * localStorage is read immediately so the UI never waits on a network round
- * trip; the database (keyed by deviceId, no account needed) is a durable
- * mirror consulted once on mount so memory survives a cleared cache or a
- * different browser on the same person's data.
+ * trip; with an account, the database is a durable mirror consulted once on
+ * mount so memory survives a cleared cache or a different browser.
  */
 export function useChatMemory(enabled: boolean, deviceId: string) {
   const [entries, setEntries] = useState<ChatMemoryEntry[]>(() => (enabled ? readMemory() : []));

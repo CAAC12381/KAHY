@@ -53,11 +53,17 @@ export function useEmotionCalendar(deviceId: string) {
     clearRemoteEmotions(deviceId);
   }
 
+  /** Al crear la cuenta: sube las etiquetas que hasta ahora solo estaban en este dispositivo. */
+  function uploadAll(accountDataId: string) {
+    entries.forEach((entry) => saveRemoteEmotion(accountDataId, entry));
+  }
+
   return {
     entries,
     latest: entries.length ? entries[entries.length - 1] : null,
     record,
     clear,
+    uploadAll,
   };
 }
 

@@ -7,6 +7,9 @@ import { companionKey, companionVoices } from "../lib/companionVoices";
 import { loginAccount, MIN_PASSWORD_LENGTH, registerAccount, type Session } from "../services/authApi";
 import type { CompanionType, DemoProfile, FlowerId, MascotId, Preferences } from "../types";
 import BrandMark from "../components/BrandMark";
+import { ForgotPassword } from "../components/PasswordRecovery";
+import { PrivacySummary } from "../components/PrivacyNotice";
+import { PRIVACY_HASH, PRIVACY_VERSION } from "../data/privacy";
 
 type AccessMode = "welcome" | "login" | "register";
 
@@ -66,7 +69,7 @@ export function AccessFlow({
             ? <Button variant="ghost" onClick={() => setMode("register")}>Crear una cuenta nueva</Button>
             : <Button variant="ghost" onClick={onExplore}>Explorar KAHY sin cuenta</Button>}
         </div>
-        <p className="fine-print">{resumeName ? "Tu perfil y tu avance siguen guardados en este dispositivo. " : ""}Con una cuenta, tu perfil y tu avance se guardan para que puedas entrar desde otro dispositivo. KAHY no guarda en su servidor el texto del chat ni crea un expediente clínico.</p>
+        <p className="fine-print">{resumeName ? "Tu perfil y tu avance siguen guardados en este dispositivo. " : ""}Con una cuenta, tu perfil y tu avance se guardan para que puedas entrar desde otro dispositivo; sin cuenta, todo se queda solo en este dispositivo. KAHY no guarda en su servidor el texto del chat ni crea un expediente clínico. <a href={PRIVACY_HASH}>Aviso de privacidad</a></p>
       </section>
       <section className="welcome-art" aria-label="Mascotas de KAHY">
         <div className="mascot-row">
@@ -93,6 +96,7 @@ function Login({ onBack, onCreateAccount, onExplore, onContinue }: {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [forgot, setForgot] = useState(false);
 
   function updateEmail(value: string) {
     setEmail(value);
@@ -128,6 +132,7 @@ function Login({ onBack, onCreateAccount, onExplore, onContinue }: {
           <div className="auth-card-brand"><BrandMark size="small" /><span><strong>KAHY</strong><small>Acceso a tu espacio</small></span></div>
           <DemoBadge>Cuenta protegida</DemoBadge>
         </div>
+        {forgot ? <ForgotPassword initialEmail={email.trim()} onBack={() => setForgot(false)} /> : <>
         <h1>Qué gusto verte de nuevo</h1>
         <p>Continúa justo donde te quedaste. Al entrar recuperaremos tu perfil, tus preferencias y el avance que hayas respaldado.</p>
         <div className="auth-benefits" aria-label="Qué se recupera al iniciar sesión">
@@ -139,12 +144,14 @@ function Login({ onBack, onCreateAccount, onExplore, onContinue }: {
           <label className="field"><span>Contraseña</span><div><LockKeyhole size={18} /><input value={password} onChange={(event) => updatePassword(event.target.value)} type={showPassword ? "text" : "password"} autoComplete="current-password" disabled={busy} placeholder="Tu contraseña" aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? "login-password-error" : undefined} /><button type="button" className="field-action" onClick={() => setShowPassword(!showPassword)} disabled={busy} aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>{errors.password && <small className="field-error" id="login-password-error">{errors.password}</small>}</label>
           {errors.form && <p className="form-error" role="alert">{errors.form}</p>}
           <Button type="submit" className="full-width" disabled={busy}>{busy ? "Entrando…" : "Entrar a KAHY"}</Button>
+          <button type="button" className="recovery-link" onClick={() => setForgot(true)} disabled={busy}>¿Olvidaste tu contraseña?</button>
         </form>
         <div className="auth-alternatives">
           <p>¿Aún no tienes una cuenta? <button type="button" onClick={onCreateAccount}>Crear cuenta</button></p>
           <button type="button" className="auth-explore-link" onClick={onExplore}>Continuar sin cuenta en este dispositivo <ArrowRight size={16} /></button>
         </div>
-        <p className="auth-recovery-note"><LockKeyhole size={15} /> La recuperación automática de contraseña todavía no está disponible. KAHY nunca te pedirá tu contraseña dentro del chat.</p>
+        <p className="auth-recovery-note"><LockKeyhole size={15} /> KAHY nunca te pedirá tu contraseña dentro del chat ni por correo. <a href={PRIVACY_HASH}>Aviso de privacidad</a></p>
+        </>}
       </Card>
     </main>
   );
@@ -160,6 +167,7 @@ function Register({ deviceId, onBack, onContinue }: { deviceId: string; onBack: 
   const [age, setAge] = useState("");
   const [region, setRegion] = useState(locations[0]);
   const [accepted, setAccepted] = useState(false);
+  const [sensitiveConsent, setSensitiveConsent] = useState(false);
   const [rememberConversations, setRememberConversations] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -167,7 +175,7 @@ function Register({ deviceId, onBack, onContinue }: { deviceId: string; onBack: 
 
   async function createAccount() {
     setBusy(true);
-    const result = await registerAccount(email.trim(), password, deviceId);
+    const result = await registerAccount(email.trim(), password, deviceId, PRIVACY_VERSION);
     setBusy(false);
     if (result.ok) return onContinue(name.trim(), rememberConversations, { session: result.session, dataId: result.dataId });
     if (result.code === "UNAVAILABLE") return setCloudUnavailable(true);
@@ -182,6 +190,7 @@ function Register({ deviceId, onBack, onContinue }: { deviceId: string; onBack: 
     if (step === 0 && password.length < MIN_PASSWORD_LENGTH) return setError(`Elige una contraseña de al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
     if (step === 1 && Number(age) < 18) return setError("Por ahora KAHY está diseñado para personas de 18 años o más.");
     if (step === 3 && !accepted) return setError("Confirma que entiendes los límites de KAHY y qué se guarda.");
+    if (step === 3 && !sensitiveConsent) return setError("Para crear una cuenta necesitamos tu consentimiento para guardar tus datos sensibles. Si prefieres no darlo, puedes usar KAHY sin cuenta.");
     setError("");
     if (step === 3) void createAccount(); else setStep(step + 1);
   }
@@ -195,7 +204,7 @@ function Register({ deviceId, onBack, onContinue }: { deviceId: string; onBack: 
         {step === 0 && <div className="form-step"><h1>Empecemos por lo básico</h1><p>Con tu correo y una contraseña podrás entrar desde cualquier dispositivo.</p><label className="field"><span>¿Cómo quieres que te llamemos?</span><div><UserRound size={18} /><input value={name} onChange={(e) => setName(e.target.value)} autoComplete="nickname" placeholder="Tu nombre o apodo" /></div></label><label className="field"><span>Correo</span><div><Mail size={18} /><input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" placeholder="tu@ejemplo.mx" /></div></label><label className="field"><span>Contraseña</span><div><LockKeyhole size={18} /><input value={password} onChange={(e) => setPassword(e.target.value)} type={showPassword ? "text" : "password"} autoComplete="new-password" placeholder={`${MIN_PASSWORD_LENGTH} caracteres o más`} /><button type="button" className="field-action" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label></div>}
         {step === 1 && <div className="form-step"><h1>Confirma el alcance</h1><p>La fase actual está pensada para adultos.</p><label className="field"><span>Edad</span><div><UserRound size={18} /><input value={age} onChange={(e) => setAge(e.target.value)} inputMode="numeric" placeholder="18 o más" /></div></label></div>}
         {step === 2 && <div className="form-step"><h1>Elige una región de muestra</h1><p>Solo cambia el contenido visible; no accedemos a tu ubicación.</p><label className="field"><span>Ubicación demostrativa</span><div><MapPin size={18} /><select value={region} onChange={(e) => setRegion(e.target.value)}>{locations.map((item) => <option key={item}>{item}</option>)}</select></div></label></div>}
-        {step === 3 && <div className="form-step"><h1>Antes de continuar</h1><div className="notice-box"><Check size={20} /><p>KAHY no ofrece diagnóstico, terapia, monitoreo ni respuesta de emergencia. Tu cuenta guarda tu correo y tu contraseña protegida (nunca en texto legible), además de tu apodo, región, acompañante, preferencias y el avance que generes: hábitos, tareas, etiquetas del calendario emocional y resultados de tamizaje. No se guarda tu edad exacta, y KAHY no guarda en su servidor el texto de tus conversaciones del chat. Puedes eliminar tu cuenta y todos sus datos desde Perfil.</p></div><label className="check-row"><input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} /><span>Entiendo y quiero continuar.</span></label><div className="remember-consent"><strong>¿Quieres que KAHY recuerde los temas de tus conversaciones?</strong><p>Ayuda a dar continuidad entre sesiones. Solo se guardan los temas (por ejemplo "estrés" o "sueño"), nunca el texto exacto de lo que escribes. Es opcional y puedes cambiarlo después en tu perfil.</p><div className="remember-consent-actions"><button type="button" className={!rememberConversations ? "choice active" : "choice"} onClick={() => setRememberConversations(false)}>Cancelar</button><button type="button" className={rememberConversations ? "choice active" : "choice"} onClick={() => setRememberConversations(true)}>Aceptar</button></div></div></div>}
+        {step === 3 && <div className="form-step"><h1>Antes de continuar</h1><div className="notice-box"><Check size={20} /><p>KAHY no ofrece diagnóstico, terapia, monitoreo ni respuesta de emergencia. Tu cuenta guarda tu correo y tu contraseña protegida (nunca en texto legible), además de tu apodo, región, acompañante, preferencias y el avance que generes: hábitos, tareas, etiquetas del calendario emocional y resultados de tamizaje. No se guarda tu edad exacta, y KAHY no guarda en su servidor el texto de tus conversaciones del chat. Puedes eliminar tu cuenta y todos sus datos desde Perfil.</p></div><div className="privacy-summary"><PrivacySummary /><a href={PRIVACY_HASH}>Leer el aviso de privacidad completo</a></div><label className="check-row"><input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} /><span>Entiendo los límites de KAHY y quiero continuar.</span></label><label className="check-row"><input type="checkbox" checked={sensitiveConsent} onChange={(e) => { setSensitiveConsent(e.target.checked); setError(""); }} /><span>Doy mi consentimiento expreso para que KAHY guarde y use mis datos sensibles (resultados de tamizaje y calendario emocional) como dice el aviso de privacidad.</span></label><div className="remember-consent"><strong>¿Quieres que KAHY recuerde los temas de tus conversaciones?</strong><p>Ayuda a dar continuidad entre sesiones. Solo se guardan los temas (por ejemplo "estrés" o "sueño"), nunca el texto exacto de lo que escribes. Es opcional y puedes cambiarlo después en tu perfil.</p><div className="remember-consent-actions"><button type="button" className={!rememberConversations ? "choice active" : "choice"} onClick={() => setRememberConversations(false)}>Cancelar</button><button type="button" className={rememberConversations ? "choice active" : "choice"} onClick={() => setRememberConversations(true)}>Aceptar</button></div></div></div>}
         {error && <p className="form-error" role="alert">{error}</p>}
         {cloudUnavailable
           ? <div className="notice-box cloud-notice" role="alert"><CloudOff size={20} /><div><p>No pudimos crear tu cuenta en este momento. Puedes reintentar, o continuar solo en este dispositivo y crear la cuenta más tarde desde Perfil. Mientras tanto, tu avance no se podrá recuperar desde otro dispositivo.</p><div className="remember-consent-actions"><button type="button" className="choice" disabled={busy} onClick={() => void createAccount()}>{busy ? "Reintentando…" : "Reintentar"}</button><button type="button" className="choice" disabled={busy} onClick={() => onContinue(name.trim(), rememberConversations)}>Continuar solo aquí</button></div></div></div>

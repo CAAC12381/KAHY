@@ -99,7 +99,12 @@ export function useDailyHabits(deviceId: string, onComplete: (habitId: string, d
     cursor.setDate(cursor.getDate() - 1);
   }
 
-  return { completed: currentDay.completed, days: store.days, streak, toggle, clear };
+  /** Al crear la cuenta: sube los días con hábitos que hasta ahora solo estaban en este dispositivo. */
+  function uploadAll(accountDataId: string) {
+    store.days.filter((day) => day.completed.length > 0).forEach((day) => saveRemoteHabitDay(accountDataId, day));
+  }
+
+  return { completed: currentDay.completed, days: store.days, streak, toggle, clear, uploadAll };
 }
 
 export type DailyHabitsApi = ReturnType<typeof useDailyHabits>;

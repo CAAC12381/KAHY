@@ -108,8 +108,13 @@ export function useTaskPlans(deviceId: string, rewards?: { onStepCompleted?: (pl
     deleteRemoteTaskPlan(deviceId);
   }
 
+  /** Al crear la cuenta: sube las tareas que hasta ahora solo estaban en este dispositivo. */
+  function uploadAll(accountDataId: string) {
+    plans.forEach((plan) => saveRemoteTaskPlan(accountDataId, plan));
+  }
+
   const active = plans.filter((plan) => !plan.completedAt);
-  return { plans, active, create, update, remove, clear };
+  return { plans, active, create, update, remove, clear, uploadAll };
 }
 
 export type TaskPlansApi = ReturnType<typeof useTaskPlans>;

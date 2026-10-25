@@ -110,6 +110,16 @@ function createSchema() {
         expires_at TIMESTAMPTZ NOT NULL
       )
     `,
+    // Enlaces para restablecer la contraseña: como las sesiones, solo se guarda el hash del token.
+    sql`
+      CREATE TABLE IF NOT EXISTS password_resets (
+        token_hash TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        expires_at TIMESTAMPTZ NOT NULL,
+        used_at TIMESTAMPTZ
+      )
+    `,
   ]).then(() => {
     // Index creation kept separate from CREATE TABLE for older Postgres compatibility.
     return Promise.all([
@@ -120,6 +130,10 @@ function createSchema() {
       sql`CREATE INDEX IF NOT EXISTS idx_task_plans_device ON task_plans(device_id)`,
       sql`CREATE INDEX IF NOT EXISTS idx_habit_days_device ON habit_days(device_id, day DESC)`,
       sql`CREATE INDEX IF NOT EXISTS idx_sessions_account ON sessions(account_id)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_password_resets_account ON password_resets(account_id)`,
+      // Prueba del consentimiento expreso (datos sensibles): qué versión del aviso de privacidad aceptó y cuándo.
+      sql`ALTER TABLE accounts ADD COLUMN IF NOT EXISTS privacy_version TEXT`,
+      sql`ALTER TABLE accounts ADD COLUMN IF NOT EXISTS privacy_consent_at TIMESTAMPTZ`,
     ])
   }).then(() => undefined)
 }
@@ -209,11 +223,13 @@ export async function clearChatMemory(deviceId: string): Promise<void> {
 
 /**
  * Used by "borrar perfil" / "eliminar mi cuenta" — a real delete, not just
- * orphaning the rows. If an account had claimed this id, the account and
- * its sessions go too, so nothing is left that could log back in.
+ * orphaning the rows. If an account had claimed this id, the account, its
+ * sessions and any pending password-reset link go too, so nothing is left
+ * that could log back in.
  */
 export async function deleteAllDataForDevice(deviceId: string): Promise<void> {
   await sql`DELETE FROM sessions WHERE account_id IN (SELECT account_id FROM accounts WHERE data_id = ${deviceId})`
+  await sql`DELETE FROM password_resets WHERE account_id IN (SELECT account_id FROM accounts WHERE data_id = ${deviceId})`
   await Promise.all([
     sql`DELETE FROM accounts WHERE data_id = ${deviceId}`,
     sql`DELETE FROM profiles WHERE device_id = ${deviceId}`,

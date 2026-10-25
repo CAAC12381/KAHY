@@ -1,9 +1,12 @@
 import { CloudOff, Eye, EyeOff, LockKeyhole, LogOut, Mail, ShieldCheck, UserRoundCheck } from "lucide-react";
 import { useState } from "react";
 import { Button, Card } from "./ui";
+import { ForgotPassword } from "./PasswordRecovery";
+import { PrivacySummary } from "./PrivacyNotice";
+import { PRIVACY_HASH, PRIVACY_VERSION } from "../data/privacy";
 import { loginAccount, MIN_PASSWORD_LENGTH, registerAccount, type Session } from "../services/authApi";
 
-type Mode = "idle" | "register" | "login";
+type Mode = "idle" | "register" | "login" | "forgot";
 
 /**
  * Tarjeta "Tu cuenta" del Perfil: muestra la sesión activa y permite
@@ -21,6 +24,7 @@ export default function AccountPanel({ account, deviceId, onLogout, onLoggedIn, 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [accepted, setAccepted] = useState(false);
+  const [sensitiveConsent, setSensitiveConsent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -37,11 +41,12 @@ export default function AccountPanel({ account, deviceId, onLogout, onLoggedIn, 
     if (busy) return;
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError("Escribe un correo con formato válido.");
     if (mode === "register" && password.length < MIN_PASSWORD_LENGTH) return setError(`Elige una contraseña de al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
-    if (mode === "register" && !accepted) return setError("Confirma tu edad y que aceptas lo que se guarda.");
+    if (mode === "register" && !accepted) return setError("Confirma que tienes 18 años o más.");
+    if (mode === "register" && !sensitiveConsent) return setError("Para crear una cuenta necesitamos tu consentimiento para guardar tus datos sensibles. Sin cuenta, todo sigue solo en este dispositivo.");
     if (mode === "login" && !password) return setError("Escribe tu contraseña.");
     setError("");
     setBusy(true);
-    const result = mode === "register" ? await registerAccount(email.trim(), password, deviceId) : await loginAccount(email.trim(), password);
+    const result = mode === "register" ? await registerAccount(email.trim(), password, deviceId, PRIVACY_VERSION) : await loginAccount(email.trim(), password);
     setBusy(false);
     if (!result.ok) return setError(result.code === "UNAVAILABLE" ? "El servicio de cuentas no está disponible en este momento. Intenta más tarde." : result.message);
     setMode("idle");
@@ -66,16 +71,18 @@ export default function AccountPanel({ account, deviceId, onLogout, onLoggedIn, 
   return (
     <Card className="account-card">
       <div className="settings-title"><CloudOff size={21} /><div><h2>Tu cuenta</h2><p>Ahora mismo tu avance vive solo en este navegador. Con una cuenta se respalda y puedes recuperarlo desde otro dispositivo.</p></div></div>
-      {mode === "idle"
-        ? <div className="account-actions"><Button onClick={() => open("register")}>Crear cuenta</Button><Button variant="secondary" onClick={() => open("login")}>Ya tengo cuenta</Button></div>
-        : <form className="account-form" onSubmit={submit} noValidate>
+      {mode === "forgot" && <ForgotPassword initialEmail={email.trim()} onBack={() => open("login")} />}
+      {mode === "idle" && <div className="account-actions"><Button onClick={() => open("register")}>Crear cuenta</Button><Button variant="secondary" onClick={() => open("login")}>Ya tengo cuenta</Button></div>}
+      {(mode === "register" || mode === "login") && <form className="account-form" onSubmit={submit} noValidate>
           <label className="field"><span>Correo</span><div><Mail size={18} /><input value={email} onChange={(event) => { setEmail(event.target.value); setError(""); }} type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} disabled={busy} placeholder="tu@ejemplo.mx" /></div></label>
           <label className="field"><span>Contraseña</span><div><LockKeyhole size={18} /><input value={password} onChange={(event) => { setPassword(event.target.value); setError(""); }} type={showPassword ? "text" : "password"} autoComplete={mode === "register" ? "new-password" : "current-password"} disabled={busy} placeholder={mode === "register" ? `${MIN_PASSWORD_LENGTH} caracteres o más` : "Tu contraseña"} /><button type="button" className="field-action" onClick={() => setShowPassword((value) => !value)} disabled={busy} aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label>
           {mode === "register" && <>
-            <div className="notice-box"><ShieldCheck size={20} /><p>Se guardan tu correo, tu contraseña protegida (nunca en texto legible), tu perfil y tu avance: hábitos, tareas, etiquetas emocionales y resultados de tamizaje. KAHY no guarda en su servidor el texto del chat. Lo anterior a hoy que solo esté en este navegador se irá respaldando conforme lo uses.</p></div>
-            <label className="check-row"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} /><span>Tengo 18 años o más y acepto que se guarde lo anterior.</span></label>
+            <div className="notice-box"><ShieldCheck size={20} /><p>Se guardan tu correo, tu contraseña protegida (nunca en texto legible), tu perfil y tu avance: hábitos, tareas, etiquetas emocionales y resultados de tamizaje. KAHY no guarda en su servidor el texto del chat. Lo que ya hiciste en este navegador se sube a tu cuenta al crearla.</p></div>
+            <div className="privacy-summary"><PrivacySummary /><a href={PRIVACY_HASH}>Leer el aviso de privacidad completo</a></div>
+            <label className="check-row"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} /><span>Tengo 18 años o más.</span></label>
+            <label className="check-row"><input type="checkbox" checked={sensitiveConsent} onChange={(event) => { setSensitiveConsent(event.target.checked); setError(""); }} /><span>Doy mi consentimiento expreso para que KAHY guarde y use mis datos sensibles (resultados de tamizaje y calendario emocional) como dice el aviso de privacidad.</span></label>
           </>}
-          {mode === "login" && <p className="fine-print">Al entrar se carga el perfil de tu cuenta en este dispositivo.</p>}
+          {mode === "login" && <p className="fine-print">Al entrar se carga el perfil de tu cuenta en este dispositivo. <button type="button" className="recovery-link recovery-link--inline" onClick={() => open("forgot")} disabled={busy}>¿Olvidaste tu contraseña?</button></p>}
           {error && <p className="form-error" role="alert">{error}</p>}
           <div className="account-actions"><Button type="submit" disabled={busy}>{busy ? "Un momento…" : mode === "register" ? "Crear mi cuenta" : "Iniciar sesión"}</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => open("idle")}>Cancelar</Button></div>
         </form>}

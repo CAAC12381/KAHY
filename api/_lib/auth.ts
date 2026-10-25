@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID, scrypt, timingSafeEqual } from 'node:crypto'
 import { sql } from '@vercel/postgres'
 import { ensureSchema } from './db.js'
+import { appUrl, mailConfigured, passwordChangedMail, resetPasswordMail, sendMail } from './mail.js'
 
 /**
  * Cuentas reales para KAHY (correo + contraseña) sobre las mismas tablas de
@@ -15,9 +16,13 @@ import { ensureSchema } from './db.js'
  *   guarda únicamente su SHA-256, de modo que una copia de la base de datos
  *   no permite entrar a ninguna cuenta.
  * - Las contraseñas se guardan con scrypt y sal aleatoria, nunca en claro.
- * - Un id reclamado por una cuenta solo se puede leer o modificar con la
- *   sesión de esa cuenta (withDataAccess). Los ids anónimos siguen
- *   funcionando como antes para "explorar sin cuenta".
+ * - Los datos solo se guardan en el servidor con una sesión (withDataAccess):
+ *   quien explora sin cuenta usa KAHY solo en su dispositivo. Así nada sensible
+ *   (tamizajes, calendario emocional) llega al servidor sin el consentimiento
+ *   expreso que se da al crear la cuenta, que queda registrado con la versión
+ *   del aviso de privacidad aceptada.
+ * - Recuperar la contraseña: un enlace de un solo uso que vence en 30 minutos
+ *   llega por correo (mail.ts); al usarlo se cierran todas las sesiones.
  */
 
 const SESSION_DAYS = 30
@@ -25,6 +30,8 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 const MIN_PASSWORD = 8
 const MAX_PASSWORD = 128
+const RESET_MINUTES = 30
+const PRIVACY_VERSION_PATTERN = /^d{4}-d{2}-d{2}$/
 
 type Result = { status: number; body: Record<string, unknown> }
 
@@ -117,6 +124,9 @@ export async function registerAccount(raw: Record<string, unknown>, clientId: st
   if (password.length < MIN_PASSWORD || password.length > MAX_PASSWORD) {
     return { status: 400, body: { code: 'WEAK_PASSWORD', error: `La contraseña debe tener entre ${MIN_PASSWORD} y ${MAX_PASSWORD} caracteres.` } }
   }
+  // Consentimiento expreso para datos sensibles (art. 8 LFPDPPP): sin él no se crea la cuenta.
+  const privacyVersion = typeof raw.privacyVersion === 'string' && PRIVACY_VERSION_PATTERN.test(raw.privacyVersion) ? raw.privacyVersion : ''
+  if (!privacyVersion) return { status: 400, body: { code: 'CONSENT_REQUIRED', error: 'Para crear una cuenta necesitamos tu consentimiento del aviso de privacidad.' } }
   if (tooManyAttempts(`register:${clientId}`, 6)) return { status: 429, body: { code: 'RATE_LIMIT', error: 'Demasiados intentos. Espera unos minutos.' } }
 
   const existing = await sql`SELECT 1 FROM accounts WHERE email = ${email} LIMIT 1`
@@ -130,7 +140,7 @@ export async function registerAccount(raw: Record<string, unknown>, clientId: st
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      await sql`INSERT INTO accounts (account_id, email, password_hash, data_id) VALUES (${accountId}, ${email}, ${passwordHash}, ${dataId})`
+      await sql`INSERT INTO accounts (account_id, email, password_hash, data_id, privacy_version, privacy_consent_at) VALUES (${accountId}, ${email}, ${passwordHash}, ${dataId}, ${privacyVersion}, now())`
       break
     } catch (error) {
       if (!isUniqueViolation(error)) throw error
@@ -164,6 +174,82 @@ export async function loginAccount(raw: Record<string, unknown>, clientId: strin
   return { status: 200, body: { token, email: account.email, dataId: account.data_id } }
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const RESET_SENT = { status: 200, body: { ok: true, message: 'Si hay una cuenta con ese correo, te enviamos un enlace para elegir una contraseña nueva.' } }
+
+/**
+ * Paso 1: pedir el enlace. Responde lo mismo exista o no la cuenta (y tarda
+ * casi lo mismo), para que nadie pueda averiguar qué correos tienen cuenta.
+ */
+export async function requestPasswordReset(raw: Record<string, unknown>, clientId: string): Promise<Result> {
+  const started = Date.now()
+  const email = cleanEmail(raw.email)
+  if (!EMAIL_PATTERN.test(email)) return { status: 400, body: { code: 'INVALID_EMAIL', error: 'Escribe un correo con formato válido.' } }
+  if (!mailConfigured()) return { status: 503, body: { code: 'MAIL_NOT_CONFIGURED', error: 'La recuperación por correo todavía no está activada.' } }
+  if (tooManyAttempts(`reset-request:${clientId}`, 5) || tooManyAttempts(`reset-email:${email}`, 3, 60 * 60_000)) {
+    return { status: 429, body: { code: 'RATE_LIMIT', error: 'Ya pediste varios enlaces. Revisa tu correo (también la carpeta de spam) o espera un rato.' } }
+  }
+
+  const { rows } = await sql`SELECT account_id, email FROM accounts WHERE email = ${email} LIMIT 1`
+  const account = rows[0]
+  if (account) {
+    // Solo vale el enlace más reciente.
+    await sql`DELETE FROM password_resets WHERE account_id = ${account.account_id}`
+    const token = randomBytes(32).toString('base64url')
+    const expiresAt = new Date(Date.now() + RESET_MINUTES * 60_000).toISOString()
+    await sql`INSERT INTO password_resets (token_hash, account_id, expires_at) VALUES (${hashToken(token)}, ${account.account_id}, ${expiresAt})`
+    // El token va después de "#": el navegador no lo manda al servidor ni queda en registros de acceso.
+    const link = `${appUrl()}/#restablecer=${token}`
+    try {
+      await sendMail(resetPasswordMail(account.email, link, RESET_MINUTES))
+    } catch (error) {
+      // No se avisa al cliente (revelaría que la cuenta existe); queda en el registro del servidor.
+      console.error('[KAHY MAIL]', error instanceof Error ? error.message : error)
+    }
+  }
+  await sleep(Math.max(0, 900 - (Date.now() - started)))
+  return RESET_SENT
+}
+
+/**
+ * Paso 2: elegir la contraseña nueva con el token del enlace. El token se
+ * marca como usado en la misma consulta que lo valida (no sirve dos veces), se
+ * cierran todas las sesiones de la cuenta y se abre una nueva en este navegador.
+ */
+export async function resetPassword(raw: Record<string, unknown>, clientId: string): Promise<Result> {
+  const token = typeof raw.token === 'string' && /^[A-Za-z0-9_-]{20,200}$/.test(raw.token) ? raw.token : ''
+  const password = typeof raw.password === 'string' ? raw.password : ''
+  if (password.length < MIN_PASSWORD || password.length > MAX_PASSWORD) {
+    return { status: 400, body: { code: 'WEAK_PASSWORD', error: `La contraseña debe tener entre ${MIN_PASSWORD} y ${MAX_PASSWORD} caracteres.` } }
+  }
+  if (tooManyAttempts(`reset:${clientId}`, 10)) return { status: 429, body: { code: 'RATE_LIMIT', error: 'Demasiados intentos. Espera unos minutos.' } }
+  const invalid = { status: 400, body: { code: 'INVALID_RESET_LINK', error: 'Este enlace ya no es válido: venció, ya se usó o se pidió uno más nuevo. Pide otro desde "¿Olvidaste tu contraseña?".' } }
+  if (!token) return invalid
+
+  const consumed = await sql`
+    UPDATE password_resets SET used_at = now()
+    WHERE token_hash = ${hashToken(token)} AND used_at IS NULL AND expires_at > now()
+    RETURNING account_id
+  `
+  const accountId = consumed.rows[0]?.account_id as string | undefined
+  if (!accountId) return invalid
+
+  const passwordHash = await hashPassword(password)
+  const updated = await sql`UPDATE accounts SET password_hash = ${passwordHash} WHERE account_id = ${accountId} RETURNING email, data_id`
+  const account = updated.rows[0]
+  if (!account) return invalid // La cuenta se eliminó mientras tanto.
+  await sql`DELETE FROM sessions WHERE account_id = ${accountId}`
+  await sql`DELETE FROM password_resets WHERE account_id = ${accountId}`
+  try {
+    await sendMail(passwordChangedMail(account.email))
+  } catch (error) {
+    console.error('[KAHY MAIL]', error instanceof Error ? error.message : error)
+  }
+  const session = await createSession(accountId)
+  return { status: 200, body: { token: session, email: account.email, dataId: account.data_id } }
+}
+
 export async function logoutSession(authorization: string | string[] | undefined): Promise<Result> {
   const token = readBearer(authorization)
   if (token) await sql`DELETE FROM sessions WHERE token_hash = ${hashToken(token)}`
@@ -185,20 +271,18 @@ type AccessResult =
  * Decide bajo qué id puede operar una petición a /api/data/*:
  * - con sesión válida, siempre el id de la cuenta (se ignora el que envíe el cliente);
  * - con un token que ya no vale, 401 para que el cliente cierre la sesión;
- * - sin sesión, el id anónimo enviado, salvo que pertenezca a una cuenta (403).
+ * - sin sesión, 401: sin cuenta (y sin el consentimiento que se da al crearla)
+ *   no se guarda nada en el servidor; todo se queda en el dispositivo.
  */
-export async function resolveDataId(authorization: string | string[] | undefined, requestedId: string | undefined): Promise<AccessResult> {
+export async function resolveDataId(authorization: string | string[] | undefined, _requestedId: string | undefined): Promise<AccessResult> {
   const hasAuthorization = Boolean(Array.isArray(authorization) ? authorization[0] : authorization)
-  if (hasAuthorization) {
-    const token = readBearer(authorization)
-    const session = token ? await findSession(token) : null
-    if (!session) return { ok: false, status: 401, code: 'SESSION_EXPIRED', error: 'La sesión terminó. Vuelve a iniciar sesión.' }
-    return { ok: true, dataId: session.dataId }
+  if (!hasAuthorization) {
+    return { ok: false, status: 401, code: 'LOGIN_REQUIRED', error: 'Sin cuenta, tus datos se guardan solo en tu dispositivo.' }
   }
-  if (requestedId && (await isClaimed(requestedId))) {
-    return { ok: false, status: 403, code: 'LOGIN_REQUIRED', error: 'Estos datos pertenecen a una cuenta. Inicia sesión para verlos.' }
-  }
-  return { ok: true, dataId: requestedId }
+  const token = readBearer(authorization)
+  const session = token ? await findSession(token) : null
+  if (!session) return { ok: false, status: 401, code: 'SESSION_EXPIRED', error: 'La sesión terminó. Vuelve a iniciar sesión.' }
+  return { ok: true, dataId: session.dataId }
 }
 
 export type DataRequest = {
