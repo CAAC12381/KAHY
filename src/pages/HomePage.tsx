@@ -1,11 +1,11 @@
-import { ArrowRight, BookOpen, CalendarDays, Check, ClipboardList, Leaf, ListChecks, MessageCircle, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, CalendarDays, ClipboardList, Leaf, ListChecks, MessageCircle, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import EmotionCalendar from "../components/EmotionCalendar";
 import Mascot, { Flower } from "../components/Mascot";
 import PetGarden from "../components/PetGarden";
 import SupportBanner from "../components/SupportBanner";
 import { Button, Card, DemoBadge } from "../components/ui";
-import { dailyHabits, type DailyHabitsApi } from "../hooks/useDailyHabits";
+import WellbeingTracker from "../components/wellbeing/WellbeingTracker";
+import type { DailyHabitsApi } from "../hooks/useDailyHabits";
 import { stageForGrowth, type PetGardenApi } from "../hooks/usePetGarden";
 import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
 import type { MirrorJournalApi } from "../hooks/useMirrorJournal";
@@ -148,24 +148,15 @@ export default function HomePage({
         ) : <button type="button" className={`companion-tap ${boop ? "companion-tap--boop" : ""}`} onClick={tapCompanion} onAnimationEnd={(event) => { if (event.animationName === "companion-boop") setBoop(false); }} aria-label={`Tocar a tu ${companionName?.toLowerCase()} para que te diga algo`}><Flower id={profile.flower} size="large" stage={companionStage} neglected={garden.isNeglected} /></button>}</div>}
       </section>
 
-      <div className="section-heading"><div><span className="eyebrow">Calendario emocional</span><h2>Lo que ha aparecido en tus conversaciones</h2></div><small>Se guardan etiquetas y fechas, no el texto</small></div>
-      <Card className="emotion-calendar-card"><EmotionCalendar entries={emotionCalendar.entries} practicedDays={mirrorJournal.practicedDays} moments={mirrorJournal.moments} onPracticeWithMoka={onPracticeWithMoka} /></Card>
-
-      <div className="section-heading"><div><span className="eyebrow">Hábitos de hoy</span><h2>Pequeñas acciones que también cuentan</h2></div><small>{habits.streak > 1 ? `Racha de ${habits.streak} días` : "Tu avance se guarda y personaliza KAHY"}</small></div>
-      <Card className="habits-card">
-        <div className="habits-list">
-          {dailyHabits.map((habit) => {
-            const done = habits.completed.includes(habit.id);
-            return (
-              <button key={habit.id} className={done ? "habit-chip done" : "habit-chip"} onClick={() => habits.toggle(habit.id)} aria-pressed={done}>
-                <span className="habit-check">{done && <Check size={14} />}</span>
-                {habit.label}
-              </button>
-            );
-          })}
-        </div>
-        {preferences.showMascot && companionName && <p className="habits-note">Cada hábito que marcas también ayuda a {companionName} a crecer un poco.</p>}
-      </Card>
+      <div className="section-heading"><div><span className="eyebrow">Calendario emocional y hábitos</span><h2>Cómo te has sentido y lo que has hecho por ti</h2></div><small>{habits.streak > 1 ? `Racha de ${habits.streak} días · ` : ""}Se guardan etiquetas y fechas, no el texto</small></div>
+      <WellbeingTracker
+        entries={emotionCalendar.entries}
+        habits={habits}
+        companionName={preferences.showMascot ? companionName : null}
+        practicedDays={mirrorJournal.practicedDays}
+        moments={mirrorJournal.moments}
+        onPracticeWithMoka={onPracticeWithMoka}
+      />
 
       {preferences.showMascot && (
         <>
