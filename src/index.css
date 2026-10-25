@@ -446,7 +446,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .chat-command-bar::after { display: none; }
 .chat-low-data .chat-command-bar::after { display: none; }
 .chat-brand-persona { position: relative; z-index: 1; display: flex; align-items: center; gap: 14px; }
-.chat-brand-persona .kahy-guide { width: 48px; height: 48px; border-radius: 16px; box-shadow: 0 8px 22px rgba(104,77,114,.12); }
 .chat-brand-persona .eyebrow { margin: 0 0 1px; color: var(--yellow-deep); font-size: .65rem; }
 .chat-brand-persona h1 { margin: 0 0 1px; font-size: clamp(1.12rem, 1.8vw, 1.45rem); }
 .chat-brand-persona p { margin: 0; font-size: .66rem; }
@@ -490,9 +489,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .memory-banner svg { flex: 0 0 auto; }
 .studio-message { width: min(820px, 100%); display: flex; align-items: flex-start; gap: 10px; margin: 20px auto; }
 .studio-message.user { justify-content: flex-end; }
-.studio-message > .kahy-guide { position: sticky; top: 0; border-radius: 14px; }
 .user-message { max-width: 72%; padding: 12px 16px; border-radius: 20px 20px 5px 20px; background: linear-gradient(135deg, var(--purple-deep), #7f5e8a); color: white; box-shadow: 0 7px 18px rgba(104,77,114,.14); line-height: 1.55; font-size: .88rem; }
-.assistant-response { width: calc(100% - 51px); display: flex; flex-direction: column; gap: 10px; }
+.assistant-response { width: 100%; display: flex; flex-direction: column; gap: 10px; }
 .assistant-card { width: 100%; padding: clamp(16px, 2.5vw, 22px); border: 1px solid #dcd8ca; border-radius: 7px 22px 22px 22px; background: white; box-shadow: 0 8px 24px rgba(63,65,57,.055); }
 .assistant-card.conversational { max-width: none; padding: 5px 3px 3px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .studio-message.support .assistant-card { border-color: #c8c2a1; background: linear-gradient(150deg, white, #fbfaf3); }
@@ -1179,7 +1177,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .chat-brand-persona h1 { max-width: 83px; }
   .chat-tool-button, .data-mode, .chat-menu-button { width: 32px; height: 36px; min-height: 36px; }
   .chat-command-actions { gap: 2px; }
-  .assistant-response { width: calc(100% - 37px); }
+  .assistant-response { width: 100%; }
   .screening-options { grid-template-columns: 1fr; }
   .breathing-duration > div, .breathing-summary { grid-template-columns: 1fr; }
   .breathing-duration button { width: 100%; }
@@ -1284,11 +1282,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .profile-layout aside { grid-template-columns: 1fr; }.toggle-row, .text-scale-row { align-items: flex-start; padding: 14px 0; }.text-scale-row { flex-direction: column; }.mini-mascot-grid { grid-template-columns: repeat(2, 1fr); }
   .modal-backdrop { align-items: end; padding: 0; }.modal { width: 100%; max-height: 92svh; border-radius: 26px 26px 0 0; }.toast { left: 14px; right: 14px; bottom: 88px; }
   .content--chat { padding: 8px 8px 82px; }
-  .chat-command-bar { gap: 8px; padding: 7px 8px; border-radius: 16px; }.chat-brand-persona { min-width: 0; gap: 8px; }.chat-brand-persona .kahy-guide { width: 39px; height: 39px; border-radius: 13px; }.chat-brand-persona > div { min-width: 0; }.chat-brand-persona .eyebrow, .chat-brand-persona p { display: none; }.chat-brand-persona h1 { overflow: hidden; margin: 0; font-size: .94rem; text-overflow: ellipsis; white-space: nowrap; }.chat-command-actions { flex: 0 0 auto; gap: 4px; }.chat-tool-button, .data-mode, .chat-menu-button { width: 36px; height: 36px; min-height: 36px; border-radius: 11px; }
+  .chat-command-bar { gap: 8px; padding: 7px 8px; border-radius: 16px; }.chat-brand-persona { min-width: 0; gap: 8px; }.chat-brand-persona > div { min-width: 0; }.chat-brand-persona .eyebrow, .chat-brand-persona p { display: none; }.chat-brand-persona h1 { overflow: hidden; margin: 0; font-size: .94rem; text-overflow: ellipsis; white-space: nowrap; }.chat-command-actions { flex: 0 0 auto; gap: 4px; }.chat-tool-button, .data-mode, .chat-menu-button { width: 36px; height: 36px; min-height: 36px; border-radius: 11px; }
   .chat-safety-strip { display: none; }
   .chat-disclosure { position: absolute; top: 58px; left: 0; right: 0; z-index: 20; max-height: 55vh; margin: 0; overflow-y: auto; box-shadow: var(--shadow-lg); }
   .conversation-panel { border-radius: 19px; }.conversation-scroll { padding: 13px 10px; }
-  .assistant-response { width: calc(100% - 45px); }.assistant-card { padding: 14px 12px; }.studio-message > .kahy-guide { width: 36px; height: 36px; }.user-message { max-width: 88%; }
+  .assistant-response { width: 100%; }.assistant-card { padding: 14px 12px; }.user-message { max-width: 88%; }
   .response-steps > div { grid-template-columns: 1fr; gap: 3px; }.assistant-question > div { display: grid; }.assistant-question button { justify-content: space-between; border-radius: 11px; }
   .reply-footer { align-items: flex-start; flex-direction: column; }.reply-footer > span { width: 100%; }
   .starter-row { padding-inline: 10px; }.studio-composer { padding: 10px 9px 8px; }.composer-box { border-radius: 20px; }.composer-meta span:first-child { display: none; }
@@ -1306,14 +1304,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .bottom-nav button { min-height: 48px; }
   .bottom-nav button span { display: none; }
   .chat-command-bar { margin-bottom: 6px; }
-  .chat-brand-persona .kahy-guide { width: 36px; height: 36px; }
   .chat-command-actions { gap: 3px; }
   .chat-tool-button, .data-mode, .chat-menu-button { width: 34px; height: 34px; min-height: 34px; }
   .conversation-panel { border-radius: 15px; }
   .conversation-scroll { padding: 11px 8px; }
   .studio-message { gap: 7px; }
-  .studio-message > .kahy-guide { width: 32px; height: 32px; }
-  .assistant-response { width: calc(100% - 39px); }
+  .assistant-response { width: 100%; }
   .assistant-question.conversational-followup { padding: 10px; }
   .studio-composer { padding: 8px 7px 6px; }
   .composer-box { padding-left: 12px; }

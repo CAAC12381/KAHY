@@ -21,7 +21,6 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import BrandMark from "../components/BrandMark";
 import Mascot, { Flower } from "../components/Mascot";
 import SupportBanner from "../components/SupportBanner";
 import { Button, DemoBadge, Modal } from "../components/ui";
@@ -395,7 +394,6 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
       </aside></>}
       <section className="chat-command-bar">
         <div className="chat-brand-persona">
-          <BrandMark size="medium" />
           <div><span className="eyebrow">Centro de orientación</span><h1>Conversación con KAHY</h1><p className={`ai-connection ${aiConnection}`}><span className="status-dot" /> {connectionLabels[aiConnection]}</p></div>
         </div>
         {!lowData && preferences.showMascot && <ChatCompanionChip profile={profile} garden={garden} gaining={companionGaining} />}
@@ -418,7 +416,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
             {memory.entries.length > 0 && <div className="memory-banner"><MessageCircle size={14} /><span>La última vez hablamos de: {memory.entries.slice(-3).map((entry) => topicNames[entry.topic]).join(", ")}.</span></div>}
             {messages.length === 1 && preferences.adaptivePersonalization && adaptive.connectedSignals > 0 && <div className="memory-banner adaptive"><Sparkles size={14} /><span>KAHY conectará tus avances en hábitos, tareas, emociones y tamizajes para personalizar esta charla.</span></div>}
             {messages.map((message) => message.role === "user" ? <div className="studio-message user" data-chat-message key={message.id}><div className="user-message">{message.text}</div></div> : <AssistantReply key={message.id} reply={message.reply} fallback={message.fallback} onRetry={canRetryWithAi && message === lastMessage ? () => retryWithAi(message.id) : undefined} onChoice={send} onHelp={onHelp} navigate={navigate} disabled={typing} onOpenPlan={() => setPlanOpen(true)} />)}
-            {typing && <div className="studio-message assistant" data-chat-message><BrandMark size="small" /><div className="thinking-card" role="status"><div className="thinking-dots"><i /><i /><i /></div><span>Organizando una respuesta segura y útil…</span></div></div>}
+            {typing && <div className="studio-message assistant" data-chat-message><div className="thinking-card" role="status"><div className="thinking-dots"><i /><i /><i /></div><span>Organizando una respuesta segura y útil…</span></div></div>}
             {showPlanHint && <div className="plan-first-hint" role="status"><ListChecks size={19} /><div><strong>Tu respuesta incluye un plan</strong><span>Puedes revisarlo y marcar avances en <b>Plan de ahora</b>.</span></div><button onClick={() => { setShowPlanHint(false); setPlanOpen(true); }}>Ver plan <ArrowRight size={15} /></button><button className="plan-hint-close" onClick={() => setShowPlanHint(false)} aria-label="Cerrar aviso"><X size={15} /></button></div>}
             {messages.length === 1 && screeningSuggestions.length > 0 && <div className="screening-suggestion-row" aria-label="Sugerencias según tu tamizaje reciente">
               <span><ClipboardList size={14} /> Según tu tamizaje reciente:</span>
@@ -454,7 +452,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
           <div className="history-transcript">
             {viewingSession.messages.map((message) => message.role === "user"
               ? <div className="studio-message user" key={message.id}><div className="user-message">{message.text}</div></div>
-              : <div className="studio-message assistant" key={message.id} data-chat-message><BrandMark size="small" /><div className="assistant-response"><div className="assistant-card conversational"><p className="assistant-intro">{message.reply.introduction}</p>{message.reply.insight && <p className="assistant-insight">{message.reply.insight}</p>}</div></div></div>)}
+              : <div className="studio-message assistant" key={message.id} data-chat-message><div className="assistant-response"><div className="assistant-card conversational"><p className="assistant-intro">{message.reply.introduction}</p>{message.reply.insight && <p className="assistant-insight">{message.reply.insight}</p>}</div></div></div>)}
           </div>
           <Button variant="ghost" className="full-width" onClick={() => setViewingSession(null)}>Cerrar</Button>
         </Modal>
@@ -468,7 +466,6 @@ function AssistantReply({ reply, fallback, onRetry, onChoice, onHelp, navigate, 
   const conversational = reply.presentation === "conversation" && reply.mode !== "safety";
   const hasGuidance = Boolean(reply.insight || reply.steps.length || reply.question || reply.choices.length);
   return <article className={`studio-message assistant ${reply.mode}`} data-chat-message>
-    <BrandMark size="small" />
     <div className="assistant-response">
       <div className={`assistant-card ${conversational ? "conversational" : "guided"}`}>
         {!conversational && <div className="assistant-label"><span>{reply.mode === "safety" ? <AlertTriangle size={15} /> : <Sparkles size={15} />}{reply.label}</span>{reply.mode === "safety" && <DemoBadge>Activación preventiva</DemoBadge>}</div>}
