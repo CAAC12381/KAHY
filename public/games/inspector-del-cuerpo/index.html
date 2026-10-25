@@ -40,6 +40,8 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   [hidden] { display: none !important; }
+  /* Íconos de línea (los mismos de Lucide que usa la app), en vez de emojis que cambian según el dispositivo. */
+  .icon { display: inline-block; flex: 0 0 auto; vertical-align: -0.18em; }
   html, body { height: 100%; overflow: hidden; } /* Cada pantalla se desplaza por dentro. */
   body {
     font-family: "Nunito", ui-rounded, "Segoe UI Rounded", "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -86,6 +88,7 @@
 
   .safety { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 16px; background: var(--warn-soft); color: #5e4a1b; font-size: 0.84rem; line-height: 1.45; }
   .safety strong { color: #4a3a12; }
+  .safety > .icon { margin-top: 1px; color: var(--warn); }
 
   /* --- Inicio --- */
   .hero { align-self: center; width: 150px; height: 150px; display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff8ee, #f6e3cb 60%, #ecd2b1); box-shadow: var(--shadow), inset 0 -8px 16px rgba(160, 120, 80, 0.15); }
@@ -96,8 +99,9 @@
   .map svg { width: 100%; height: 100%; display: block; overflow: visible; }
   .zone { position: absolute; left: calc(var(--x) / 300 * 100%); top: calc(var(--y) / 340 * 100%); display: flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; transform: translate(-21px, -50%); }
   .zone.left { flex-direction: row-reverse; transform: translate(calc(-100% + 21px), -50%); }
-  .spot { position: relative; flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; font-size: 1.05rem; background: radial-gradient(circle at 35% 30%, #fff3ec, var(--alert-soft) 55%, #f4c3b4); box-shadow: 0 4px 10px rgba(180, 90, 60, 0.25), inset 0 -3px 0 rgba(160, 70, 40, 0.15); }
+  .spot { position: relative; flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; color: #b55a44; background: radial-gradient(circle at 35% 30%, #fff3ec, var(--alert-soft) 55%, #f4c3b4); box-shadow: 0 4px 10px rgba(180, 90, 60, 0.25), inset 0 -3px 0 rgba(160, 70, 40, 0.15); }
   .spot::after { content: ""; position: absolute; inset: -7px; border-radius: 50%; border: 3px solid rgba(223, 135, 112, 0.45); animation: halo 1.6s ease-in-out infinite; }
+  .zone.done .spot, .summary-item .spot.done { color: var(--calm-deep); }
   .zone.done .spot { background: radial-gradient(circle at 35% 30%, #f6fbf6, var(--calm-soft) 55%, #bcd5c3); box-shadow: 0 4px 10px rgba(85, 122, 98, 0.25), inset 0 -3px 0 rgba(60, 100, 70, 0.15); }
   .zone.done .spot::after { animation: none; border-color: transparent; }
   .label { padding: 5px 10px; border-radius: 999px; background: var(--paper); box-shadow: 0 3px 10px rgba(90, 70, 50, 0.13); font-size: 0.8rem; font-weight: 850; white-space: nowrap; }
@@ -117,8 +121,9 @@
   .zone-art svg { width: 92px; height: 92px; }
   .facts { display: grid; gap: 10px; }
   .fact { display: flex; gap: 10px; align-items: flex-start; }
-  .fact-icon { flex: 0 0 auto; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 12px; background: var(--alert-soft); font-size: 1.05rem; }
-  .fact.tip .fact-icon { background: var(--purple-soft); }
+  .fact-icon { flex: 0 0 auto; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 12px; background: var(--alert-soft); color: #b55a44; }
+  .fact.why .fact-icon { background: var(--warn-soft); color: var(--warn); }
+  .fact.tip .fact-icon { background: var(--purple-soft); color: var(--purple); }
   .fact p { font-size: 0.92rem; }
 
   /* --- Técnicas --- */
@@ -147,16 +152,18 @@
   .step.done { background: var(--calm-soft); color: var(--calm-deep); }
   .step.done b { background: var(--calm); color: #fff; }
 
-  .feeling { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .feeling { width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  #feedback { width: 100%; }
   .feeling button { min-height: 64px; display: grid; justify-items: center; gap: 2px; padding: 8px 4px; border: 0; border-radius: 16px; background: var(--paper); box-shadow: inset 0 0 0 2px var(--line); font-weight: 800; font-size: 0.85rem; }
-  .feeling button span { font-size: 1.4rem; }
+  .feeling button .icon { color: var(--muted); }
+  .feeling button[aria-pressed="true"] .icon { color: var(--calm-deep); }
   .feeling button[aria-pressed="true"] { background: var(--calm-soft); box-shadow: inset 0 0 0 2px var(--calm); color: var(--calm-deep); }
   .feedback { padding: 12px 14px; border-radius: 16px; background: #f7f1e8; font-size: 0.9rem; line-height: 1.45; }
 
   /* --- Resumen --- */
   .summary-list { display: grid; gap: 8px; }
   .summary-item { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 16px; background: var(--paper); box-shadow: var(--shadow); }
-  .summary-item .spot { width: 36px; height: 36px; font-size: 0.95rem; }
+  .summary-item .spot { width: 36px; height: 36px; color: var(--calm-deep); background: radial-gradient(circle at 35% 30%, #f6fbf6, var(--calm-soft) 55%, #bcd5c3); box-shadow: 0 4px 10px rgba(85, 122, 98, 0.2); }
   .summary-item .spot::after { display: none; }
   .summary-item div { flex: 1; min-width: 0; }
   .summary-item strong { display: block; font-size: 0.92rem; }
@@ -193,7 +200,7 @@
 <!-- Inicio -->
 <section class="screen active" id="start" aria-labelledby="start-title">
   <div class="wrap">
-    <span class="pill">🌿 Ansiedad · cuerpo y emociones</span>
+    <span class="pill"><span data-icon="leaf" data-size="15"></span> Ansiedad · cuerpo y emociones</span>
     <div class="hero" aria-hidden="true">
       <svg viewBox="0 0 120 120">
         <defs>
@@ -210,9 +217,9 @@
       <h1 id="start-title">El Inspector del Cuerpo</h1>
       <p class="muted center" style="margin-top:8px">Cuando sentimos ansiedad, el cuerpo entra en modo alerta. Vamos a descubrir qué pasa en cada zona y a practicar cómo ayudarlo a bajar el ritmo.</p>
     </div>
-    <div class="safety" role="note"><span aria-hidden="true">⚠️</span><p>Este juego explica reacciones comunes de la ansiedad; no diagnostica. <strong>Si tienes dolor fuerte en el pecho, te falta el aire y no mejora, o te desmayas, llama al 911.</strong></p></div>
+    <div class="safety" role="note"><span data-icon="triangle-alert"></span><p>Este juego explica reacciones comunes de la ansiedad; no diagnostica. <strong>Si tienes dolor fuerte en el pecho, te falta el aire y no mejora, o te desmayas, llama al 911.</strong></p></div>
     <div style="margin-top:auto; display:grid; gap:8px">
-      <button class="btn" type="button" data-go="map">Empezar a explorar →</button>
+      <button class="btn" type="button" data-go="map">Empezar a explorar <span data-icon="arrow-right" data-size="18"></span></button>
       <p class="muted center small">Sin límite de tiempo · Puedes salir cuando quieras · No se guarda nada</p>
     </div>
   </div>
@@ -269,17 +276,17 @@
 <section class="screen" id="zone" aria-labelledby="zone-title">
   <div class="wrap">
     <div class="top">
-      <button class="back" type="button" data-go="map" aria-label="Volver al cuerpo">←</button>
+      <button class="back" type="button" data-go="map" aria-label="Volver al cuerpo"><span data-icon="arrow-left"></span></button>
       <h2 id="zone-title" tabindex="-1">Zona</h2>
       <span class="badge" id="zone-badge">En alerta</span>
     </div>
     <div class="zone-art" id="zone-art" aria-hidden="true"></div>
     <div class="card facts">
-      <div class="fact"><span class="fact-icon" aria-hidden="true">🔎</span><p id="zone-feel"></p></div>
-      <div class="fact"><span class="fact-icon" aria-hidden="true">💡</span><p id="zone-why"></p></div>
-      <div class="fact tip"><span class="fact-icon" aria-hidden="true">✨</span><p id="zone-fact"></p></div>
+      <div class="fact"><span class="fact-icon"><span data-icon="search" data-size="18"></span></span><p id="zone-feel"></p></div>
+      <div class="fact why"><span class="fact-icon"><span data-icon="lightbulb" data-size="18"></span></span><p id="zone-why"></p></div>
+      <div class="fact tip"><span class="fact-icon"><span data-icon="sparkles" data-size="18"></span></span><p id="zone-fact"></p></div>
     </div>
-    <div class="safety" id="zone-safety" role="note" hidden><span aria-hidden="true">⚠️</span><p></p></div>
+    <div class="safety" id="zone-safety" role="note" hidden><span data-icon="triangle-alert"></span><p></p></div>
     <div class="card technique" id="technique"></div>
   </div>
 </section>
@@ -287,21 +294,48 @@
 <!-- Resumen -->
 <section class="screen" id="summary" aria-labelledby="summary-title">
   <div class="wrap">
-    <span class="pill" style="background:var(--calm-soft); color:var(--calm-deep)">✓ Exploración terminada</span>
+    <span class="pill" style="background:var(--calm-soft); color:var(--calm-deep)"><span data-icon="check" data-size="15"></span> Exploración terminada</span>
     <h2 id="summary-title" class="center" tabindex="-1">Tu cuerpo estaba en modo alerta, no fallando</h2>
     <p class="muted center">Lo que exploraste son reacciones de la ansiedad: incómodas, pero comunes y pasajeras. Y ahora tienes formas de ayudarlas a bajar.</p>
     <div class="favorite" id="favorite" hidden></div>
     <div class="summary-list" id="summary-list"></div>
-    <div class="safety" role="note"><span aria-hidden="true">💬</span><p>Si estas sensaciones aparecen muy seguido o no te dejan hacer tus cosas, hablar con un profesional de salud puede ayudarte. En KAHY encuentras el <strong>directorio de apoyo</strong>. En una emergencia, llama al <strong>911</strong>; para orientación, a la <strong>Línea de la Vida 800 911 2000</strong>.</p></div>
+    <div class="safety" role="note"><span data-icon="message-circle"></span><p>Si estas sensaciones aparecen muy seguido o no te dejan hacer tus cosas, hablar con un profesional de salud puede ayudarte. En KAHY encuentras el <strong>directorio de apoyo</strong>. En una emergencia, llama al <strong>911</strong>; para orientación, a la <strong>Línea de la Vida 800 911 2000</strong>.</p></div>
     <div style="margin-top:auto; display:grid; gap:8px">
       <button class="btn ghost" type="button" data-go="map">Seguir explorando</button>
-      <button class="btn calm" type="button" id="restart">Volver a empezar</button>
+      <button class="btn calm" type="button" id="restart"><span data-icon="rotate-ccw" data-size="18"></span> Volver a empezar</button>
     </div>
   </div>
 </section>
 
 <script>
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Trazos de los íconos de Lucide (ISC), los mismos que usa la app; se dibujan con el color del texto.
+  const ICONS = {
+    "leaf":"<path d=\"M11 20a10 10 0 0010-10 25.9 25.9 0 00-1.04-7.281 1 1 0 00-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0011 20\"/><path d=\"M2 21a5 5 0 012.911-4.544C7.613 15.212 8.351 15.24 11 13\"/>",
+    "triangle-alert":"<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/>",
+    "message-circle":"<path d=\"M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719\"/>",
+    "brain":"<path d=\"M12 18V5\"/><path d=\"M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4\"/><path d=\"M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5\"/><path d=\"M17.997 5.125a4 4 0 0 1 2.526 5.77\"/><path d=\"M18 18a4 4 0 0 0 2-7.464\"/><path d=\"M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517\"/><path d=\"M6 18a4 4 0 0 1-2-7.464\"/><path d=\"M6.003 5.125a4 4 0 0 0-2.526 5.77\"/>",
+    "person-standing":"<circle cx=\"12\" cy=\"5\" r=\"1\"/><path d=\"m9 20 3-6 3 6\"/><path d=\"m6 8 6 2 6-2\"/><path d=\"M12 10v4\"/>",
+    "wind":"<path d=\"M12.8 19.6A2 2 0 1 0 14 16H2\"/><path d=\"M17.5 8a2.5 2.5 0 1 1 2 4H2\"/><path d=\"M9.8 4.4A2 2 0 1 1 11 8H2\"/>",
+    "heart-pulse":"<path d=\"M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5\"/><path d=\"M3.22 13H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27\"/>",
+    "soup":"<path d=\"M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z\"/><path d=\"M7 21h10\"/><path d=\"M19.5 12 22 6\"/><path d=\"M16.25 3c.27.1.8.53.75 1.36-.06.83-.93 1.2-1 2.02-.05.78.34 1.24.73 1.62\"/><path d=\"M11.25 3c.27.1.8.53.74 1.36-.05.83-.93 1.2-.98 2.02-.06.78.33 1.24.72 1.62\"/><path d=\"M6.25 3c.27.1.8.53.75 1.36-.06.83-.93 1.2-1 2.02-.05.78.34 1.24.74 1.62\"/>",
+    "hand":"<path d=\"M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2\"/><path d=\"M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2\"/><path d=\"M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8\"/><path d=\"M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15\"/>",
+    "check":"<path d=\"M20 6 9 17l-5-5\"/>",
+    "search":"<path d=\"m21 21-4.34-4.34\"/><circle cx=\"11\" cy=\"11\" r=\"8\"/>",
+    "lightbulb":"<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\"/><path d=\"M9 18h6\"/><path d=\"M10 22h4\"/>",
+    "sparkles":"<path d=\"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z\"/><path d=\"M20 2v4\"/><path d=\"M22 4h-4\"/><circle cx=\"4\" cy=\"20\" r=\"2\"/>",
+    "smile":"<path d=\"M15 10V9\"/><path d=\"M16.472 15a6 6 0 01-8.943 0\"/><path d=\"M9 10V9\"/><circle cx=\"12\" cy=\"12\" r=\"10\"/>",
+    "meh":"<path d=\"M15 10V9\"/><path d=\"M8 16h8\"/><path d=\"M9 10V9\"/><circle cx=\"12\" cy=\"12\" r=\"10\"/>",
+    "frown":"<path d=\"M15 10V9\"/><path d=\"M9 10V9\"/><path d=\"M9 16a5 5 0 016 0\"/><circle cx=\"12\" cy=\"12\" r=\"10\"/>",
+    "arrow-right":"<path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/>",
+    "arrow-left":"<path d=\"m12 19-7-7 7-7\"/><path d=\"M19 12H5\"/>",
+    "rotate-ccw":"<path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"/><path d=\"M3 3v5h5\"/>",
+  };
+  function icon(name, size = 20) {
+    return `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
+  }
+  document.querySelectorAll("[data-icon]").forEach((element) => { element.outerHTML = icon(element.dataset.icon, Number(element.dataset.size) || 20); });
 
   // Ilustraciones de cada zona (en alerta y ya practicada), en el mismo estilo de plastilina.
   const art = {
@@ -320,7 +354,7 @@
    */
   const zones = {
     head: {
-      name: "La cabeza", emoji: "🌀", x: 150, y: 44, side: "right", badge: "Revuelta",
+      name: "La cabeza", icon: "brain", x: 150, y: 44, side: "right", badge: "Revuelta",
       glow: [150, 44, 34],
       feel: "<strong>Mareo, cabeza ligera o pensamientos que van muy rápido.</strong> A veces, la sensación de no estar del todo aquí.",
       why: "Cuando la alarma te hace respirar rápido, baja un poco el dióxido de carbono en tu sangre, y eso puede dar mareo u hormigueo. Tu mente, en alerta, busca peligros y salta de una idea a otra.",
@@ -330,7 +364,7 @@
       calmText: "Tu atención volvió al presente. Cuando la mente se calma, el mareo y la prisa también bajan.",
     },
     shoulders: {
-      name: "Hombros y cuello", short: "Hombros", emoji: "💆", x: 190, y: 96, side: "right", badge: "Tensos",
+      name: "Hombros y cuello", short: "Hombros", icon: "person-standing", x: 190, y: 96, side: "right", badge: "Tensos",
       glow: [150, 92, 40],
       feel: "<strong>Hombros pegados a las orejas, cuello duro o mandíbula apretada.</strong>",
       why: "Tus músculos se preparan para moverse rápido y se quedan apretados aunque no tengas que hacerlo. Por eso duelen el cuello, la espalda o la cabeza.",
@@ -340,7 +374,7 @@
       calmText: "Tus hombros bajaron y el cuello se aflojó. Puedes repetirlo cuando notes que se vuelven a subir.",
     },
     chest: {
-      name: "El pecho", emoji: "🌬️", x: 124, y: 132, side: "left", badge: "Apretado",
+      name: "El pecho", icon: "wind", x: 124, y: 132, side: "left", badge: "Apretado",
       glow: [128, 132, 30],
       feel: "<strong>Pecho pesado o apretado, o la sensación de que no te entra suficiente aire.</strong>",
       why: "Al alarmarte respiras más rápido y con la parte alta del pecho, y los músculos entre las costillas se tensan. Por eso se siente apretado, aunque el aire sí está entrando.",
@@ -351,7 +385,7 @@
       calmText: "Tu respiración bajó a la panza y se hizo más lenta. El pecho tiene más espacio para aflojarse.",
     },
     heart: {
-      name: "El corazón", emoji: "💓", x: 172, y: 142, side: "right", badge: "Acelerado",
+      name: "El corazón", icon: "heart-pulse", x: 172, y: 142, side: "right", badge: "Acelerado",
       glow: [168, 140, 26],
       feel: "<strong>Palpitaciones: el corazón late rápido o fuerte.</strong>",
       why: "La adrenalina hace que tu corazón lata más rápido y más fuerte para llevar energía a tus músculos, como si se preparara para correr.",
@@ -362,7 +396,7 @@
       calmText: "Al alargar la exhalación, tu corazón recibe la señal de bajar el ritmo. Puede tardar un poco: eso está bien.",
     },
     stomach: {
-      name: "El estómago", emoji: "🦋", x: 150, y: 182, side: "left", badge: "Con nudos",
+      name: "El estómago", icon: "soup", x: 150, y: 182, side: "left", badge: "Con nudos",
       glow: [150, 184, 32],
       feel: "<strong>Nudos, mariposas, náuseas o ganas de ir al baño.</strong>",
       why: "En modo alerta, el cuerpo manda la sangre a brazos y piernas y deja la digestión en pausa. Por eso el estómago se siente revuelto.",
@@ -372,7 +406,7 @@
       calmText: "Las mariposas vuelan más tranquilas. Tu estómago puede ir retomando su ritmo.",
     },
     hands: {
-      name: "Las manos", emoji: "✋", x: 230, y: 226, side: "left", badge: "Temblorosas",
+      name: "Las manos", icon: "hand", x: 230, y: 226, side: "left", badge: "Temblorosas",
       glow: [230, 226, 24],
       feel: "<strong>Manos que tiemblan, sudan, hormiguean o se ponen frías.</strong>",
       why: "La adrenalina puede hacer que tiemblen, y como la sangre se va a los músculos grandes, a veces se enfrían o sudan.",
@@ -424,7 +458,7 @@
       button.style.setProperty("--x", zone.x);
       button.style.setProperty("--y", zone.y);
       button.setAttribute("aria-label", `${zone.name}${results[key] ? ", ya practicaste aquí" : ""}`);
-      button.innerHTML = `<span class="spot" aria-hidden="true">${results[key] ? "✓" : zone.emoji}</span><span class="label" aria-hidden="true">${zone.short || zone.name}</span>`;
+      button.innerHTML = `<span class="spot" aria-hidden="true">${icon(results[key] ? "check" : zone.icon, 20)}</span><span class="label" aria-hidden="true">${zone.short || zone.name}</span>`;
       button.addEventListener("click", () => openZone(key));
       map.appendChild(button);
     }
@@ -441,7 +475,7 @@
     const done = Boolean(results[key]);
     document.getElementById("zone-title").textContent = zone.name;
     const badge = document.getElementById("zone-badge");
-    badge.textContent = done ? "✓ Más tranquila" : zone.badge;
+    badge.innerHTML = done ? `${icon("check", 13)} Más tranquila` : zone.badge;
     badge.classList.toggle("calm", done);
     const artBox = document.getElementById("zone-art");
     artBox.innerHTML = art[key](done);
@@ -597,7 +631,7 @@
   function runGrounding(stage, technique, onDone) {
     let index = 0;
     const render = () => {
-      stage.innerHTML = `<div class="steps">${technique.steps.map((step, position) => `<div class="step ${position < index ? "done" : position === index ? "current" : ""}"><b>${position < index ? "✓" : 5 - position}</b><span>${step}</span></div>`).join("")}</div>
+      stage.innerHTML = `<div class="steps">${technique.steps.map((step, position) => `<div class="step ${position < index ? "done" : position === index ? "current" : ""}"><b>${position < index ? icon("check", 16) : 5 - position}</b><span>${step}</span></div>`).join("")}</div>
         <button class="btn" type="button" id="next-step">${index === technique.steps.length - 1 ? "Listo, terminé" : "Listo, siguiente"}</button>`;
       stage.querySelector("#next-step").addEventListener("click", () => {
         index += 1;
@@ -615,9 +649,9 @@
     stage.innerHTML = `${already ? "" : `<p class="instruction">${zone.calmText}</p>`}
       <p class="center" style="font-weight:800">¿Cómo se siente ahora ${zone.name.toLowerCase()}?</p>
       <div class="feeling" role="group" aria-label="Cómo se siente ahora">
-        <button type="button" data-feel="better" aria-pressed="${chosen === "better"}"><span aria-hidden="true">😌</span>Mejor</button>
-        <button type="button" data-feel="same" aria-pressed="${chosen === "same"}"><span aria-hidden="true">😐</span>Igual</button>
-        <button type="button" data-feel="worse" aria-pressed="${chosen === "worse"}"><span aria-hidden="true">😣</span>Peor</button>
+        <button type="button" data-feel="better" aria-pressed="${chosen === "better"}">${icon("smile", 26)}Mejor</button>
+        <button type="button" data-feel="same" aria-pressed="${chosen === "same"}">${icon("meh", 26)}Igual</button>
+        <button type="button" data-feel="worse" aria-pressed="${chosen === "worse"}">${icon("frown", 26)}Peor</button>
       </div>
       <div id="feedback"></div>`;
     const showFeedback = (feel) => {
@@ -626,14 +660,14 @@
         same: "Está bien: a veces el cuerpo tarda en bajar la alerta. Puedes repetirla o probar la de otra zona.",
         worse: "Gracias por notarlo. No todas las técnicas le sirven a todos; descansa, respira normal y prueba otra cuando quieras. Si te sientes muy mal, pide ayuda.",
       }[feel];
-      stage.querySelector("#feedback").innerHTML = `<p class="feedback" role="status">${message}</p><div style="display:grid; gap:8px; margin-top:10px"><button class="btn calm" type="button" data-go="map">Explorar otra zona →</button><button class="link" type="button" id="repeat">Repetir la práctica</button></div>`;
+      stage.querySelector("#feedback").innerHTML = `<p class="feedback" role="status">${message}</p><div style="display:grid; gap:8px; margin-top:10px"><button class="btn calm" type="button" data-go="map">Explorar otra zona ${icon("arrow-right", 18)}</button><button class="link" type="button" id="repeat">Repetir la práctica</button></div>`;
       stage.querySelector("#repeat").addEventListener("click", () => renderTechnique(zone, false));
     };
     stage.querySelectorAll("[data-feel]").forEach((button) => button.addEventListener("click", () => {
       results[key] = button.dataset.feel;
       stage.querySelectorAll("[data-feel]").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
       const badge = document.getElementById("zone-badge");
-      badge.textContent = "✓ Más tranquila";
+      badge.innerHTML = `${icon("check", 13)} Más tranquila`;
       badge.classList.add("calm");
       const artBox = document.getElementById("zone-art");
       artBox.innerHTML = art[key](true);
@@ -648,7 +682,7 @@
     const label = { better: "Me ayudó", same: "Igual", worse: "No me ayudó" };
     const explored = order.filter((key) => results[key]);
     document.getElementById("summary-list").innerHTML = explored.map((key) => `
-      <div class="summary-item"><span class="spot" aria-hidden="true">${zones[key].emoji}</span><div><strong>${zones[key].name}</strong><small>${zones[key].technique.name}</small></div><span class="rating ${results[key] === "better" ? "better" : ""}">${label[results[key]]}</span></div>`).join("");
+      <div class="summary-item"><span class="spot ${results[key] === "better" ? "done" : ""}" aria-hidden="true">${icon(zones[key].icon, 18)}</span><div><strong>${zones[key].name}</strong><small>${zones[key].technique.name}</small></div><span class="rating ${results[key] === "better" ? "better" : ""}">${label[results[key]]}</span></div>`).join("");
     const helped = explored.filter((key) => results[key] === "better");
     const favorite = document.getElementById("favorite");
     favorite.hidden = helped.length === 0;
