@@ -200,7 +200,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .notice-box svg, .scope-note svg { flex: 0 0 auto; color: var(--sage-deep); }
 .notice-box p, .scope-note p { margin: 0; color: var(--ink); font-size: .9rem; }
 .check-row { min-height: 48px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
-.check-row input { width: 21px; height: 21px; accent-color: var(--purple-deep); }
+.check-row input { flex: 0 0 auto; width: 21px; height: 21px; accent-color: var(--purple-deep); }
 .remember-consent { display: grid; gap: 10px; margin-top: 6px; padding: 16px; border-radius: 16px; background: var(--purple-soft); }
 .remember-consent strong { font-size: .92rem; }
 .remember-consent p { margin: 0; color: var(--ink); font-size: .82rem; line-height: 1.5; }

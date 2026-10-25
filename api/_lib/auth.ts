@@ -31,7 +31,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 const MIN_PASSWORD = 8
 const MAX_PASSWORD = 128
 const RESET_MINUTES = 30
-const PRIVACY_VERSION_PATTERN = /^d{4}-d{2}-d{2}$/
+const PRIVACY_VERSION_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
 type Result = { status: number; body: Record<string, unknown> }
 
