@@ -97,3 +97,30 @@ test("Moka puede hacer todo seguido sin errores: saludar, comer, acariciarla, do
   assert.ok(visibleLayers <= 3, "con calidad baja se dibujan menos capas de pelo");
   for (const value of [moka.root.position.y, moka.root.rotation.y]) assert.ok(Number.isFinite(value));
 });
+
+test("Moka se pone apenada (cabeza y orejas abajo) y al consolarla se alegra", async () => {
+  const THREE = await import("three");
+  const moka = await buildMoka(0.8, () => {}, 4);
+  const camera = new THREE.PerspectiveCamera();
+  camera.position.set(1.95, 1.74, 2.9);
+  // La cabeza es el grupo que lleva la nariz: la pieza esculpida con brillo de plastilina (clearcoat).
+  let head = null;
+  moka.root.traverse((object) => { if (object.isMesh && object.material.vertexColors && object.material.clearcoat > 0) head = object.parent; });
+  assert.ok(head, "no se encontró la cabeza");
+  let time = 0;
+  const run = (seconds) => {
+    for (let frame = 0; frame < seconds * 30; frame++) {
+      time += 1 / 30;
+      moka.update(time, 1 / 30, { reducedMotion: true, viewer: camera, pointer: null, interest: null });
+    }
+  };
+  run(2);
+  const calmPitch = head.rotation.x;
+  moka.setDowncast(true);
+  run(3);
+  assert.ok(head.rotation.x > calmPitch + 0.2, "apenada, mira hacia el suelo");
+  moka.setDowncast(false);
+  moka.play("cheer");
+  run(3.5);
+  assert.ok(Math.abs(head.rotation.x - calmPitch) < 0.1, "consolada, vuelve a levantar la cabeza");
+});

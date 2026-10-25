@@ -8,14 +8,14 @@ import type { Preferences } from "../types";
  * pantalla. Si la descarga falla (por ejemplo, sin internet la primera vez),
  * se muestra un aviso aquí, sin tumbar la app, y se puede reintentar.
  */
-export default function LazyCompanion3D({ preferences }: { preferences: Preferences }) {
+export default function LazyCompanion3D({ preferences, onHelp, onPracticed }: { preferences: Preferences; onHelp: () => void; onPracticed: () => void }) {
   const [attempt, setAttempt] = useState(0);
   // Un lazy() nuevo por intento: React recuerda una importación fallida y no la repite.
   const Page = useMemo(() => lazy(() => import("../pages/Companion3DPage")), [attempt]);
   return (
     <LoadBoundary key={attempt} onRetry={() => setAttempt((value) => value + 1)}>
       <Suspense fallback={<div className="page"><p className="lazy-section-status">Cargando la vista 3D…</p></div>}>
-        <Page preferences={preferences} />
+        <Page preferences={preferences} onHelp={onHelp} onPracticed={onPracticed} />
       </Suspense>
     </LoadBoundary>
   );

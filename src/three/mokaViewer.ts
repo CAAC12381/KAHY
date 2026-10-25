@@ -21,6 +21,8 @@ export type { MokaAction };
 export type MokaViewer = {
   play: (action: MokaAction) => void;
   setSleeping: (sleeping: boolean) => void;
+  /** Apenada (cabeza y orejas abajo) mientras la persona decide qué decirle. */
+  setDowncast: (downcast: boolean) => void;
   setAutoRotate: (enabled: boolean) => void;
   resetView: () => void;
   /** Foto con marco y nombre, como PNG (data URL). */
@@ -300,6 +302,7 @@ export async function createMokaViewer(container: HTMLElement, options: Options)
   return {
     play: (action) => moka.play(action),
     setSleeping: (sleeping) => moka.setSleeping(sleeping),
+    setDowncast: (downcast) => moka.setDowncast(downcast),
     setAutoRotate: (enabled) => { controls.autoRotate = enabled; },
     resetView: () => {
       camera.position.copy(CAMERA_START);

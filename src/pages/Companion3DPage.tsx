@@ -1,7 +1,9 @@
-import { Apple, Camera, Download, Flower, Hand, Heart, Moon, Pause, Play, RotateCcw, Share2, Sparkles, Sun, Volume2, VolumeX } from "lucide-react";
+import { Apple, Camera, Download, Flower, Hand, Heart, HeartHandshake, Moon, Pause, Play, RotateCcw, Share2, Sparkles, Sun, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Mascot from "../components/Mascot";
+import MokaMirror from "../components/MokaMirror";
 import { Button, Card, DemoBadge, Modal } from "../components/ui";
+import { mirrorSituations, type MirrorSituation } from "../data/mokaMirror";
 import { companionVoices, nextLine } from "../lib/companionVoices";
 import { mascots } from "../mock/data";
 import { playSound, setSoundEnabled, soundEnabled, type MokaSound } from "../three/mokaSounds";
@@ -10,10 +12,12 @@ import type { Preferences } from "../types";
 import "../styles/companion-3d.css";
 
 /**
- * Compañeros en 3D: una vista aparte solo para mirar y jugar con el modelo.
- * No toca el progreso del rincón de compañía (no da crecimiento ni felicidad)
- * y se carga solo al abrirla, así que three.js no pesa en el resto de la app.
- * Por ahora está Moka; los demás aparecen como "Pronto".
+ * Compañeros en 3D: una vista aparte para jugar con el modelo y para "Lo que
+ * le dirías a alguien que quieres" (src/components/MokaMirror.tsx). Jugar no
+ * toca el progreso del rincón de compañía; acompañar a Moka en ese ejercicio
+ * sí (onPracticed, una vez al día). Está disponible para todos, sin importar
+ * el compañero que se eligió. Se carga solo al abrirla, así que three.js no
+ * pesa en el resto de la app. Por ahora está Moka; los demás dicen "Pronto".
  */
 
 const voice = companionVoices["mascota:vaca"];
@@ -29,9 +33,9 @@ const lines = {
   sleep: { listId: "3d:moka:sleep", lines: ["Zzz… cinco minutitos más…", "Voy a soñar con un prado enorme. Zzz…", "Muuu… buenas noches. Zzz…"] },
   wake: { listId: "3d:moka:wake", lines: ["¡Ya desperté! ¿Me extrañaste?", "Muuu… qué rica siesta. ¡Hola otra vez!", "Soñé que jugábamos a las escondidillas. ¡Tú ganabas!"] },
   photo: { listId: "3d:moka:photo", lines: ["¡Salí bien guapa! ¿La guardamos?", "¡Muuu! Foto lista. ¿Salió mi copete?", "Guárdala bien, que salí sonriendo."] },
-} satisfies Record<MokaAction | "sleep" | "wake" | "photo", { listId: string; lines: string[] }>;
+} satisfies Record<Exclude<MokaAction, "cheer"> | "sleep" | "wake" | "photo", { listId: string; lines: string[] }>;
 
-const actionSound: Record<MokaAction, MokaSound> = { greet: "moo", pet: "happy", eat: "munch", wag: "bell", smell: "sniff" };
+const actionSound: Record<Exclude<MokaAction, "cheer">, MokaSound> = { greet: "moo", pet: "happy", eat: "munch", wag: "bell", smell: "sniff" };
 
 /** Convierte la foto (data URL) en archivo para compartirla. */
 async function photoFile(url: string) {
@@ -39,7 +43,13 @@ async function photoFile(url: string) {
   return new File([blob], "moka-kahy.png", { type: "image/png" });
 }
 
-export default function Companion3DPage({ preferences }: { preferences: Preferences }) {
+export default function Companion3DPage({ preferences, onHelp, onPracticed }: {
+  preferences: Preferences;
+  /** Abre "Ayuda inmediata" (si en el ejercicio se escribe algo que suena a riesgo). */
+  onHelp: () => void;
+  /** Se consoló a Moka en "Lo que le dirías a alguien que quieres". */
+  onPracticed: () => void;
+}) {
   const stageRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<MokaViewer | null>(null);
   const bubbleTimer = useRef<number | undefined>(undefined);
@@ -52,11 +62,19 @@ export default function Companion3DPage({ preferences }: { preferences: Preferen
   const [progress, setProgress] = useState(0);
   const [sound, setSound] = useState(soundEnabled);
   const [photo, setPhoto] = useState<{ url: string; canShare: boolean } | null>(null);
+  // "Lo que le dirías a alguien que quieres": la situación en curso (round reinicia el ejercicio).
+  const [mirror, setMirror] = useState<{ situation: MirrorSituation; round: number } | null>(null);
+  const mirrorRef = useRef(false);
+  const rotateBeforeMirror = useRef(false);
+
+  function showLine(text: string, duration = 4200) {
+    setLine(text);
+    window.clearTimeout(bubbleTimer.current);
+    bubbleTimer.current = window.setTimeout(() => setLine(null), duration);
+  }
 
   function say(kind: keyof typeof lines) {
-    setLine(nextLine(lines[kind].listId, lines[kind].lines));
-    window.clearTimeout(bubbleTimer.current);
-    bubbleTimer.current = window.setTimeout(() => setLine(null), 4200);
+    showLine(nextLine(lines[kind].listId, lines[kind].lines));
   }
 
   function changeSleep(next: boolean) {
@@ -74,9 +92,15 @@ export default function Companion3DPage({ preferences }: { preferences: Preferen
     let left = false;
     createMokaViewer(stage, {
       reducedMotion,
-      // Tocarla la despierta si está dormida; si no, saluda.
-      onTap: () => (sleepingRef.current ? changeSleep(false) : play("greet")),
+      // Tocarla la despierta si está dormida; si no, saluda (en el ejercicio no: te está contando algo).
+      onTap: () => {
+        if (mirrorRef.current) return;
+        if (sleepingRef.current) changeSleep(false);
+        else play("greet");
+      },
+      // En el ejercicio acariciarla también la reconforta, pero sin sus frases de juego.
       onPet: () => {
+        if (mirrorRef.current) return;
         say("pet");
         playSound("happy");
       },
@@ -101,10 +125,54 @@ export default function Companion3DPage({ preferences }: { preferences: Preferen
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function play(action: MokaAction) {
+  function play(action: Exclude<MokaAction, "cheer">) {
     viewerRef.current?.play(action);
     say(action);
     playSound(actionSound[action]);
+  }
+
+  function startMirror(previous?: MirrorSituation) {
+    // Dormida no puede contarte nada: se despierta sin su frase de "buenos días".
+    if (sleepingRef.current) {
+      sleepingRef.current = false;
+      setSleeping(false);
+      viewerRef.current?.setSleeping(false);
+    }
+    const ids = mirrorSituations.map((item) => item.id);
+    let id = nextLine("3d:moka:mirror", ids);
+    if (id === previous?.id) id = nextLine("3d:moka:mirror", ids);
+    const situation = mirrorSituations.find((item) => item.id === id) ?? mirrorSituations[0];
+    // Mientras te cuenta lo que le pasó, Moka queda de frente: la vista se centra y deja de girar.
+    if (!mirrorRef.current) rotateBeforeMirror.current = autoRotate;
+    setAutoRotate(false);
+    viewerRef.current?.setAutoRotate(false);
+    viewerRef.current?.resetView();
+    mirrorRef.current = true;
+    setMirror((current) => ({ situation, round: (current?.round ?? 0) + 1 }));
+    setLine(null);
+    viewerRef.current?.setDowncast(true);
+    playSound("yawn"); // Un suspiro.
+  }
+
+  function moveMoka(state: "down" | "cheer" | "calm", text?: string) {
+    const viewer = viewerRef.current;
+    viewer?.setDowncast(state === "down");
+    if (state !== "cheer") return;
+    viewer?.play("cheer");
+    playSound("happy");
+    if (text) showLine(text, 6000);
+    // En el celular el recuadro de Moka puede quedar arriba: se acerca para verla reaccionar.
+    stageRef.current?.parentElement?.scrollIntoView({ block: "nearest", behavior: reducedMotion ? "auto" : "smooth" });
+  }
+
+  function endMirror() {
+    mirrorRef.current = false;
+    setMirror(null);
+    viewerRef.current?.setDowncast(false);
+    if (rotateBeforeMirror.current) {
+      setAutoRotate(true);
+      viewerRef.current?.setAutoRotate(true);
+    }
   }
 
   function toggleRotation() {
@@ -160,7 +228,7 @@ export default function Companion3DPage({ preferences }: { preferences: Preferen
           <div>
             <span className="eyebrow">Vista especial · prototipo</span>
             <h1>Compañeros en 3D</h1>
-            <p>Gira la vista arrastrando el fondo y acércala con dos dedos o la rueda. Toca a Moka para que te salude y pásale el dedo o el mouse por encima para acariciarla. Es solo para mirar y jugar: no cambia el crecimiento de tu compañero.</p>
+            <p>Gira la vista arrastrando el fondo y acércala con dos dedos o la rueda. Toca a Moka para que te salude y pásale el dedo o el mouse por encima para acariciarla. Jugar no cambia el crecimiento de tu compañero; acompañar a Moka en “Lo que le dirías a alguien que quieres”, sí (una vez al día).</p>
           </div>
         </div>
 
@@ -200,6 +268,26 @@ export default function Companion3DPage({ preferences }: { preferences: Preferen
             )}
           </div>
 
+          {mirror ? (
+            <MokaMirror
+              key={mirror.round}
+              situation={mirror.situation}
+              onMoka={moveMoka}
+              onPracticed={onPracticed}
+              onAnother={() => startMirror(mirror.situation)}
+              onClose={endMirror}
+              onHelp={onHelp}
+            />
+          ) : (
+            <>
+              <div className="companion-3d-mirror-cta">
+                <span className="companion-3d-mirror-icon" aria-hidden="true"><HeartHandshake size={22} /></span>
+                <div>
+                  <strong>Lo que le dirías a alguien que quieres</strong>
+                  <p>A Moka le salió algo mal y se está tratando con dureza. Escúchala y dile lo que le dirías a alguien que quieres.</p>
+                </div>
+                <Button onClick={() => startMirror()} disabled={!ready}>Acompañar a Moka</Button>
+              </div>
           <div className="companion-3d-actions">
             <Button variant="secondary" onClick={() => play("greet")} disabled={!awake}><Hand size={18} /> Saludar</Button>
             <Button variant="secondary" onClick={() => play("pet")} disabled={!awake}><Heart size={18} /> Acariciar</Button>
@@ -209,6 +297,8 @@ export default function Companion3DPage({ preferences }: { preferences: Preferen
             <Button variant={sleeping ? "primary" : "secondary"} className="companion-3d-sleep" onClick={() => changeSleep(!sleeping)} disabled={!ready} aria-pressed={sleeping}>{sleeping ? <><Sun size={18} /> Despertar</> : <><Moon size={18} /> Dormir</>}</Button>
           </div>
           {sleeping && <p className="companion-3d-hint">Moka está dormida. Tócala o pulsa “Despertar” para jugar otra vez.</p>}
+            </>
+          )}
           <p className="companion-3d-keys">Con teclado: <kbd>Tab</kbd> hasta Moka, <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> para girar, <kbd>+</kbd> <kbd>−</kbd> para acercar y <kbd>Enter</kbd> para saludarla.</p>
           <p className="companion-3d-note"><DemoBadge>Prototipo</DemoBadge> Moka se esculpe en 3D aquí mismo al abrir esta sección (tarda un momento solo la primera vez), con el mismo estilo de plastilina que su ilustración.</p>
         </Card>

@@ -19,7 +19,7 @@ import { box, clamp, ellipsoid, roundCone, roundedCylinder, sculpt, smax, smin, 
  * Unidades: 1 ≈ el largo del cuerpo. Moka mira hacia +z; el suelo es y = 0.
  */
 
-export type MokaAction = "greet" | "pet" | "eat" | "wag" | "smell";
+export type MokaAction = "greet" | "pet" | "eat" | "wag" | "smell" | "cheer";
 export type UpdateContext = {
   reducedMotion: boolean;
   viewer: THREE.Camera;
@@ -631,6 +631,9 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
   let happyUntil = 0;
   let sleeping = false;
   let sleepAmount = 0;
+  // Apenada (en "Lo que le dirías a alguien que quieres"): cabeza, orejas y cola abajo hasta que la consuelan.
+  let downcast = false;
+  let downAmount = 0;
   let nextZ = 0;
   let nextBlink = 1.5;
   let blinkStart = -1;
@@ -655,6 +658,11 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
     nextZ = now + 0.6;
   }
 
+  function setDowncast(value: boolean) {
+    downcast = value;
+    if (value) action = null;
+  }
+
   /** La mano (dedo o mouse) pasa sobre Moka en `worldPoint`; null cuando se suelta. */
   function rub(worldPoint: THREE.Vector3 | null) {
     if (!worldPoint) {
@@ -677,6 +685,8 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
     // Acostarse y levantarse poco a poco: baja el cuerpo, dobla las patas de adelante y esconde las de atrás.
     sleepAmount += ((sleeping ? 1 : 0) - sleepAmount) * ease(3);
     const lie = sleepAmount;
+    downAmount += ((downcast ? 1 : 0) - downAmount) * ease(2.2);
+    const down = downAmount;
     bodyPivot.position.y = LEG_EXTRA - (0.2 + LEG_EXTRA) * lie;
     stance.position.y = -(0.2 + LEG_EXTRA) * lie;
     for (const leg of legs) {
@@ -686,7 +696,7 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
 
     // Vida propia: si nadie la toca, cada 4–9 s hace algo pequeño (oreja, cabeza, olfatear, mirar la mariposa…).
     const awake = !sleeping && lie < 0.1;
-    if (action || rubbing || !awake) idle = null;
+    if (action || rubbing || !awake || down > 0.05) idle = null;
     else if (!idle && time > nextIdle) {
       const kinds: IdleKind[] = context.interest ? ["ear", "tilt", "sniff", "look", "look", "hop", "swish", "prance"] : ["ear", "tilt", "sniff", "hop", "swish", "prance"];
       let kind = kinds[Math.floor(Math.random() * kinds.length)];
@@ -701,11 +711,11 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
     const idleEnvelope = idle ? Math.sin(Math.PI * idleT) : 0;
 
     // Respira (más hondo y lento dormida) y mueve las orejas.
-    const breath = lie > 0.5 ? 0.03 * Math.sin(time * 1.3) : 0.018 * Math.sin(time * 2.1) * calm;
+    const breath = lie > 0.5 ? 0.03 * Math.sin(time * 1.3) : 0.018 * Math.sin(time * (2.1 - 0.8 * down)) * calm;
     let squash = 1;
     ears.forEach((ear, index) => {
       ear.rotation.x = 0.08 * Math.sin(time * 1.7 + index) * calm;
-      ear.rotation.z = (index === 0 ? 1 : -1) * EAR_TILT;
+      ear.rotation.z = (index === 0 ? 1 : -1) * (EAR_TILT - 0.55 * down); // Apenada, las orejas caen.
     });
 
     // Hacia dónde mira: a ti (la cámara), al cursor si está encima, a la mano que la acaricia o a la mariposa.
@@ -724,13 +734,18 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
       yawTarget *= 1 - lie;
       pitchTarget = pitchTarget * (1 - lie) + 0.28 * lie; // Dormida, la cabeza se recarga hacia abajo.
     }
+    if (down > 0.01) {
+      // Apenada: mira al suelo, casi de frente, con la cabeza un poquito ladeada.
+      yawTarget *= 1 - 0.7 * down;
+      pitchTarget = pitchTarget * (1 - down) + 0.36 * down;
+    }
     lookYaw += (yawTarget - lookYaw) * ease(4);
     lookPitch += (pitchTarget - lookPitch) * ease(4);
-    head.rotation.set(lookPitch + 0.04 * Math.sin(time * 1.3) * calm, lookYaw + 0.06 * Math.sin(time * 0.55) * calm, 0.05 * Math.sin(time * 0.9) * calm);
+    head.rotation.set(lookPitch + 0.04 * Math.sin(time * 1.3) * calm, lookYaw + 0.06 * Math.sin(time * 0.55) * calm, 0.05 * Math.sin(time * 0.9) * calm + 0.1 * down);
     head.position.y = HEAD_ORIGIN.y;
     bodyPivot.rotation.y = 0;
 
-    let wag = 0.25 * Math.sin(time * 2.4) * calm * (1 - lie);
+    let wag = 0.25 * Math.sin(time * 2.4) * calm * (1 - lie) * (1 - 0.85 * down);
     let jump = 0;
     let happy = time < happyUntil;
     let mouthOpen = 0;
@@ -829,6 +844,20 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
           action.spawned++;
         }
         if (elapsed > 3) action = null;
+      } else if (action.name === "cheer") {
+        // Consolada: levanta la cabeza, sube las orejas, da un saltito contenta y salen corazones alrededor.
+        const progress = clamp((elapsed - 0.45) / 0.55, 0, 1);
+        if (!context.reducedMotion) jump = 0.16 * Math.sin(Math.PI * progress);
+        ears.forEach((ear, index) => { ear.rotation.z += (index === 0 ? 1 : -1) * 0.35 * Math.sin(Math.PI * clamp(elapsed / 1.2, 0, 1)); });
+        happy = elapsed > 0.35 && elapsed < 2.6;
+        mouthOpen = elapsed > 0.5 && elapsed < 0.95 ? 0.7 : 0;
+        wag = 0.8 * Math.sin(elapsed * 14) * Math.min(1, elapsed * 2);
+        while (action.spawned < 6 && elapsed > 0.5 + action.spawned * 0.22) {
+          const angle = -0.9 + (action.spawned / 5) * 1.8;
+          spawn(heartTexture, new THREE.Vector3(Math.sin(angle) * 0.42, 1.3 + LEG_EXTRA + Math.cos(angle) * 0.1, 0.45), 0.14, 0.45, 1.6);
+          action.spawned++;
+        }
+        if (elapsed > 2.8) action = null;
       } else {
         // Mover la cola: cola feliz y el cuerpo se menea con ella.
         const envelope = Math.min(1, elapsed * 4) * Math.max(0, Math.min(1, (1.6 - elapsed) * 3));
@@ -848,10 +877,11 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
 
     root.position.y = jump;
     bodyPivot.scale.set(1 + (1 - squash) * 0.5, (1 + breath) * squash, 1 + (1 - squash) * 0.5);
-    tail.rotation.set(0.1 + 0.4 * lie, wag, 0);
+    tail.rotation.set(0.1 + 0.4 * lie - 0.22 * down, wag, 0);
     openMouth.visible = mouthOpen > 0;
     openMouth.scale.set(1, Math.max(0.3, mouthOpen), 1);
     smile.visible = !openMouth.visible;
+    smile.scale.y = 1 - 0.7 * down; // Apenada, la sonrisa se aplana.
 
     // Ojos: dormida → "‿"; contenta → "^"; si no, abiertos y parpadeando cada 2.5–5 s.
     const asleep = lie > 0.5;
@@ -864,7 +894,7 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
     }
     eyes.forEach((eye) => {
       eye.visible = !asleep && !happy;
-      eye.scale.y = openness;
+      eye.scale.y = openness * (1 - 0.3 * down); // Apenada, ojitos entrecerrados.
     });
     happyEyes.forEach((item) => { item.visible = happy && !asleep; });
     sleepyEyes.forEach((item) => { item.visible = asleep; });
@@ -902,6 +932,7 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
     body,
     play,
     setSleeping,
+    setDowncast,
     rub,
     update,
     setFurLayers,

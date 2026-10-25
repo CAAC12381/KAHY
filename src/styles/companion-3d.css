@@ -62,3 +62,43 @@
 @media (max-width: 620px) { .companion-3d-keys { display: none; } }
 /* Arrastrar para girar o acariciar no debe seleccionar texto de la página. */
 .companion-3d-stage { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+/* "Lo que le dirías a alguien que quieres" (src/components/MokaMirror.tsx). */
+.companion-3d-mirror-cta { display: flex; align-items: center; gap: 14px; margin-top: 16px; padding: 14px 16px; border: 1px solid #ddd0e2; border-radius: 18px; background: var(--purple-soft); }
+.companion-3d-mirror-cta > div { flex: 1; min-width: 0; }
+.companion-3d-mirror-cta strong { color: var(--purple-deep); }
+.companion-3d-mirror-cta p { margin: 3px 0 0; color: var(--ink); font-size: .88rem; line-height: 1.45; }
+.companion-3d-mirror-cta .button { flex: 0 0 auto; min-height: 44px; }
+.companion-3d-mirror-icon { flex: 0 0 auto; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: var(--paper); color: var(--purple-deep); }
+
+.mirror { display: grid; gap: 12px; margin-top: 16px; padding: clamp(14px, 3vw, 22px); border: 1px solid #ddd0e2; border-radius: 18px; background: var(--paper); }
+.mirror .eyebrow { margin: 0; }
+.mirror h2 { margin: 4px 0 0; color: var(--ink); font-size: 1.15rem; }
+.mirror h2:focus { outline: none; }
+.mirror p { margin: 0; line-height: 1.55; }
+.mirror-hint { color: var(--muted); font-size: .9rem; }
+.mirror-quote { display: grid; gap: 6px; margin: 0; padding: 14px 16px; border-left: 4px solid var(--purple); border-radius: 4px 16px 16px 4px; background: var(--purple-soft); color: var(--ink); }
+.mirror-quote cite { color: var(--purple-deep); font-size: .78rem; font-style: normal; font-weight: 800; }
+.mirror-quote--you { border-left-color: var(--yellow); background: var(--yellow-soft); font-size: 1.05rem; font-weight: 700; }
+.mirror-options { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.mirror-option { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--white); color: var(--ink); line-height: 1.45; cursor: pointer; }
+.mirror-option:hover { border-color: var(--purple); }
+.mirror-option:has(input:checked) { border-color: var(--purple); background: var(--purple-soft); }
+.mirror-option:has(input:focus-visible) { outline: 3px solid rgba(147, 112, 158, .38); outline-offset: 2px; }
+.mirror-option input { flex: 0 0 auto; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--purple); }
+.mirror-own { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; }
+.mirror-write { display: grid; gap: 6px; }
+.mirror-write label { color: var(--ink); font-size: .88rem; font-weight: 720; }
+.mirror-write textarea { width: 100%; min-height: 88px; padding: 12px 14px; border: 1px solid #cbc9be; border-radius: 13px; background: var(--white); color: var(--ink); line-height: 1.45; resize: vertical; }
+.mirror-write textarea:focus { border-color: var(--purple); outline: 0; box-shadow: 0 0 0 3px rgba(147, 112, 158, .14); }
+.mirror-note { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; color: var(--muted); font-size: .8rem; }
+.mirror-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.mirror-actions .button { min-height: 44px; }
+.mirror-safety { display: grid; gap: 12px; padding: 14px 16px; border: 1px solid #e3c4c5; border-radius: 14px; background: var(--danger-soft); }
+
+@media (max-width: 620px) {
+  .companion-3d-mirror-cta { flex-wrap: wrap; }
+  .companion-3d-mirror-cta > div { flex-basis: calc(100% - 58px); }
+  .companion-3d-mirror-cta .button { width: 100%; justify-content: center; }
+  .mirror-actions .button { flex: 1 1 100%; justify-content: center; }
+}
