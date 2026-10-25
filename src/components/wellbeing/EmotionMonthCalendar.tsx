@@ -19,8 +19,7 @@ type Props = {
   practicedDays: Set<string>;
   /** Días con emoción, práctica con Moka o tema contado. */
   recordedDays: Set<string>;
-  habitsDoneOn: (dayKey: string) => number;
-  habitTotal: number;
+  habitProgressOn: (dayKey: string) => { done: number; total: number };
 };
 
 /** Columna izquierda: vista mensual con color emocional + puntos de hábitos por día. */
@@ -34,8 +33,7 @@ export default function EmotionMonthCalendar({
   emotionsByDay,
   practicedDays,
   recordedDays,
-  habitsDoneOn,
-  habitTotal,
+  habitProgressOn,
 }: Props) {
   const year = month.getFullYear();
   const monthIndex = month.getMonth();
@@ -95,7 +93,7 @@ export default function EmotionMonthCalendar({
           const entries = emotionsByDay.get(key) ?? [];
           const latest = entries[entries.length - 1];
           const tone = latest ? toneFor(latest.primary) : null;
-          const habitsDone = habitsDoneOn(key);
+          const { done: habitsDone, total: habitTotal } = habitProgressOn(key);
           const isToday = key === todayKey;
           const isFuture = key > todayKey;
           const isSelected = key === selectedKey;
@@ -160,9 +158,18 @@ export default function EmotionMonthCalendar({
   );
 }
 
-/** Minipuntos bajo el número: uno por hábito, rellenos los completados. */
+const MAX_DOTS = 5;
+
+/** Minipuntos bajo el número: uno por hábito, rellenos los completados. Con más de 5 hábitos, "3/7". */
 function HabitDots({ done, total }: { done: number; total: number }) {
   if (done === 0) return <span className="h-1.5" aria-hidden="true" />;
+  if (total > MAX_DOTS) {
+    return (
+      <span className="text-[0.6rem] font-extrabold leading-none tabular-nums text-[var(--sage-deep)]" aria-hidden="true">
+        {done}/{total}
+      </span>
+    );
+  }
   return (
     <span className="flex gap-0.5" aria-hidden="true">
       {Array.from({ length: total }, (_, index) => (

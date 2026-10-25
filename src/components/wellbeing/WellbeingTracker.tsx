@@ -79,17 +79,21 @@ export default function WellbeingTracker({ entries, habits, companionName, pract
             emotionsByDay={emotionsByDay}
             practicedDays={practiced}
             recordedDays={recordedDays}
-            habitsDoneOn={(key) => habits.habits.filter((habit) => habits.completedOn(key).includes(habit.id)).length}
-            habitTotal={habits.habits.length}
+            habitProgressOn={habits.progressOn}
           />
         </div>
         <div className="@4xl:col-span-5">
           <DailyHabitsPanel
             dayKey={selectedKey}
             isToday={selectedKey === habits.todayKey}
-            habits={habits.habits}
+            habits={habits.habitsOn(selectedKey)}
             completed={habits.completedOn(selectedKey)}
             onToggle={habits.toggle}
+            onAdd={habits.addHabit}
+            onRemove={habits.removeHabit}
+            suggestions={habits.suggestions}
+            canAddMore={habits.canAddMore}
+            customRemaining={habits.customRemaining}
             emotions={emotionsByDay.get(selectedKey) ?? []}
             themes={themesByDay.get(selectedKey) ?? []}
             practicedWithMoka={practiced.has(selectedKey)}

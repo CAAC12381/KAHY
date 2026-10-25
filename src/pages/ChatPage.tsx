@@ -143,6 +143,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
     emotions: emotionCalendar.entries,
     tasks: taskPlans.plans,
     habitDays: habits.days,
+    habitList: habits.habitsOn(habits.todayKey),
     habitStreak: habits.streak,
     companionGrowth: garden.growth,
     companionName,

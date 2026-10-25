@@ -1,4 +1,4 @@
-import type { HabitDay } from "../hooks/useDailyHabits";
+import type { Habit, HabitDay } from "../hooks/useDailyHabits";
 import type { DemoProfile, EmotionEntry, Preferences, ScreeningResult, TaskPlan } from "../types";
 import { dailyHabits } from "../hooks/useDailyHabits";
 import { emotionLabels } from "./emotionLexicon";
@@ -31,6 +31,8 @@ type Input = {
   emotions: EmotionEntry[];
   tasks: TaskPlan[];
   habitDays: HabitDay[];
+  /** Hábitos de hoy, con los personalizados. Sin valor, los predeterminados. */
+  habitList?: Habit[];
   habitStreak: number;
   companionGrowth: number;
   companionName?: string;
@@ -47,7 +49,8 @@ const screeningNames: Record<ScreeningResult["id"], string> = {
 export function buildAdaptiveContext(input: Input): AdaptiveContext {
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  const todayHabits = input.habitDays.find((day) => day.date === today)?.completed ?? [];
+  const habitList = input.habitList ?? dailyHabits;
+  const todayHabits = (input.habitDays.find((day) => day.date === today)?.completed ?? []).filter((id) => habitList.some((habit) => habit.id === id));
   const activeTasks = input.tasks.filter((plan) => !plan.completedAt);
   const completedTasks = input.tasks.length - activeTasks.length;
   const currentTask = [...activeTasks].sort((a, b) => b.updatedAt - a.updatedAt)[0];
@@ -67,7 +70,7 @@ export function buildAdaptiveContext(input: Input): AdaptiveContext {
     activeTask: currentTask?.title,
     activeTaskProgress: currentTask ? `${currentDone}/${currentTotal}` : undefined,
     completedHabits: todayHabits.length,
-    totalHabits: dailyHabits.length,
+    totalHabits: habitList.length,
     habitStreak: input.habitStreak,
     recentEmotion: latestEmotion ? emotionLabels[latestEmotion] : undefined,
     dominantEmotion: dominant ? emotionLabels[dominant] : undefined,
@@ -89,7 +92,7 @@ export function buildAdaptiveContext(input: Input): AdaptiveContext {
     parts.push(`señales emocionales recientes: ${recentEmotions.slice(-4).map((entry) => emotionLabels[entry.primary]).join(", ")}; último avance: ${progress}`);
   }
   if (todayHabits.length) {
-    const labels = todayHabits.map((id) => dailyHabits.find((habit) => habit.id === id)?.label).filter(Boolean);
+    const labels = todayHabits.map((id) => habitList.find((habit) => habit.id === id)?.label).filter(Boolean);
     parts.push(`hábitos de hoy: ${labels.join(", ")}${input.habitStreak > 1 ? `; racha de ${input.habitStreak} días` : ""}`);
   }
   if (currentTask) {

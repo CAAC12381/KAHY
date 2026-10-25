@@ -35,7 +35,8 @@ html { min-width: 320px; overflow-x: clip; background: var(--cream); scroll-beha
 body { margin: 0; min-width: 320px; min-height: 100vh; overflow-x: clip; background: var(--cream); }
 button, input, textarea, select { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
-button { color: inherit; }
+/* En @layer base para que las clases text-* de Tailwind puedan colorear botones. */
+@layer base { button { color: inherit; } }
 button:not(:disabled), a { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .55; }
 a { color: inherit; }
@@ -1357,3 +1358,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .emotion-day-practice { min-height: 36px; display: inline-flex; align-items: center; gap: 6px; margin: 6px 0 4px; padding: 6px 12px; border: 1px solid #cdbed2; border-radius: 999px; background: white; color: var(--purple-deep); font-size: .76rem; font-weight: 760; cursor: pointer; }
 .emotion-day-practice:hover { border-color: var(--purple); }
 .emotion-legend .tone-moka { display: inline-flex; align-items: center; gap: 4px; background: var(--purple-soft); color: var(--purple-deep); }
+
+/* Hábito recién añadido (AddHabitForm → HabitItem) */
+@keyframes habit-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
