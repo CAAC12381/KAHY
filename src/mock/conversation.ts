@@ -197,10 +197,22 @@ export function getTopic(input: string): ChatTopic {
   return "conversación";
 }
 
-type FaqKey = "saludo" | "gracias" | "despedida" | "queEsKahy" | "costo" | "privacidad" | "humano" | "capacidades" | "numeroEmergencia";
+type FaqKey = "saludo" | "gracias" | "despedida" | "queEsKahy" | "costo" | "privacidad" | "humano" | "capacidades" | "numeroEmergencia" | "fueraDeTema";
 
 function detectFaq(input: string): FaqKey | null {
   const text = normalize(input);
+  if (includesAny(text, [
+    "cuentame un chiste", "dime un chiste", "sabes algun chiste",
+    "receta de cocina", "receta para cocinar",
+    "quien gano el partido", "resultado del partido de futbol", "resultado del futbol",
+    "cual es la capital de", "capital de francia", "capital de mexico",
+    "ayudame con mi tarea", "tarea de matematicas", "resuelve este problema de matematicas",
+    "hazme un ensayo", "escribeme un ensayo sobre",
+    "escribe un codigo en", "escribeme un codigo en", "programa en python", "programa en javascript",
+    "traduce esto al ingles", "traduce esto al espanol",
+    "noticias de hoy", "el clima de hoy", "pronostico del clima", "que clima va a hacer", "va a llover", "pronostico del tiempo",
+    "quien gano las elecciones", "cuanto es 2 mas 2", "cuanto es 2+2",
+  ])) return "fueraDeTema";
   if (includesAny(text, ["numero de emergencia", "telefono de ayuda", "a que numero llamo", "numero de la linea de la vida", "telefono de la linea de la vida"])) return "numeroEmergencia";
   if (includesAny(text, ["hablar con un humano", "persona real", "psicologo real", "alguien de verdad", "quiero hablar con alguien de verdad", "atencion humana"])) return "humano";
   if (includesAny(text, ["que puedes hacer", "en que me ayudas", "para que sirves", "que sabes hacer", "que puedo preguntarte", "que temas manejas"])) return "capacidades";
@@ -349,6 +361,19 @@ function faqReply(key: FaqKey, topic: ChatTopic): ConversationReply {
         question: "¿Quieres que abra el panel de ayuda inmediata con estos datos?",
         choices: ["Abrir opciones de ayuda", "No por ahora", "Seguir platicando"],
         sourceIds: ["linea-vida"],
+      };
+    case "fueraDeTema":
+      return {
+        ...base,
+        label: "Fuera de mi enfoque",
+        title: "Eso no es algo con lo que pueda ayudarte",
+        introduction: "KAHY está hecho únicamente para salud mental y bienestar emocional, así que no puedo ayudarte con eso.",
+        steps: [
+          { horizon: "Aquí sí puedo ayudar", text: "Estrés o ansiedad, ánimo, duelo, relaciones, sueño, consumo, neurodivergencia, autocuidado o acceso a atención." },
+        ],
+        question: "¿Hay algo de lo que sientes o te preocupa en lo que te pueda acompañar?",
+        choices: ["Estrés o ansiedad", "Ánimo bajo", "Buscar atención", "Nada por ahora"],
+        sourceIds: ["who-ai-health"],
       };
   }
 }

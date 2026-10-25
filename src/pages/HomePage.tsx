@@ -1,10 +1,10 @@
-import { ArrowRight, BookOpen, CalendarDays, Check, ClipboardList, Leaf, MessageCircle, Sparkles } from "lucide-react";
-import EmotionCalendar from "../components/EmotionCalendar";
+import { ArrowRight, BookOpen, CalendarDays, ClipboardList, Leaf, MessageCircle, Sparkles } from "lucide-react";
 import Mascot from "../components/Mascot";
 import PetGarden from "../components/PetGarden";
 import SupportBanner from "../components/SupportBanner";
 import { Button, Card, DemoBadge } from "../components/ui";
-import { dailyHabits, useDailyHabits } from "../hooks/useDailyHabits";
+import WellbeingTracker from "../components/wellbeing/WellbeingTracker";
+import { useDailyHabits } from "../hooks/useDailyHabits";
 import type { PetGardenApi } from "../hooks/usePetGarden";
 import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
 import type { ScreeningsState } from "../hooks/useScreenings";
@@ -52,24 +52,12 @@ export default function HomePage({
         {preferences.showMascot && <div className="hero-mascot"><span className="speech-note">Vamos paso a paso.</span><Mascot id={profile.mascot} size="large" /></div>}
       </section>
 
-      <div className="section-heading"><div><span className="eyebrow">Calendario emocional</span><h2>Lo que ha aparecido en tus conversaciones</h2></div><small>Se guardan etiquetas y fechas, no el texto</small></div>
-      <Card className="emotion-calendar-card"><EmotionCalendar entries={emotionCalendar.entries} /></Card>
-
-      <div className="section-heading"><div><span className="eyebrow">Hábitos de hoy</span><h2>Pequeñas acciones que también cuentan</h2></div><small>Se reinicia cada día · en este dispositivo</small></div>
-      <Card className="habits-card">
-        <div className="habits-list">
-          {dailyHabits.map((habit) => {
-            const done = habits.completed.includes(habit.id);
-            return (
-              <button key={habit.id} className={done ? "habit-chip done" : "habit-chip"} onClick={() => habits.toggle(habit.id)} aria-pressed={done}>
-                <span className="habit-check">{done && <Check size={14} />}</span>
-                {habit.label}
-              </button>
-            );
-          })}
-        </div>
-        {preferences.showMascot && companionName && <p className="habits-note">Cada hábito que marcas también ayuda a {companionName} a crecer un poco.</p>}
-      </Card>
+      <div className="section-heading"><div><span className="eyebrow">Calendario emocional y hábitos</span><h2>Cómo te has sentido y lo que has hecho por ti</h2></div><small>Se guardan etiquetas y fechas, no el texto</small></div>
+      <WellbeingTracker
+        entries={emotionCalendar.entries}
+        habits={habits}
+        companionName={preferences.showMascot ? companionName : null}
+      />
 
       {preferences.showMascot && (
         <>
