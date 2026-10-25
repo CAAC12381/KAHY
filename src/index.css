@@ -35,7 +35,8 @@ html { min-width: 320px; overflow-x: clip; background: var(--cream); scroll-beha
 body { margin: 0; min-width: 320px; min-height: 100vh; overflow-x: clip; background: var(--cream); }
 button, input, textarea, select { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
-button { color: inherit; }
+/* En @layer base para que las clases text-* de Tailwind puedan colorear botones. */
+@layer base { button { color: inherit; } }
 button:not(:disabled), a { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .55; }
 a { color: inherit; }
@@ -719,3 +720,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
 }
+
+/* Hábito recién añadido (AddHabitForm → HabitItem) */
+@keyframes habit-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
