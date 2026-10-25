@@ -41,6 +41,7 @@ export const mascots: Array<{
     animal: "pollito",
     description: "Curioso y alegre",
     stages: [petAsset("animales/pollito/pollito-caja.jpg"), petAsset("animales/pollito/pollito-gallina.jpg")],
+    sadImage: petAsset("animales/tristes/pollito-triste.jpg"),
     blinkImage: petAsset("animales/pollito/pollito-caja-ojos-cerrados.jpg"),
   },
   {
@@ -49,6 +50,7 @@ export const mascots: Array<{
     animal: "camaleón",
     description: "Sereno y creativo",
     stages: [petAsset("animales/camaleon/camaleon-caja.jpg"), petAsset("animales/camaleon/camaleon-grande.jpg")],
+    sadImage: petAsset("animales/tristes/camaleon-triste.jpg"),
     blinkImage: petAsset("animales/camaleon/camaleon-caja-ojos-cerrados.jpg"),
   },
   {
@@ -57,6 +59,7 @@ export const mascots: Array<{
     animal: "tortuguita",
     description: "Tranquila y dulce",
     stages: [petAsset("animales/tortuga/tortuga-caja.jpg"), petAsset("animales/tortuga/tortuga-grande.jpg")],
+    sadImage: petAsset("animales/tristes/tortuga-triste.jpg"),
     blinkImage: petAsset("animales/tortuga/tortuga-caja-ojos-cerrados.jpg"),
   },
 ];
