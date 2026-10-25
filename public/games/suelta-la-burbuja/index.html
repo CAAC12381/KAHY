@@ -141,7 +141,10 @@
     border: 1px solid var(--surface-border);
     background: var(--surface);
     backdrop-filter: blur(6px);
-    font-size: 15px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    color: var(--ink-soft);
     cursor: pointer;
   }
 
@@ -375,6 +378,7 @@
       0% { bottom: -18%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { bottom: 60%; opacity: 0; }
     }
   }
+.bpg-icon { display: inline-block; vertical-align: -0.15em; flex: 0 0 auto; }
 </style>
 </head>
 <body>
@@ -386,11 +390,11 @@
 
 <div class="phone">
   <div class="bpg-root" id="bpgRoot">
-    <button class="bpg-sound-toggle" id="soundToggle" aria-label="Silenciar sonido" title="Silenciar sonido">🔊</button>
+    <button class="bpg-sound-toggle" id="soundToggle" aria-label="Silenciar sonido" title="Silenciar sonido"><svg class="bpg-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.364 18.364a9 9 0 0 0 0-12.728"/></svg></button>
 
     <div class="bpg-scene">
       <div class="bpg-panel is-active" id="introPanel">
-        <span class="bpg-eyebrow">✿ Prepárate</span>
+        <span class="bpg-eyebrow"><svg class="bpg-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 20a10 10 0 0010-10 25.9 25.9 0 00-1.04-7.281 1 1 0 00-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0011 20"/><path d="M2 21a5 5 0 012.911-4.544C7.613 15.212 8.351 15.24 11 13"/></svg> Prepárate</span>
         <p class="bpg-message">Piensa en algo que te abrume hoy. Vamos a soltarlo juntos.</p>
         <button class="bpg-hold-button" id="holdButton">
           <span class="bpg-hold-ring"></span>
@@ -402,7 +406,7 @@
       <div class="bpg-play-area" id="playArea"></div>
 
       <div class="bpg-panel bpg-closing" id="closingPanel">
-        <span class="bpg-eyebrow">✿ Cierre</span>
+        <span class="bpg-eyebrow"><svg class="bpg-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 20a10 10 0 0010-10 25.9 25.9 0 00-1.04-7.281 1 1 0 00-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0011 20"/><path d="M2 21a5 5 0 012.911-4.544C7.613 15.212 8.351 15.24 11 13"/></svg> Cierre</span>
         <p class="bpg-message">Lo estás haciendo bien. Tómate un momento para notar cómo se siente tu cuerpo ahora.</p>
         <div class="bpg-actions">
           <button class="bpg-btn secondary" id="restartButton">Volver a empezar</button>
@@ -510,7 +514,8 @@
 
   soundToggle.addEventListener("click", function () {
     soundEnabled = !soundEnabled;
-    soundToggle.textContent = soundEnabled ? "🔊" : "🔈";
+    // Íconos de línea de la app (Lucide), no emojis: se ven igual en todos los dispositivos.
+    soundToggle.innerHTML = soundEnabled ? "<svg class=\"bpg-icon\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z\"/><path d=\"M16 9a5 5 0 0 1 0 6\"/><path d=\"M19.364 18.364a9 9 0 0 0 0-12.728\"/></svg>" : "<svg class=\"bpg-icon\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M11 4.702a.7.7 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.7.7 0 0 0 11 19.298z\"/><path d=\"m16.5 14.5 5-5\"/><path d=\"m16.5 9.5 5 5\"/></svg>";
     soundToggle.setAttribute("aria-label", soundEnabled ? "Silenciar sonido" : "Activar sonido");
   });
 
