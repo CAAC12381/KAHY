@@ -17,11 +17,11 @@ export const PRIVACY_VERSION_LABEL = "24 de octubre de 2026";
 
 export const PRIVACY_CONTACT = {
   /** Persona, equipo o institución responsable del tratamiento. */
-  responsible: "Cristian Alvarez Castro",
+  responsible: "",
   /** Domicilio para oír y recibir notificaciones (puede ser el de la institución). */
-  address: "Alamos #90, Col. Luna Nueva",
+  address: "",
   /** Correo donde se atienden las solicitudes de privacidad (derechos ARCO y revocación). */
-  email: "castroalvarezcristofer@gmail.com",
+  email: "",
 };
 
 /** Enlace (con #) que abre el aviso desde cualquier pantalla de la app. */
