@@ -1,1016 +1,661 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>El Inspector del Cuerpo - Juego Interactivo de Acuarela</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
-    <style>
-        :root {
-            --bg-paper: #F8F5EE;
-            --watercolor-red: #E86A5D;
-            --watercolor-red-soft: #F7A399;
-            --watercolor-teal: #5BB3A7;
-            --watercolor-teal-soft: #A3D9D2;
-            --watercolor-sand: #E6C594;
-            --text-color: #4A3E3D;
-            --card-bg: #FAF6ED;
-            --card-border: #D8CEB9;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Inspector del Cuerpo</title>
+<!--
+  El Inspector del Cuerpo (actividad de KAHY, se abre dentro de Actividades).
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            user-select: none;
-            -webkit-user-select: none;
-        }
+  Explora seis zonas donde la ansiedad suele sentirse (cabeza, hombros y cuello, pecho, corazón,
+  estómago y manos). En cada una explica qué pasa y por qué, con lenguaje sencillo y avisos de
+  seguridad donde hacen falta, y propone una técnica breve para practicar en ese momento:
+  5-4-3-2-1 para la cabeza, tensión y relajación para hombros y manos, respiración con la panza
+  para el pecho, suspiro doble para el corazón y calor con las manos para el estómago.
 
-        body {
-            font-family: 'Fredoka', cursive, sans-serif;
-            background-color: #2D282A;
-            background-image: url("./assets/fondo.jpg");
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            color: var(--text-color);
-        }
+  Todo vive en este archivo, sin internet ni tipografías externas (la app funciona sin conexión)
+  y sin guardar nada: lo que la persona elige solo se usa para el resumen de esta partida.
+  Estilo de plastilina como el resto de KAHY; respeta "reducir movimiento" del sistema.
+-->
+<style>
+  :root {
+    --paper: #fffefb;
+    --cream: #f8f6f0;
+    --clay: #efd2ad;
+    --clay-deep: #d7ae80;
+    --ink: #3f4139;
+    --muted: #6d6f68;
+    --line: #e4ddd0;
+    --purple: #684d72;
+    --purple-soft: #eee7f0;
+    --alert: #df8770;
+    --alert-soft: #fbe5dd;
+    --calm: #7fa98d;
+    --calm-deep: #557a62;
+    --calm-soft: #e3efe5;
+    --warn: #9a7324;
+    --warn-soft: #fff3c9;
+    --shadow: 0 10px 26px rgba(90, 70, 50, 0.1);
+    --radius: 22px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; overflow: hidden; } /* Cada pantalla se desplaza por dentro. */
+  body {
+    font-family: "Nunito", ui-rounded, "Segoe UI Rounded", "Segoe UI", system-ui, -apple-system, sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(circle at 12% 8%, rgba(223, 135, 112, 0.1), transparent 40%),
+      radial-gradient(circle at 88% 92%, rgba(127, 169, 141, 0.13), transparent 42%),
+      var(--cream);
+    -webkit-tap-highlight-color: transparent;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--purple); outline-offset: 3px; }
 
+  .screen { display: none; height: 100%; overflow-y: auto; padding: 18px 16px 22px; }
+  .screen.active { display: block; animation: enter 0.35s ease both; }
+  .wrap { width: 100%; max-width: 560px; min-height: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
 
-        /* Vista de laptop/desktop: se elimina únicamente el mockup del teléfono */
-        .phone-container {
-            width: min(1100px, 100vw);
-            height: min(760px, 100vh);
-            background-color: var(--bg-paper);
-            border-radius: 0;
-            box-shadow: none;
-            border: none;
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            /* Se conserva el diseño y la funcionalidad interna sin el marco del celular. */
-        }
+  h1, h2, h3 { color: #35362f; line-height: 1.15; }
+  h1 { font-size: clamp(1.7rem, 7vw, 2.2rem); font-weight: 900; text-align: center; }
+  h2 { font-size: 1.3rem; font-weight: 850; }
+  h3 { font-size: 1rem; font-weight: 850; }
+  p { line-height: 1.5; font-size: 0.95rem; }
+  .muted { color: var(--muted); }
+  .center { text-align: center; }
+  .small { font-size: 0.8rem; }
 
-        /* Textura de Acuarela en Papel */
-        .phone-container::before {
-            content: "";
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: 
-                radial-gradient(circle at 10% 20%, rgba(232, 106, 93, 0.08) 0%, transparent 40%),
-                radial-gradient(circle at 90% 80%, rgba(91, 179, 167, 0.08) 0%, transparent 40%),
-                radial-gradient(circle at 50% 50%, rgba(230, 197, 148, 0.1) 0%, transparent 60%);
-            pointer-events: none;
-            z-index: 1;
-        }
+  .pill { align-self: center; display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; background: var(--purple-soft); color: var(--purple); font-size: 0.78rem; font-weight: 800; }
 
-        /* Pantallas */
-        .screen {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            padding: 24px 20px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            align-items: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
-            transform: scale(0.96);
-            z-index: 2;
-        }
+  /* Tarjetas y botones "de plastilina": volumen suave con sombra interior y exterior. */
+  .card { background: var(--paper); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow), inset 0 -3px 0 rgba(120, 95, 70, 0.06); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 50px; width: 100%; padding: 12px 18px; border: 0; border-radius: 999px; font-weight: 850; font-size: 1rem; color: #fff; background: linear-gradient(180deg, #7d5f88, var(--purple)); box-shadow: 0 8px 18px rgba(104, 77, 114, 0.28), inset 0 2px 0 rgba(255, 255, 255, 0.25), inset 0 -4px 0 rgba(0, 0, 0, 0.12); transition: transform 0.15s ease, filter 0.15s ease; }
+  .btn:hover { filter: brightness(1.05); }
+  .btn:active { transform: translateY(2px); }
+  .btn:disabled { opacity: 0.45; cursor: default; transform: none; }
+  .btn.calm { background: linear-gradient(180deg, #8fb79c, var(--calm-deep)); box-shadow: 0 8px 18px rgba(85, 122, 98, 0.28), inset 0 2px 0 rgba(255, 255, 255, 0.25), inset 0 -4px 0 rgba(0, 0, 0, 0.12); }
+  .btn.ghost { color: var(--purple); background: var(--paper); box-shadow: inset 0 0 0 2px var(--line); }
+  .link { align-self: center; border: 0; background: none; color: var(--purple); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; padding: 8px; }
 
-        .screen.active {
-            opacity: 1;
-            pointer-events: all;
-            transform: scale(1);
-        }
+  .top { display: flex; align-items: center; gap: 10px; }
+  .back { flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--paper); box-shadow: var(--shadow); font-size: 1.2rem; font-weight: 900; color: var(--purple); }
+  .top h2 { flex: 1; }
+  .badge { flex: 0 0 auto; padding: 5px 11px; border-radius: 999px; font-size: 0.75rem; font-weight: 850; background: var(--alert-soft); color: #a4503c; }
+  .badge.calm { background: var(--calm-soft); color: var(--calm-deep); }
 
-        /* UI Acuarela */
-        .tag-pill {
-            background: #F2E4D2;
-            border: 2px stroke #D8C3A5;
-            padding: 6px 16px;
-            border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
-            font-size: 13px;
-            font-weight: 500;
-            color: #7A6352;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            box-shadow: 2px 3px 0px rgba(120, 100, 80, 0.1);
-        }
+  .safety { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 16px; background: var(--warn-soft); color: #5e4a1b; font-size: 0.84rem; line-height: 1.45; }
+  .safety strong { color: #4a3a12; }
 
-        .title {
-            font-size: 26px;
-            font-weight: 700;
-            text-align: center;
-            color: #3D3130;
-            line-height: 1.2;
-            margin-top: 10px;
-        }
+  /* --- Inicio --- */
+  .hero { align-self: center; width: 150px; height: 150px; display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff8ee, #f6e3cb 60%, #ecd2b1); box-shadow: var(--shadow), inset 0 -8px 16px rgba(160, 120, 80, 0.15); }
+  .hero svg { width: 124px; height: 124px; }
 
-        .subtitle {
-            font-size: 14px;
-            text-align: center;
-            color: #756563;
-            margin-top: 8px;
-            line-height: 1.4;
-            padding: 0 10px;
-        }
+  /* --- Mapa del cuerpo --- */
+  .map { position: relative; align-self: center; width: min(360px, 100%); aspect-ratio: 300 / 340; }
+  .map svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .zone { position: absolute; left: calc(var(--x) / 300 * 100%); top: calc(var(--y) / 340 * 100%); display: flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; transform: translate(-21px, -50%); }
+  .zone.left { flex-direction: row-reverse; transform: translate(calc(-100% + 21px), -50%); }
+  .spot { position: relative; flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; font-size: 1.05rem; background: radial-gradient(circle at 35% 30%, #fff3ec, var(--alert-soft) 55%, #f4c3b4); box-shadow: 0 4px 10px rgba(180, 90, 60, 0.25), inset 0 -3px 0 rgba(160, 70, 40, 0.15); }
+  .spot::after { content: ""; position: absolute; inset: -7px; border-radius: 50%; border: 3px solid rgba(223, 135, 112, 0.45); animation: halo 1.6s ease-in-out infinite; }
+  .zone.done .spot { background: radial-gradient(circle at 35% 30%, #f6fbf6, var(--calm-soft) 55%, #bcd5c3); box-shadow: 0 4px 10px rgba(85, 122, 98, 0.25), inset 0 -3px 0 rgba(60, 100, 70, 0.15); }
+  .zone.done .spot::after { animation: none; border-color: transparent; }
+  .label { padding: 5px 10px; border-radius: 999px; background: var(--paper); box-shadow: 0 3px 10px rgba(90, 70, 50, 0.13); font-size: 0.8rem; font-weight: 850; white-space: nowrap; }
+  .zone.done .label { color: var(--calm-deep); }
+  .zone:hover .spot, .zone:focus-visible .spot { transform: scale(1.08); }
+  .zone:focus-visible { outline: none; }
+  .zone:focus-visible .label { outline: 3px solid var(--purple); outline-offset: 2px; }
 
-        /* Botón Estilo Trazo Acuarela */
-        .btn-watercolor {
-            width: 100%;
-            padding: 16px 20px;
-            border: none;
-            font-family: 'Fredoka', sans-serif;
-            font-size: 16px;
-            font-weight: 600;
-            color: white;
-            cursor: pointer;
-            position: relative;
-            background: linear-gradient(135deg, var(--watercolor-red) 0%, #D95648 100%);
-            border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
-            box-shadow: 0 6px 12px rgba(232, 106, 93, 0.3), inset 0 2px 4px rgba(255,255,255,0.4);
-            transition: transform 0.15s ease, filter 0.2s ease;
-            outline: none;
-        }
+  .progress { display: flex; align-items: center; justify-content: center; gap: 7px; }
+  .progress span { width: 11px; height: 11px; border-radius: 50%; background: #eadfce; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.06); }
+  .progress span.on { background: var(--calm); }
+  .progress-text { text-align: center; color: var(--muted); font-size: 0.85rem; font-weight: 700; }
 
-        .btn-watercolor:hover {
-            transform: translateY(-2px) scale(1.01);
-            filter: brightness(1.05);
-        }
+  /* --- Zona --- */
+  .zone-art { display: grid; place-items: center; height: 136px; border-radius: var(--radius); background: radial-gradient(circle at 50% 45%, #fff6ef, #f7e2d6 70%); box-shadow: var(--shadow), inset 0 -6px 14px rgba(180, 110, 80, 0.12); }
+  .zone-art.calm { background: radial-gradient(circle at 50% 45%, #f6fbf6, #dcebdf 70%); box-shadow: var(--shadow), inset 0 -6px 14px rgba(80, 120, 90, 0.12); }
+  .zone-art svg { width: 92px; height: 92px; }
+  .facts { display: grid; gap: 10px; }
+  .fact { display: flex; gap: 10px; align-items: flex-start; }
+  .fact-icon { flex: 0 0 auto; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 12px; background: var(--alert-soft); font-size: 1.05rem; }
+  .fact.tip .fact-icon { background: var(--purple-soft); }
+  .fact p { font-size: 0.92rem; }
 
-        .btn-watercolor:active {
-            transform: translateY(2px) scale(0.98);
-        }
+  /* --- Técnicas --- */
+  .technique h3 { margin-bottom: 4px; }
+  .technique .why { color: var(--muted); font-size: 0.86rem; margin-bottom: 12px; }
+  .stage { display: grid; justify-items: center; gap: 12px; padding: 8px 0 4px; }
+  .instruction { min-height: 3em; text-align: center; font-weight: 800; font-size: 1.05rem; color: #35362f; }
+  .counter { color: var(--muted); font-weight: 750; font-size: 0.85rem; }
 
-        .btn-teal {
-            background: linear-gradient(135deg, var(--watercolor-teal) 0%, #469B90 100%);
-            box-shadow: 0 6px 12px rgba(91, 179, 167, 0.3), inset 0 2px 4px rgba(255,255,255,0.4);
-        }
+  .breath { width: 150px; height: 150px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 38% 32%, #fbfdf9, #cfe3d4 60%, #a9c9b2); box-shadow: 0 10px 24px rgba(85, 122, 98, 0.28), inset 0 -8px 14px rgba(60, 100, 70, 0.18); transform: scale(0.62); transition-property: transform; transition-timing-function: ease-in-out; }
+  .breath span { font-size: 2rem; font-weight: 900; color: var(--calm-deep); transform: scale(1.4); }
 
-        /* Tarjeta Bordes Irregulares Papel */
-        .watercolor-card {
-            background: #FFFDF9;
-            width: 100%;
-            border-radius: 18px 22px 20px 24px;
-            border: 2px solid #E5DAC6;
-            padding: 16px;
-            box-shadow: 0 8px 20px rgba(100, 80, 60, 0.06);
-            position: relative;
-        }
+  .hold { position: relative; width: 150px; height: 150px; border-radius: 50%; border: 0; display: grid; place-items: center; background: radial-gradient(circle at 38% 32%, #fff6ef, #f6dccd 60%, #eab9a4); box-shadow: 0 10px 24px rgba(180, 100, 70, 0.25), inset 0 -8px 14px rgba(150, 80, 50, 0.18); touch-action: none; -webkit-user-select: none; user-select: none; }
+  .hold.holding { transform: scale(0.94); }
+  .hold.relaxed { background: radial-gradient(circle at 38% 32%, #fbfdf9, #cfe3d4 60%, #a9c9b2); box-shadow: 0 10px 24px rgba(85, 122, 98, 0.28), inset 0 -8px 14px rgba(60, 100, 70, 0.18); }
+  .hold svg.ring { position: absolute; inset: -8px; width: calc(100% + 16px); height: calc(100% + 16px); transform: rotate(-90deg); pointer-events: none; }
+  .hold .ring circle { fill: none; stroke-width: 7; stroke-linecap: round; }
+  .hold-text { position: relative; padding: 0 14px; font-weight: 900; font-size: 0.95rem; line-height: 1.2; text-align: center; color: #7a3e2c; }
+  .hold.relaxed .hold-text { color: var(--calm-deep); }
 
-        .watercolor-card::after {
-            content: "";
-            position: absolute;
-            inset: -4px;
-            border: 2px dashed rgba(216, 206, 185, 0.5);
-            border-radius: 22px 26px 24px 28px;
-            pointer-events: none;
-        }
+  .steps { width: 100%; display: grid; gap: 8px; }
+  .step { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 14px; background: #f7f1e8; color: var(--muted); }
+  .step b { flex: 0 0 auto; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: #eadfce; color: var(--ink); }
+  .step.current { background: var(--purple-soft); color: var(--ink); font-weight: 750; box-shadow: inset 0 0 0 2px #d9c9df; }
+  .step.current b { background: var(--purple); color: #fff; }
+  .step.done { background: var(--calm-soft); color: var(--calm-deep); }
+  .step.done b { background: var(--calm); color: #fff; }
 
-        /* --- PANTALLA 1: INICIO --- */
-        .hero-illustration {
-            width: 180px;
-            height: 180px;
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 20px 0;
-        }
+  .feeling { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .feeling button { min-height: 64px; display: grid; justify-items: center; gap: 2px; padding: 8px 4px; border: 0; border-radius: 16px; background: var(--paper); box-shadow: inset 0 0 0 2px var(--line); font-weight: 800; font-size: 0.85rem; }
+  .feeling button span { font-size: 1.4rem; }
+  .feeling button[aria-pressed="true"] { background: var(--calm-soft); box-shadow: inset 0 0 0 2px var(--calm); color: var(--calm-deep); }
+  .feedback { padding: 12px 14px; border-radius: 16px; background: #f7f1e8; font-size: 0.9rem; line-height: 1.45; }
 
-        .hero-circle {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(247, 163, 153, 0.4) 0%, rgba(248, 245, 238, 0) 70%);
-            position: absolute;
-            animation: pulse-soft 3s infinite ease-in-out;
-        }
+  /* --- Resumen --- */
+  .summary-list { display: grid; gap: 8px; }
+  .summary-item { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 16px; background: var(--paper); box-shadow: var(--shadow); }
+  .summary-item .spot { width: 36px; height: 36px; font-size: 0.95rem; }
+  .summary-item .spot::after { display: none; }
+  .summary-item div { flex: 1; min-width: 0; }
+  .summary-item strong { display: block; font-size: 0.92rem; }
+  .summary-item small { color: var(--muted); font-size: 0.8rem; }
+  .rating { flex: 0 0 auto; font-size: 0.78rem; font-weight: 850; padding: 4px 9px; border-radius: 999px; background: #f2ece2; color: var(--muted); }
+  .rating.better { background: var(--calm-soft); color: var(--calm-deep); }
+  .favorite { padding: 14px; border-radius: var(--radius); background: var(--calm-soft); color: #2f4a37; }
 
-        /* --- PANTALLA 2: INSPECTOR (CUERPO) --- */
-        .body-container {
-            position: relative;
-            width: 240px;
-            height: 380px;
-            margin: 10px 0;
-        }
+  @keyframes enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes halo { 0%, 100% { transform: scale(0.92); opacity: 0.9; } 50% { transform: scale(1.12); opacity: 0.35; } }
+  @keyframes beat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+  @keyframes shake { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+  @keyframes swirl { to { transform: rotate(360deg); } }
+  @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+  .anim-beat { animation: beat 0.6s ease-in-out infinite; transform-origin: center; }
+  .anim-beat-slow { animation: beat 1.6s ease-in-out infinite; transform-origin: center; }
+  .anim-shake { animation: shake 0.25s ease-in-out infinite; transform-origin: 50% 80%; }
+  .anim-swirl { animation: swirl 4s linear infinite; transform-origin: center; transform-box: fill-box; }
+  .anim-float { animation: float 2.6s ease-in-out infinite; }
 
-        .body-shape {
-            width: 100%;
-            height: 100%;
-        }
-
-        /* Hotspots interactivos */
-        .body-hotspot {
-            position: absolute;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.2s, background-color 0.3s;
-        }
-
-        .body-hotspot:hover {
-            transform: translate(-50%, -50%) scale(1.15) !important;
-        }
-
-        .hotspot-heart {
-            top: 28%;
-            left: 48%;
-            transform: translate(-50%, -50%);
-            width: 45px;
-            height: 45px;
-            background: rgba(232, 106, 93, 0.25);
-            border: 2px dashed var(--watercolor-red);
-            animation: pulse-heart 1s infinite alternate;
-        }
-
-        .hotspot-chest {
-            top: 24%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 55px;
-            height: 35px;
-            background: rgba(232, 106, 93, 0.25);
-            border: 2px dashed var(--watercolor-red);
-            animation: pulse-heart 1.2s infinite alternate;
-        }
-
-        .hotspot-stomach {
-            top: 42%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 48px;
-            height: 48px;
-            background: rgba(232, 106, 93, 0.25);
-            border: 2px dashed var(--watercolor-red);
-            animation: pulse-heart 1.1s infinite alternate;
-        }
-
-        .hotspot-hands {
-            top: 48%;
-            left: 17%;
-            transform: translate(-50%, -50%);
-            width: 38px;
-            height: 38px;
-            background: rgba(232, 106, 93, 0.25);
-            border: 2px dashed var(--watercolor-red);
-            animation: shake-light 0.4s infinite alternate;
-        }
-
-        /* Estilo cuando una zona ya fue calmada */
-        .body-hotspot.calmed-spot {
-            background: rgba(91, 179, 167, 0.25) !important;
-            border: 2px solid var(--watercolor-teal) !important;
-            animation: none !important;
-        }
-
-        .hotspot-tag {
-            position: absolute;
-            background: #FFF;
-            border: 1.5px solid #D8CEB9;
-            padding: 2px 10px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.08);
-            white-space: nowrap;
-            pointer-events: none;
-        }
-
-        /* --- DETALLE DE CADA ZONA --- */
-        .zone-visual-box {
-            width: 100%;
-            height: 220px;
-            background: radial-gradient(circle, rgba(247, 163, 153, 0.25) 0%, rgba(255, 253, 249, 0.8) 100%);
-            border-radius: 20px;
-            border: 2px solid #F0E3D0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
-            transition: background 0.4s ease;
-
-            /* --- COLOCA TU IMAGEN DE FONDO AQUÍ --- */
-            background-image: url("assets/fondo.jpg");
-            background-size: cover;
-            background-position: center;
-            /* --------------------------------------- */
-        }
-
-        .zone-visual-box.calmed {
-            background: radial-gradient(circle, rgba(163, 217, 210, 0.3) 0%, rgba(255, 253, 249, 0.8) 100%);
-        }
-
-        .badge-status {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: var(--watercolor-red);
-            color: white;
-            font-size: 11px;
-            padding: 4px 10px;
-            border-radius: 10px;
-            font-weight: 600;
-            animation: pulse-badge 2s infinite;
-        }
-
-        .badge-status.calmed {
-            background: var(--watercolor-teal);
-            animation: none;
-        }
-
-        /* Animaciones SVG */
-        .zone-svg {
-            width: 80px;
-            height: 80px;
-            transition: transform 0.3s ease;
-        }
-
-        .beat-fast { animation: beat-fast 0.5s infinite ease-in-out; }
-        .beat-slow { animation: beat-slow 1.6s infinite ease-in-out; }
-        .heavy-press { animation: heavy-press 1.2s infinite ease-in-out; }
-        .gentle-breeze { animation: gentle-breeze 2.5s infinite ease-in-out; }
-        .knot-twist { animation: knot-twist 0.8s infinite alternate ease-in-out; }
-        .stomach-flow { animation: stomach-flow 2s infinite ease-in-out; }
-        .hand-shake { animation: hand-shake 0.6s infinite cubic-bezier(0.45, 0, 0.55, 1); transform-origin: 40px 55px; }
-        .hand-still { animation: hand-still 2.4s infinite cubic-bezier(0.45, 0, 0.55, 1); transform-origin: 40px 55px; }
-
-        .info-row {
-            display: flex;
-            gap: 12px;
-            align-items: flex-start;
-            margin-bottom: 10px;
-        }
-
-        .info-icon {
-            width: 36px;
-            height: 36px;
-            background: #FCEBE8;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            flex-shrink: 0;
-            animation: float-icon 3s ease-in-out infinite;
-        }
-
-        .watercolor-icon {
-            width: 25px;
-            height: 25px;
-            object-fit: contain;
-            display: block;
-            flex-shrink: 0;
-        }
-
-        .button-icon {
-            width: 21px;
-            height: 21px;
-            object-fit: contain;
-            vertical-align: middle;
-            margin-right: 6px;
-        }
-
-        .tag-icon {
-            width: 17px;
-            height: 17px;
-            object-fit: contain;
-            vertical-align: middle;
-            margin-right: 4px;
-        }
-
-        /* Keyframes */
-        @keyframes pulse-badge {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-        @keyframes float-icon {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-4px); }
-        }
-        @keyframes pulse-soft {
-            0%, 100% { transform: scale(0.95); opacity: 0.6; }
-            50% { transform: scale(1.05); opacity: 0.9; }
-        }
-        @keyframes pulse-heart {
-            0% { transform: translate(-50%, -50%) scale(0.9); }
-            100% { transform: translate(-50%, -50%) scale(1.15); }
-        }
-        @keyframes shake-light {
-            0% { transform: translate(-52%, -50%); }
-            100% { transform: translate(-48%, -50%); }
-        }
-        @keyframes beat-fast {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.25); }
-        }
-        @keyframes beat-slow {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.08); }
-        }
-        @keyframes heavy-press {
-            0%, 100% { transform: translateY(0) scale(1); }
-            50% { transform: translateY(6px) scale(0.92, 1.08); }
-        }
-        @keyframes gentle-breeze {
-            0%, 100% { transform: translateY(0) scale(1); }
-            50% { transform: translateY(-4px) scale(1.04); }
-        }
-        @keyframes knot-twist {
-            0% { transform: rotate(-8deg) scale(0.95); }
-            100% { transform: rotate(8deg) scale(1.05); }
-        }
-        @keyframes stomach-flow {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.06); }
-        }
-        @keyframes hand-shake {
-            0%, 100% { transform: rotate(-4deg) translate(-1.5px, 0px); }
-            25% { transform: rotate(2deg) translate(1px, -1px); }
-            50% { transform: rotate(-3deg) translate(-1px, 0.5px); }
-            75% { transform: rotate(3deg) translate(1.5px, -0.5px); }
-        }
-        @keyframes hand-still {
-            0%, 100% { transform: translateY(0) rotate(0deg); }
-            50% { transform: translateY(-6px) rotate(-3deg); }
-        }
-
-        .back-btn {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: white;
-            border: 1px solid #D8CEB9;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-weight: bold;
-            color: #7A6352;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            z-index: 10;
-        }
-
-        @media (max-width: 650px) {
-            html, body {
-                width: 100%;
-                height: 100%;
-                min-height: 0;
-                overflow: hidden;
-            }
-
-            body {
-                display: block;
-                background: var(--bg-paper);
-            }
-
-            .phone-container {
-                width: 100vw;
-                height: 100dvh;
-                min-height: 0;
-            }
-
-            .screen {
-                justify-content: flex-start;
-                gap: 12px;
-                padding: 16px 14px calc(18px + env(safe-area-inset-bottom));
-                overflow-x: hidden;
-                overflow-y: auto;
-                overscroll-behavior: contain;
-            }
-
-            .screen > div {
-                max-width: 100%;
-            }
-
-            .screen > div:not(.tag-pill):not(.hero-illustration) {
-                width: 100%;
-            }
-
-            .screen > .btn-watercolor:last-child {
-                flex: 0 0 auto;
-                margin-top: auto;
-            }
-
-            .tag-pill {
-                max-width: calc(100% - 52px);
-                padding: 6px 11px;
-                font-size: 12px;
-                text-align: center;
-            }
-
-            .title {
-                margin-top: 4px;
-                font-size: clamp(21px, 7vw, 26px);
-            }
-
-            .subtitle {
-                margin-top: 4px;
-                padding-inline: 0;
-                font-size: 13px;
-            }
-
-            .hero-illustration {
-                width: 126px;
-                height: 126px;
-                flex: 0 0 auto;
-                margin: 4px 0;
-            }
-
-            .hero-illustration svg {
-                width: 92px;
-                height: 92px;
-            }
-
-            .body-container,
-            .body-container[style] {
-                width: min(200px, 72vw);
-                height: min(310px, 43dvh) !important;
-                flex: 0 0 auto;
-                margin: 0;
-            }
-
-            .watercolor-card {
-                flex: 0 0 auto;
-                padding: 13px;
-                border-radius: 16px;
-            }
-
-            .zone-visual-box {
-                height: min(180px, 29dvh);
-            }
-
-            .btn-watercolor {
-                min-height: 48px;
-                padding: 12px 16px;
-                font-size: 15px;
-            }
-
-            .back-btn {
-                position: sticky;
-                top: 0;
-                align-self: flex-start;
-                flex: 0 0 auto;
-                width: 40px;
-                height: 40px;
-                margin-bottom: -40px;
-            }
-
-            .zone-svg {
-                width: 66px;
-                height: 66px;
-            }
-        }
-
-        @media (max-width: 650px) and (max-height: 590px) {
-            .screen { gap: 8px; padding-top: 10px; }
-            .hero-illustration { width: 96px; height: 96px; }
-            .hero-illustration svg { width: 74px; height: 74px; }
-            .body-container, .body-container[style] { height: min(250px, 40dvh) !important; }
-            .zone-visual-box { height: 132px; }
-            .subtitle { font-size: 12px; line-height: 1.3; }
-        }
-    </style>
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+  @media (max-height: 640px) {
+    .hero { width: 116px; height: 116px; }
+    .hero svg { width: 76px; height: 76px; }
+    .zone-art { height: 110px; }
+    .breath, .hold { width: 128px; height: 128px; }
+  }
+</style>
 </head>
 <body>
 
-    <div class="phone-container">
-        
-        <!-- PANTALLA 1: INICIO -->
-        <div class="screen active" id="screen-1">
-            <div class="tag-pill">
-                <img class="tag-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%A7%A0%3C/text%3E%3C/svg%3E" alt=""> Salud mental · Ansiedad
-            </div>
-
-            <div class="hero-illustration">
-                <div class="hero-circle"></div>
-                <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
-                    <circle cx="60" cy="40" r="16" fill="#E6C594" opacity="0.9" />
-                    <rect x="44" y="60" width="32" height="42" rx="12" fill="#E6C594" opacity="0.9" />
-                    <path d="M60 73 C60 70, 56 67, 53 70 C50 73, 53 78, 60 82 C67 78, 70 73, 67 70 C64 67, 60 70, 60 73 Z" fill="#E86A5D" />
-                    <circle cx="72" cy="75" r="14" stroke="#D95648" stroke-width="4" fill="rgba(255,255,255,0.3)"/>
-                    <line x1="82" y1="85" x2="94" y2="97" stroke="#D95648" stroke-width="5" stroke-linecap="round"/>
-                </svg>
-            </div>
-
-            <div>
-                <h1 class="title">El Inspector<br>del Cuerpo</h1>
-                <p class="subtitle">Vamos a descubrir por qué tu cuerpo reacciona así cuando sientes ansiedad.</p>
-            </div>
-
-            <div style="width: 100%;">
-                <button class="btn-watercolor" onclick="goToScreen('screen-2')">Empezar a explorar →</button>
-                <p class="subtitle" style="font-size: 11px; margin-top: 10px;">Sin límite de tiempo · No hay respuestas incorrectas</p>
-            </div>
-        </div>
-
-        <!-- PANTALLA 2: INSPECTOR (CUERPO GENERAL) -->
-        <div class="screen" id="screen-2">
-            <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <h2 class="title" style="font-size: 20px; text-align: left;">El Inspector del Cuerpo</h2>
-                    <span class="tag-pill" id="step-pill" style="font-size: 10px; padding: 3px 8px;">Explora las zonas</span>
-                </div>
-                <p class="subtitle" style="text-align: left; padding: 0; margin-top: 4px;">Toca una zona que sientas en tu cuerpo</p>
-            </div>
-
-            <!-- Cuerpo interactivo -->
-            <div class="body-container">
-                <svg class="body-shape" viewBox="0 0 200 320" fill="none">
-                    <!-- Cabeza -->
-                    <circle cx="100" cy="35" r="22" fill="#E6C594" opacity="0.85" />
-                    <!-- Torso -->
-                    <rect x="70" y="65" width="60" height="90" rx="18" fill="#E6C594" opacity="0.85" />
-                    <!-- Brazos -->
-                    <rect x="42" y="70" width="22" height="85" rx="11" fill="#E6C594" opacity="0.85" />
-                    <rect x="136" y="70" width="22" height="85" rx="11" fill="#E6C594" opacity="0.85" />
-                    <!-- Piernas -->
-                    <rect x="74" y="160" width="22" height="110" rx="11" fill="#E6C594" opacity="0.85" />
-                    <rect x="104" y="160" width="22" height="110" rx="11" fill="#E6C594" opacity="0.85" />
-                    
-                    <!-- Sombras de acuarela orgánicas -->
-                    <circle id="chest-shadow" cx="100" cy="85" r="16" fill="#F7A399" opacity="0.4" />
-                    <circle id="heart-shadow" cx="95" cy="95" r="12" fill="#F7A399" opacity="0.5" />
-                    <circle id="stomach-shadow" cx="100" cy="125" r="18" fill="#F7A399" opacity="0.4" />
-                    <circle id="hands-shadow" cx="42" cy="145" r="12" fill="#F7A399" opacity="0.4" />
-                </svg>
-
-                <!-- Hotspots Interactivos -->
-                <div class="body-hotspot hotspot-chest" id="spot-chest" onclick="openZone('chest')"></div>
-                <div class="body-hotspot hotspot-heart" id="spot-heart" onclick="openZone('heart')">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#E86A5D">
-                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                    </svg>
-                </div>
-                <div class="body-hotspot hotspot-stomach" id="spot-stomach" onclick="openZone('stomach')"></div>
-                <div class="body-hotspot hotspot-hands" id="spot-hands" onclick="openZone('hands')"></div>
-
-                <!-- Etiquetas de ubicación -->
-                <div class="hotspot-tag" style="top: 29%; left: -5%;">Corazón</div>
-                <div class="hotspot-tag" style="top: 20%; right: 2%;">Pecho</div>
-                <div class="hotspot-tag" style="top: 42%; right: 0%;">Estómago</div>
-                <div class="hotspot-tag" style="top: 52%; left: -6%;">Manos</div>
-            </div>
-
-            <div class="watercolor-card" style="padding: 10px 14px; text-align: center;">
-                <p style="font-size: 12px; color: #6B5B57;" id="status-hint"><img class="tag-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%8C%B8%3C/text%3E%3C/svg%3E" alt=""> Los halos indican zonas que puedes explorar</p>
-            </div>
-
-            <div style="width: 100%; margin-top: 5px;">
-                <button class="btn-watercolor btn-teal" id="btn-finish-exploration" style="display: none;" onclick="goToScreen('screen-5')">Ver resumen final ✓</button>
-            </div>
-        </div>
-
-        <!-- PANTALLA 3: DETALLE ZONA EN CRISIS (DINÁMICA) -->
-        <div class="screen" id="screen-zone-active">
-            <div class="back-btn" onclick="goToScreen('screen-2')">←</div>
-            <h2 class="title" id="active-title" style="font-size: 18px; margin-bottom: 10px;">Zona</h2>
-
-            <!-- Cuadro Visual Dinámico -->
-            <div class="zone-visual-box" id="active-visual-box">
-                <span class="badge-status" id="active-badge">¡Inquietas!</span>
-                <div id="active-svg-container"></div>
-            </div>
-
-            <!-- Tarjeta de Información Educativa -->
-            <div class="watercolor-card">
-                <div class="info-row">
-                    <div class="info-icon" id="active-icon-1"><img class="watercolor-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%E2%9A%A1%3C/text%3E%3C/svg%3E" alt=""></div>
-                    <p style="font-size: 13px; line-height: 1.3;" id="active-text-main">
-                        Texto principal...
-                    </p>
-                </div>
-                <div class="info-row" style="margin-bottom: 0; background: #F8F3EA; padding: 8px; border-radius: 10px;">
-                    <div style="font-size: 16px; margin-right: 6px;"><img class="tag-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%92%A1%3C/text%3E%3C/svg%3E" alt=""></div>
-                    <p style="font-size: 11px; color: #6D5C58;" id="active-text-sub">
-                        Minidato educativo...
-                    </p>
-                </div>
-            </div>
-
-            <div style="width: 100%;">
-                <button class="btn-watercolor" id="active-btn-action" onclick="calmCurrentZone()"><img class="button-icon" id="active-btn-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%A4%B2%3C/text%3E%3C/svg%3E" alt="">Mantén las manos abrigadas</button>
-                <p class="subtitle" id="active-action-hint" style="font-size: 11px; margin-top: 6px;">Toca para soltar la tensión acumulada</p>
-            </div>
-        </div>
-
-        <!-- PANTALLA 4: DETALLE ZONA CALMADA (DINÁMICA) -->
-        <div class="screen" id="screen-zone-calmed">
-            <div class="back-btn" onclick="goToScreen('screen-2')">←</div>
-            <h2 class="title" id="calmed-title" style="font-size: 18px; margin-bottom: 10px;">Zona</h2>
-
-            <div class="zone-visual-box calmed">
-                <span class="badge-status calmed">✓ Calmado</span>
-                <div id="calmed-svg-container"></div>
-            </div>
-
-            <div class="watercolor-card">
-                <div class="info-row">
-                    <div class="info-icon" style="background: #E8F5F3;" id="calmed-icon-1"><img class="watercolor-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%8C%8A%3C/text%3E%3C/svg%3E" alt=""></div>
-                    <p style="font-size: 13px; line-height: 1.3;" id="calmed-text-main">
-                        Texto de alivio...
-                    </p>
-                </div>
-                <div class="info-row" style="margin-bottom: 0; background: #EBF5F3; padding: 8px; border-radius: 10px;">
-                    <div style="font-size: 16px; margin-right: 6px;"><img class="tag-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%8C%B8%3C/text%3E%3C/svg%3E" alt=""></div>
-                    <p style="font-size: 11px; color: #4A6B66;" id="calmed-text-sub">
-                        Cierre tierno...
-                    </p>
-                </div>
-            </div>
-
-            <div style="width: 100%;">
-                <button class="btn-watercolor btn-teal" onclick="goToScreen('screen-2')">Explorar otra zona →</button>
-            </div>
-        </div>
-
-        <!-- PANTALLA 5: RESUMEN FINAL -->
-        <div class="screen" id="screen-5">
-            <div class="tag-pill" style="background: #E8F5F3; color: #3B7A72;">
-                <span>✓</span> Exploración finalizada
-            </div>
-
-            <h2 class="title" style="font-size: 22px; margin-top: 10px;">Tu cuerpo no está fallando, te está cuidando.</h2>
-
-            <!-- Cuerpo Resumen Final -->
-            <div class="body-container" style="height: 260px;">
-                <svg class="body-shape" viewBox="0 0 200 320" fill="none">
-                    <circle cx="100" cy="35" r="22" fill="#E6C594" opacity="0.85" />
-                    <rect x="70" y="65" width="60" height="90" rx="18" fill="#E6C594" opacity="0.85" />
-                    <rect id="final-arm-left" x="42" y="70" width="22" height="85" rx="11" fill="#E6C594" opacity="0.85" />
-                    <rect x="136" y="70" width="22" height="85" rx="11" fill="#E6C594" opacity="0.85" />
-                    <rect x="74" y="160" width="22" height="110" rx="11" fill="#E6C594" opacity="0.85" />
-                    <rect x="104" y="160" width="22" height="110" rx="11" fill="#E6C594" opacity="0.85" />
-                    
-                    <circle id="final-chest-tint" cx="100" cy="85" r="16" fill="#5BB3A7" opacity="0" />
-                    <circle id="final-stomach-tint" cx="100" cy="125" r="18" fill="#5BB3A7" opacity="0" />
-                </svg>
-
-                <div class="hotspot-tag" style="top: 35%; left: -10%; border-color: #5BB3A7; color: #3B7A72;">✓ Sanando</div>
-                <div class="hotspot-tag" style="top: 35%; right: -10%; border-color: #5BB3A7; color: #3B7A72;">✓ En calma</div>
-            </div>
-
-            <div class="watercolor-card" style="background: #FAF6EE;">
-                <p style="font-size: 12px; text-align: center; line-height: 1.4; color: #5C4E4B;">
-                    Cada síntoma que exploraste es una señal de que tu cuerpo está haciendo exactamente lo que debe. No es peligroso — <strong>es protección.</strong>
-                </p>
-            </div>
-
-            <div style="width: 100%;">
-                <button class="btn-watercolor btn-teal" onclick="resetGame()">Volver a empezar 🔄</button>
-            </div>
-        </div>
-
+<!-- Inicio -->
+<section class="screen active" id="start" aria-labelledby="start-title">
+  <div class="wrap">
+    <span class="pill">🌿 Ansiedad · cuerpo y emociones</span>
+    <div class="hero" aria-hidden="true">
+      <svg viewBox="0 0 120 120">
+        <defs>
+          <radialGradient id="g-hero" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#fbe7cd"/><stop offset="1" stop-color="#d7ae80"/></radialGradient>
+        </defs>
+        <circle cx="60" cy="34" r="17" fill="url(#g-hero)"/>
+        <rect x="40" y="55" width="40" height="48" rx="18" fill="url(#g-hero)"/>
+        <circle cx="66" cy="76" r="15" fill="rgba(255,255,255,0.55)" stroke="#684d72" stroke-width="5"/>
+        <path d="M60 79c0-3-3-5-5.5-2.6-2.6 2.6 0 6 5.5 9.4 5.5-3.4 8.1-6.8 5.5-9.4C63 74 60 76 60 79z" fill="#df8770"/>
+        <line x1="77" y1="87" x2="90" y2="100" stroke="#684d72" stroke-width="6" stroke-linecap="round"/>
+      </svg>
     </div>
+    <div>
+      <h1 id="start-title">El Inspector del Cuerpo</h1>
+      <p class="muted center" style="margin-top:8px">Cuando sentimos ansiedad, el cuerpo entra en modo alerta. Vamos a descubrir qué pasa en cada zona y a practicar cómo ayudarlo a bajar el ritmo.</p>
+    </div>
+    <div class="safety" role="note"><span aria-hidden="true">⚠️</span><p>Este juego explica reacciones comunes de la ansiedad; no diagnostica. <strong>Si tienes dolor fuerte en el pecho, te falta el aire y no mejora, o te desmayas, llama al 911.</strong></p></div>
+    <div style="margin-top:auto; display:grid; gap:8px">
+      <button class="btn" type="button" data-go="map">Empezar a explorar →</button>
+      <p class="muted center small">Sin límite de tiempo · Puedes salir cuando quieras · No se guarda nada</p>
+    </div>
+  </div>
+</section>
 
-    <script>
-        // Estado del Juego
-        let currentZoneKey = null;
-        const calmedZones = {
-            heart: false,
-            chest: false,
-            stomach: false,
-            hands: false
-        };
+<!-- Mapa del cuerpo -->
+<section class="screen" id="map" aria-labelledby="map-title">
+  <div class="wrap">
+    <div>
+      <h2 id="map-title" tabindex="-1">¿Dónde lo sientes?</h2>
+      <p class="muted" style="margin-top:4px">Toca una zona para ver qué le pasa y practicar algo que la ayude.</p>
+    </div>
+    <div class="map">
+      <svg viewBox="0 0 300 340" aria-hidden="true">
+        <defs>
+          <radialGradient id="g-clay" cx="38%" cy="28%" r="80%"><stop offset="0" stop-color="#fbe9d2"/><stop offset="0.6" stop-color="#efd2ad"/><stop offset="1" stop-color="#d7ae80"/></radialGradient>
+          <radialGradient id="g-glow-alert"><stop offset="0" stop-color="#df8770" stop-opacity="0.45"/><stop offset="1" stop-color="#df8770" stop-opacity="0"/></radialGradient>
+          <radialGradient id="g-glow-calm"><stop offset="0" stop-color="#7fa98d" stop-opacity="0.5"/><stop offset="1" stop-color="#7fa98d" stop-opacity="0"/></radialGradient>
+          <filter id="f-soft" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#8a6a4a" flood-opacity="0.22"/></filter>
+        </defs>
+        <ellipse cx="150" cy="328" rx="70" ry="8" fill="#8a6a4a" opacity="0.12"/>
+        <g filter="url(#f-soft)" fill="url(#g-clay)">
+          <rect x="120" y="208" width="28" height="112" rx="14"/>
+          <rect x="152" y="208" width="28" height="112" rx="14"/>
+          <ellipse cx="132" cy="320" rx="19" ry="9"/>
+          <ellipse cx="168" cy="320" rx="19" ry="9"/>
+          <rect x="74" y="92" width="26" height="128" rx="13" transform="rotate(8 87 92)"/>
+          <rect x="200" y="92" width="26" height="128" rx="13" transform="rotate(-8 213 92)"/>
+          <circle cx="70" cy="226" r="14"/>
+          <circle cx="230" cy="226" r="14"/>
+          <rect x="104" y="82" width="92" height="140" rx="36"/>
+          <rect x="138" y="68" width="24" height="22" rx="8"/>
+          <circle cx="150" cy="44" r="31"/>
+        </g>
+        <!-- Brillo de plastilina y carita tranquila. -->
+        <ellipse cx="138" cy="30" rx="10" ry="6" fill="#fff" opacity="0.35"/>
+        <ellipse cx="128" cy="104" rx="14" ry="9" fill="#fff" opacity="0.25"/>
+        <circle cx="140" cy="44" r="2.6" fill="#5a4a3e"/>
+        <circle cx="160" cy="44" r="2.6" fill="#5a4a3e"/>
+        <path d="M143 54q7 5 14 0" stroke="#5a4a3e" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <!-- Resplandor de cada zona: coral si está en alerta, verde cuando ya se practicó. -->
+        <g id="glows"></g>
+      </svg>
+    </div>
+    <p class="progress-text" id="progress-text" aria-live="polite">Has explorado 0 de 6 zonas</p>
+    <div class="progress" id="progress" aria-hidden="true"></div>
+    <div style="margin-top:auto">
+      <button class="btn calm" type="button" id="to-summary" data-go="summary" disabled>Ver mi resumen</button>
+    </div>
+  </div>
+</section>
 
-        // Base de Datos de las Zonas del Cuerpo
-        const zoneData = {
-            heart: {
-                title: "El corazón",
-                badgeActive: "¡Acelerado!",
-                badgeCalmed: "✓ Calmándose",
-                icon1: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%8F%83%3C/text%3E%3C/svg%3E",
-                textMain: "<strong>¡Tu corazón está corriendo un maratón para protegerte!</strong> Es como tener un superhéroe adentro.",
-                textSub: "<strong>¿Sabías que?</strong> Las palpitaciones no son peligrosas — son tu cuerpo diciéndote 'estoy alerta y listo'.",
-                btnAction: "Dale un toque suave al corazón",
-                btnIcon: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%A4%B2%3C/text%3E%3C/svg%3E",
-                actionHint: "Toca para ayudarle a bajar la velocidad",
-                iconCalmed: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%8C%8A%3C/text%3E%3C/svg%3E",
-                calmedMain: "Así es, poco a poco tu cuerpo puede calmarse solo. <strong>¡Lo estás haciendo muy bien!</strong>",
-                calmedSub: "Tu cuerpo sabe perfectamente cómo volver a la calma. No necesitas hacer nada especial.",
-                svgActive: `
-                    <svg class="zone-svg beat-fast" viewBox="0 0 24 24" fill="#E86A5D">
-                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                    </svg>
-                    <svg class="ecg-line" viewBox="0 0 200 40" style="width:100%; height:40px; margin-top:15px;">
-                        <path d="M 0 20 L 40 20 L 50 5 L 60 35 L 70 10 L 80 25 L 90 20 L 130 20 L 140 0 L 150 40 L 160 10 L 170 20 L 200 20" fill="none" stroke="#E86A5D" stroke-width="2.5" stroke-linecap="round"/>
-                    </svg>`,
-                svgCalmed: `
-                    <svg class="zone-svg beat-slow" viewBox="0 0 24 24" fill="#5BB3A7">
-                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                    </svg>
-                    <svg class="ecg-line" viewBox="0 0 200 40" style="width:100%; height:40px; margin-top:15px;">
-                        <path d="M 0 20 L 70 20 L 80 12 L 90 28 L 100 20 L 200 20" fill="none" stroke="#5BB3A7" stroke-width="2.5" stroke-linecap="round"/>
-                    </svg>`
-            },
-            chest: {
-                title: "El pecho",
-                badgeActive: "¡Pesado!",
-                badgeCalmed: "✓ Liberado",
-                icon1: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%90%98%3C/text%3E%3C/svg%3E",
-                textMain: "<strong>¿Sientes el pecho pesado?</strong> Es porque tus pulmones se están llenando de oxígeno para darte super fuerza.",
-                textSub: "<strong>¿Sabías que?</strong> La sensación de opresión no te quitará el aire, solo significa que tus músculos del tórax se tensaron para cuidarte.",
-                btnAction: "🪶 Abraza tu pecho con suavidad",
-                actionHint: "Toca para aflojar el peso y respirar más suave",
-                iconCalmed: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%8D%83%3C/text%3E%3C/svg%3E",
-                calmedMain: "¡Poco a poco el peso se derrite! <strong>Tus pulmones vuelven a su ritmo natural.</strong>",
-                calmedSub: "Siente cómo el aire entra y sale suavemente, como una brisa marina.",
-                svgActive: `
-                    <svg class="zone-svg heavy-press" viewBox="0 0 80 80" fill="none">
-                        <rect x="20" y="25" width="40" height="30" rx="10" fill="#E86A5D" opacity="0.8"/>
-                        <path d="M25 15 L55 15 L40 25 Z" fill="#D95648"/>
-                        <path d="M30 60 L50 60" stroke="#E86A5D" stroke-width="4" stroke-linecap="round"/>
-                    </svg>`,
-                svgCalmed: `
-                    <svg class="zone-svg gentle-breeze" viewBox="0 0 80 80" fill="none">
-                        <path d="M15 40 Q 30 25, 45 40 T 75 40" stroke="#5BB3A7" stroke-width="4" stroke-linecap="round" fill="none"/>
-                        <path d="M10 52 Q 25 40, 40 52 T 70 52" stroke="#A3D9D2" stroke-width="3" stroke-linecap="round" fill="none"/>
-                    </svg>`
-            },
-            stomach: {
-                title: "El estómago",
-                badgeActive: "¡Con mariposas!",
-                badgeCalmed: "✓ En reposo",
-                icon1: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%A6%8B%3C/text%3E%3C/svg%3E",
-                textMain: "<strong>¿Nudos o mariposas en el abdomen?</strong> Tu estómago hizo una 'pausa de digestión' para enviar toda su energía a tus piernas y brazos.",
-                textSub: "<strong>¿Sabías que?</strong> Tu estómago tiene su propio sistema nervioso y reacciona de primero para protegerte de cualquier sorpresa.",
-                btnAction: "🍵 Dale un calorcito suave",
-                actionHint: "Toca para enviarle un abrazo calientito",
-                iconCalmed: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%8D%B5%3C/text%3E%3C/svg%3E",
-                calmedMain: "Las mariposas empiezan a volar tranquilas. <strong>Tu digestión vuelve a despertar despacio.</strong>",
-                calmedSub: "Todo está bien. Tu estómago puede volver a relajarse completamente.",
-                svgActive: `
-                    <svg class="zone-svg knot-twist" viewBox="0 0 80 80" fill="none">
-                        <circle cx="40" cy="40" r="24" fill="#F7A399" opacity="0.5"/>
-                        <path d="M28 40 C 28 25, 52 55, 52 40 C 52 25, 28 55, 28 40 Z" stroke="#E86A5D" stroke-width="4" fill="none"/>
-                    </svg>`,
-                svgCalmed: `
-                    <svg class="zone-svg stomach-flow" viewBox="0 0 80 80" fill="none">
-                        <circle cx="40" cy="40" r="26" fill="#A3D9D2" opacity="0.4"/>
-                        <circle cx="40" cy="40" r="16" fill="#5BB3A7" opacity="0.7"/>
-                    </svg>`
-            },
-            hands: {
-                title: "Las manos",
-                badgeActive: "¡Inquietas!",
-                badgeCalmed: "✓ Relajadas",
-                icon1: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%E2%9A%A1%3C/text%3E%3C/svg%3E",
-                textMain: "<strong>¿Tus manos tiemblan o se sienten inquietas?</strong> Tienen tanta energía acumulada que no saben qué hacer con ella.",
-                textSub: "<strong>¿Sabías que?</strong> El temblor en las manos es la forma en que tu cuerpo 'libera el vapor' de la adrenalina sobrante.",
-                btnAction: " Mantén las manos abrigadas",
-                actionHint: "Toca para soltar la tensión acumulada",
-                iconCalmed: "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%E2%9C%A8%3C/text%3E%3C/svg%3E",
-                calmedMain: "La energía sobrante se disipa suavemente. <strong>Tus manos se sienten sueltas y livianas.</strong>",
-                calmedSub: "Siente la calidez en tus yemas. Tus manos están listas para descansar.",
-                svgActive: `
-                    <svg class="zone-svg hand-shake" viewBox="0 0 80 80" fill="none">
-                        <g stroke="#E86A5D" stroke-width="2.5" stroke-linejoin="round">
-                            <rect x="27" y="19" width="8" height="29" rx="4" fill="#F7A399"/>
-                            <rect x="35" y="14" width="8" height="34" rx="4" fill="#F7A399"/>
-                            <rect x="43" y="19" width="8" height="29" rx="4" fill="#F7A399"/>
-                            <rect x="51" y="27" width="8" height="21" rx="4" fill="#F7A399"/>
-                            <rect x="10" y="42" width="16" height="15" rx="7.5" fill="#F7A399" transform="rotate(-28 18 49.5)"/>
-                            <rect x="23" y="42" width="34" height="27" rx="13" fill="#F7A399"/>
-                        </g>
-                    </svg>`,
-                svgCalmed: `
-                    <svg class="zone-svg hand-still" viewBox="0 0 80 80" fill="none">
-                        <g stroke="#5BB3A7" stroke-width="2.5" stroke-linejoin="round">
-                            <rect x="27" y="22" width="8" height="26" rx="4" fill="#A3D9D2"/>
-                            <rect x="35" y="18" width="8" height="30" rx="4" fill="#A3D9D2"/>
-                            <rect x="43" y="22" width="8" height="26" rx="4" fill="#A3D9D2"/>
-                            <rect x="51" y="29" width="8" height="19" rx="4" fill="#A3D9D2"/>
-                            <rect x="10" y="43" width="16" height="15" rx="7.5" fill="#A3D9D2" transform="rotate(-22 18 50.5)"/>
-                            <rect x="23" y="43" width="34" height="27" rx="13" fill="#A3D9D2"/>
-                        </g>
-                    </svg>`
-            }
-        };
+<!-- Zona -->
+<section class="screen" id="zone" aria-labelledby="zone-title">
+  <div class="wrap">
+    <div class="top">
+      <button class="back" type="button" data-go="map" aria-label="Volver al cuerpo">←</button>
+      <h2 id="zone-title" tabindex="-1">Zona</h2>
+      <span class="badge" id="zone-badge">En alerta</span>
+    </div>
+    <div class="zone-art" id="zone-art" aria-hidden="true"></div>
+    <div class="card facts">
+      <div class="fact"><span class="fact-icon" aria-hidden="true">🔎</span><p id="zone-feel"></p></div>
+      <div class="fact"><span class="fact-icon" aria-hidden="true">💡</span><p id="zone-why"></p></div>
+      <div class="fact tip"><span class="fact-icon" aria-hidden="true">✨</span><p id="zone-fact"></p></div>
+    </div>
+    <div class="safety" id="zone-safety" role="note" hidden><span aria-hidden="true">⚠️</span><p></p></div>
+    <div class="card technique" id="technique"></div>
+  </div>
+</section>
 
-        // Navegación de pantallas
-        function goToScreen(screenId) {
-            document.querySelectorAll('.screen').forEach(screen => {
-                screen.classList.remove('active');
-            });
-            document.getElementById(screenId).classList.add('active');
-        }
+<!-- Resumen -->
+<section class="screen" id="summary" aria-labelledby="summary-title">
+  <div class="wrap">
+    <span class="pill" style="background:var(--calm-soft); color:var(--calm-deep)">✓ Exploración terminada</span>
+    <h2 id="summary-title" class="center" tabindex="-1">Tu cuerpo estaba en modo alerta, no fallando</h2>
+    <p class="muted center">Lo que exploraste son reacciones de la ansiedad: incómodas, pero comunes y pasajeras. Y ahora tienes formas de ayudarlas a bajar.</p>
+    <div class="favorite" id="favorite" hidden></div>
+    <div class="summary-list" id="summary-list"></div>
+    <div class="safety" role="note"><span aria-hidden="true">💬</span><p>Si estas sensaciones aparecen muy seguido o no te dejan hacer tus cosas, hablar con un profesional de salud puede ayudarte. En KAHY encuentras el <strong>directorio de apoyo</strong>. En una emergencia, llama al <strong>911</strong>; para orientación, a la <strong>Línea de la Vida 800 911 2000</strong>.</p></div>
+    <div style="margin-top:auto; display:grid; gap:8px">
+      <button class="btn ghost" type="button" data-go="map">Seguir explorando</button>
+      <button class="btn calm" type="button" id="restart">Volver a empezar</button>
+    </div>
+  </div>
+</section>
 
-        // Abrir una zona específica
-        function openZone(key) {
-            currentZoneKey = key;
-            const data = zoneData[key];
+<script>
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-            if (calmedZones[key]) {
-                // Si la zona ya se calmó, abre la pantalla calmada directamente
-                document.getElementById('calmed-title').innerText = data.title;
-                document.getElementById('calmed-icon-1').querySelector('img').src = data.iconCalmed;
-                document.getElementById('calmed-text-main').innerHTML = data.calmedMain;
-                document.getElementById('calmed-text-sub').innerHTML = data.calmedSub;
-                document.getElementById('calmed-svg-container').innerHTML = data.svgCalmed;
-                goToScreen('screen-zone-calmed');
-            } else {
-                // Si la zona sigue activa/en crisis
-                document.getElementById('active-title').innerText = data.title;
-                document.getElementById('active-badge').innerText = data.badgeActive;
-                document.getElementById('active-icon-1').querySelector('img').src = data.icon1;
-                document.getElementById('active-text-main').innerHTML = data.textMain;
-                document.getElementById('active-text-sub').innerHTML = data.textSub;
-                document.getElementById('active-btn-action').querySelector('#active-btn-icon').src = data.btnIcon || 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%A4%B2%3C/text%3E%3C/svg%3E';
-        document.getElementById('active-btn-action').querySelector('#active-btn-icon').alt = '';
-        document.getElementById('active-btn-action').lastChild.textContent = data.btnAction;
-                document.getElementById('active-action-hint').innerText = data.actionHint;
-                document.getElementById('active-svg-container').innerHTML = data.svgActive;
-                goToScreen('screen-zone-active');
-            }
-        }
+  // Ilustraciones de cada zona (en alerta y ya practicada), en el mismo estilo de plastilina.
+  const art = {
+    head: (calm) => `<svg viewBox="0 0 100 100"><defs><radialGradient id="ah" cx="38%" cy="30%" r="80%"><stop offset="0" stop-color="#fbe9d2"/><stop offset="1" stop-color="#d7ae80"/></radialGradient></defs><circle cx="50" cy="54" r="30" fill="url(#ah)"/><circle cx="41" cy="54" r="3" fill="#5a4a3e"/><circle cx="59" cy="54" r="3" fill="#5a4a3e"/>${calm ? '<path d="M42 65q8 6 16 0" stroke="#5a4a3e" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="50" cy="16" r="6" fill="#7fa98d" class="anim-float"/>' : '<path d="M43 67q7-4 14 0" stroke="#5a4a3e" stroke-width="3" fill="none" stroke-linecap="round"/><g class="anim-swirl"><path d="M50 8a10 10 0 1 1-9 6" stroke="#df8770" stroke-width="4" fill="none" stroke-linecap="round"/></g>'}</svg>`,
+    shoulders: (calm) => `<svg viewBox="0 0 100 100"><defs><radialGradient id="as" cx="38%" cy="30%" r="80%"><stop offset="0" stop-color="#fbe9d2"/><stop offset="1" stop-color="#d7ae80"/></radialGradient></defs><circle cx="50" cy="30" r="16" fill="url(#as)"/>${calm ? '<path d="M14 78q4-24 36-24t36 24v8H14z" fill="url(#as)"/><path d="M26 66q24 8 48 0" stroke="#7fa98d" stroke-width="4" fill="none" stroke-linecap="round" class="anim-float"/>' : '<path d="M14 72q4-34 36-30t36 30v14H14z" fill="url(#as)" class="anim-shake"/><path d="M22 50l6-8M78 50l-6-8" stroke="#df8770" stroke-width="4" stroke-linecap="round"/>'}</svg>`,
+    chest: (calm) => `<svg viewBox="0 0 100 100"><defs><radialGradient id="ac" cx="38%" cy="30%" r="80%"><stop offset="0" stop-color="${calm ? '#eef7f0' : '#fde3da'}"/><stop offset="1" stop-color="${calm ? '#93bba0' : '#e59a85'}"/></radialGradient></defs><g class="${calm ? 'anim-beat-slow' : 'anim-beat'}"><path d="M48 22C30 20 18 40 20 62c1 12 10 18 20 14 8-3 8-12 8-20z" fill="url(#ac)"/><path d="M52 22c18-2 30 18 28 40-1 12-10 18-20 14-8-3-8-12-8-20z" fill="url(#ac)"/></g><rect x="47" y="10" width="6" height="22" rx="3" fill="${calm ? '#557a62' : '#b55a44'}"/>${calm ? '' : '<rect x="30" y="4" width="40" height="10" rx="5" fill="#b55a44" opacity="0.7"/>'}</svg>`,
+    heart: (calm) => `<svg viewBox="0 0 100 100"><g class="${calm ? 'anim-beat-slow' : 'anim-beat'}"><path d="M50 84l-5-4.5C26 62 14 51 14 37c0-11 9-20 20-20 6 0 12 3 16 8 4-5 10-8 16-8 11 0 20 9 20 20 0 14-12 25-31 42.5z" fill="${calm ? '#93bba0' : '#e58a74'}"/><ellipse cx="34" cy="34" rx="7" ry="5" fill="#fff" opacity="0.4"/></g><path d="M6 92h20l5-8 6 12 5-8h52" stroke="${calm ? '#557a62' : '#b55a44'}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    stomach: (calm) => `<svg viewBox="0 0 100 100"><defs><radialGradient id="ab" cx="38%" cy="30%" r="80%"><stop offset="0" stop-color="${calm ? '#eef7f0' : '#fde3da'}"/><stop offset="1" stop-color="${calm ? '#93bba0' : '#e59a85'}"/></radialGradient></defs><circle cx="50" cy="52" r="32" fill="url(#ab)"/>${calm ? '<path d="M30 52q10-8 20 0t20 0" stroke="#557a62" stroke-width="4" fill="none" stroke-linecap="round"/>' : '<g class="anim-swirl"><path d="M36 52c0-14 28 10 28-4 0-12-24-4-22 6 2 9 18 6 16-2" stroke="#b55a44" stroke-width="4" fill="none" stroke-linecap="round"/></g>'}</svg>`,
+    hands: (calm) => `<svg viewBox="0 0 100 100"><defs><radialGradient id="ad" cx="38%" cy="30%" r="80%"><stop offset="0" stop-color="#fbe9d2"/><stop offset="1" stop-color="#d7ae80"/></radialGradient></defs><g class="${calm ? 'anim-float' : 'anim-shake'}" fill="url(#ad)"><rect x="34" y="20" width="10" height="36" rx="5"/><rect x="45" y="14" width="10" height="42" rx="5"/><rect x="56" y="20" width="10" height="36" rx="5"/><rect x="67" y="30" width="10" height="26" rx="5"/><rect x="16" y="52" width="22" height="14" rx="7" transform="rotate(-30 27 59)"/><rect x="30" y="48" width="46" height="36" rx="16"/></g>${calm ? '<path d="M14 26l4 4M86 26l-4 4M50 6v6" stroke="#7fa98d" stroke-width="4" stroke-linecap="round"/>' : '<path d="M14 30l6 2M86 30l-6 2M12 44l6 0" stroke="#df8770" stroke-width="4" stroke-linecap="round"/>'}</svg>`,
+  };
 
-        // Acción de Calmar la zona actual
-        function calmCurrentZone() {
-            if (!currentZoneKey) return;
+  /*
+   * Contenido de cada zona. Las explicaciones describen la respuesta de alerta (adrenalina,
+   * respiración rápida, tensión muscular) sin prometer que una sensación "nunca es peligrosa":
+   * pecho y corazón llevan cuándo buscar atención médica.
+   */
+  const zones = {
+    head: {
+      name: "La cabeza", emoji: "🌀", x: 150, y: 44, side: "right", badge: "Revuelta",
+      glow: [150, 44, 34],
+      feel: "<strong>Mareo, cabeza ligera o pensamientos que van muy rápido.</strong> A veces, la sensación de no estar del todo aquí.",
+      why: "Cuando la alarma te hace respirar rápido, baja un poco el dióxido de carbono en tu sangre, y eso puede dar mareo u hormigueo. Tu mente, en alerta, busca peligros y salta de una idea a otra.",
+      fact: "<strong>¿Sabías que?</strong> Esa sensación de irrealidad es común en la ansiedad y se pasa sola cuando el cuerpo se calma.",
+      technique: { kind: "grounding", name: "5-4-3-2-1: vuelve al aquí y ahora", why: "Usar tus sentidos le enseña a tu mente que, en este momento, estás a salvo.",
+        steps: ["Mira a tu alrededor y nombra 5 cosas que ves.", "Toca 4 cosas y nota su textura.", "Escucha 3 sonidos, cerca o lejos.", "Busca 2 olores (o piensa en 2 que te gusten).", "Nota 1 sabor en tu boca, o di algo amable para ti."] },
+      calmText: "Tu atención volvió al presente. Cuando la mente se calma, el mareo y la prisa también bajan.",
+    },
+    shoulders: {
+      name: "Hombros y cuello", short: "Hombros", emoji: "💆", x: 190, y: 96, side: "right", badge: "Tensos",
+      glow: [150, 92, 40],
+      feel: "<strong>Hombros pegados a las orejas, cuello duro o mandíbula apretada.</strong>",
+      why: "Tus músculos se preparan para moverse rápido y se quedan apretados aunque no tengas que hacerlo. Por eso duelen el cuello, la espalda o la cabeza.",
+      fact: "<strong>¿Sabías que?</strong> Muchas veces no notamos que estamos tensos hasta que soltamos el músculo a propósito.",
+      technique: { kind: "hold", name: "Tensa y suelta", why: "Apretar un músculo unos segundos y soltarlo de golpe le enseña a tu cuerpo la diferencia entre tensión y calma (relajación muscular progresiva).",
+        rounds: 2, holdSeconds: 5, relaxSeconds: 6, idle: "Mantén presionado y sube los hombros hacia las orejas", holding: "Sostén… aprieta los hombros arriba", release: "¡Suelta! Deja caer los hombros y nota cómo se aflojan", early: "Un poquito más: sostén hasta que se llene el círculo" },
+      calmText: "Tus hombros bajaron y el cuello se aflojó. Puedes repetirlo cuando notes que se vuelven a subir.",
+    },
+    chest: {
+      name: "El pecho", emoji: "🌬️", x: 124, y: 132, side: "left", badge: "Apretado",
+      glow: [128, 132, 30],
+      feel: "<strong>Pecho pesado o apretado, o la sensación de que no te entra suficiente aire.</strong>",
+      why: "Al alarmarte respiras más rápido y con la parte alta del pecho, y los músculos entre las costillas se tensan. Por eso se siente apretado, aunque el aire sí está entrando.",
+      fact: "<strong>¿Sabías que?</strong> Respirar con la panza, más lento, le avisa a tu cuerpo que puede bajar la alerta.",
+      safety: "Si el dolor de pecho es fuerte, aparece con esfuerzo, se va hacia el brazo, la espalda o la mandíbula, o te falta el aire y no mejora, <strong>busca atención médica o llama al 911</strong>.",
+      technique: { kind: "breath", name: "Respiración con la panza", why: "Pon una mano en el pecho y otra en la panza: que se mueva más la de la panza.",
+        cycles: 4, phases: [{ text: "Inhala por la nariz e infla la panza", seconds: 4, scale: 1 }, { text: "Exhala despacio por la boca, como soplando una vela", seconds: 6, scale: 0.62 }] },
+      calmText: "Tu respiración bajó a la panza y se hizo más lenta. El pecho tiene más espacio para aflojarse.",
+    },
+    heart: {
+      name: "El corazón", emoji: "💓", x: 172, y: 142, side: "right", badge: "Acelerado",
+      glow: [168, 140, 26],
+      feel: "<strong>Palpitaciones: el corazón late rápido o fuerte.</strong>",
+      why: "La adrenalina hace que tu corazón lata más rápido y más fuerte para llevar energía a tus músculos, como si se preparara para correr.",
+      fact: "<strong>¿Sabías que?</strong> Soltar el aire más lento de lo que lo tomas ayuda a que el ritmo del corazón baje.",
+      safety: "Si las palpitaciones son nuevas para ti, vienen con dolor de pecho o desmayo, o no se calman al descansar, <strong>pide que te revise un médico</strong>; si es intenso, llama al 911.",
+      technique: { kind: "breath", name: "Suspiro doble", why: "Dos inhalaciones seguidas por la nariz y una exhalación larga por la boca: es una de las formas más rápidas de bajar la alerta.",
+        cycles: 3, phases: [{ text: "Inhala por la nariz…", seconds: 2.5, scale: 0.9 }, { text: "…y otra inhalación cortita para llenar", seconds: 1.5, scale: 1 }, { text: "Suelta todo despacio por la boca", seconds: 6, scale: 0.62 }] },
+      calmText: "Al alargar la exhalación, tu corazón recibe la señal de bajar el ritmo. Puede tardar un poco: eso está bien.",
+    },
+    stomach: {
+      name: "El estómago", emoji: "🦋", x: 150, y: 182, side: "left", badge: "Con nudos",
+      glow: [150, 184, 32],
+      feel: "<strong>Nudos, mariposas, náuseas o ganas de ir al baño.</strong>",
+      why: "En modo alerta, el cuerpo manda la sangre a brazos y piernas y deja la digestión en pausa. Por eso el estómago se siente revuelto.",
+      fact: "<strong>¿Sabías que?</strong> Tu intestino tiene su propia red de nervios, por eso reacciona tan rápido a lo que sientes.",
+      technique: { kind: "hold", name: "Calor en la panza", why: "Pon tus manos sobre la panza. El calor de tus manos y respirar despacio ayudan a que la digestión vuelva a despertar.",
+        rounds: 1, holdSeconds: 10, relaxSeconds: 0, idle: "Mantén presionado mientras respiras despacio con las manos en la panza", holding: "Siente el calor de tus manos… respira lento", release: "Muy bien. Quédate un momento sintiendo ese calorcito", early: "Sigue un poco más, hasta que se llene el círculo" },
+      calmText: "Las mariposas vuelan más tranquilas. Tu estómago puede ir retomando su ritmo.",
+    },
+    hands: {
+      name: "Las manos", emoji: "✋", x: 230, y: 226, side: "left", badge: "Temblorosas",
+      glow: [230, 226, 24],
+      feel: "<strong>Manos que tiemblan, sudan, hormiguean o se ponen frías.</strong>",
+      why: "La adrenalina puede hacer que tiemblen, y como la sangre se va a los músculos grandes, a veces se enfrían o sudan.",
+      fact: "<strong>¿Sabías que?</strong> Mover las manos a propósito ayuda a gastar esa energía extra.",
+      technique: { kind: "hold", name: "Aprieta y suelta", why: "Aprieta los puños con fuerza y luego suelta: la energía extra se descarga y las manos se aflojan.",
+        rounds: 2, holdSeconds: 5, relaxSeconds: 5, idle: "Mantén presionado y aprieta los puños con fuerza", holding: "¡Aprieta fuerte los puños!", release: "¡Suelta! Abre las manos y sacúdelas suavemente", early: "Un poquito más: aprieta hasta que se llene el círculo" },
+      calmText: "Tus manos soltaron la energía extra. Nota cómo se sienten ahora: más sueltas y tibias.",
+    },
+  };
+  const order = ["head", "shoulders", "chest", "heart", "stomach", "hands"];
+  // Lo que la persona eligió en cada zona: "better" | "same" | "worse" (solo para el resumen de esta partida).
+  const results = {};
+  let current = null;
+  let cleanup = null;
 
-            calmedZones[currentZoneKey] = true;
-            
-            // Marcar hotspot en el mapa del cuerpo como calmado
-            const spotEl = document.getElementById(`spot-${currentZoneKey}`);
-            if (spotEl) {
-                spotEl.classList.add('calmed-spot');
-            }
+  // --- Navegación ---
+  function go(id) {
+    if (cleanup) { cleanup(); cleanup = null; }
+    document.querySelectorAll(".screen").forEach((screen) => screen.classList.toggle("active", screen.id === id));
+    if (id === "map") renderMap();
+    if (id === "summary") renderSummary();
+    const heading = document.querySelector(`#${id} h1, #${id} h2`);
+    heading?.focus?.({ preventScroll: true });
+    document.getElementById(id).scrollTop = 0;
+  }
+  document.addEventListener("click", (event) => {
+    const target = event.target.closest("[data-go]");
+    if (target && !target.disabled) go(target.dataset.go);
+  });
+  document.getElementById("restart").addEventListener("click", () => {
+    for (const key of order) delete results[key];
+    go("start");
+  });
 
-            // Cambiar la sombra del mapa a color turquesa
-            const shadowEl = document.getElementById(`${currentZoneKey}-shadow`);
-            if (shadowEl) {
-                shadowEl.setAttribute('fill', '#5BB3A7');
-            }
+  // --- Mapa ---
+  function renderMap() {
+    const map = document.querySelector(".map");
+    map.querySelectorAll(".zone").forEach((element) => element.remove());
+    const glows = document.getElementById("glows");
+    glows.innerHTML = order.map((key) => {
+      const [x, y, r] = zones[key].glow;
+      return `<circle cx="${x}" cy="${y}" r="${r}" fill="url(#${results[key] ? "g-glow-calm" : "g-glow-alert"})"/>`;
+    }).join("");
+    for (const key of order) {
+      const zone = zones[key];
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `zone ${zone.side}${results[key] ? " done" : ""}`;
+      button.style.setProperty("--x", zone.x);
+      button.style.setProperty("--y", zone.y);
+      button.setAttribute("aria-label", `${zone.name}${results[key] ? ", ya practicaste aquí" : ""}`);
+      button.innerHTML = `<span class="spot" aria-hidden="true">${results[key] ? "✓" : zone.emoji}</span><span class="label" aria-hidden="true">${zone.short || zone.name}</span>`;
+      button.addEventListener("click", () => openZone(key));
+      map.appendChild(button);
+    }
+    const count = order.filter((key) => results[key]).length;
+    document.getElementById("progress-text").textContent = count ? `Has explorado ${count} de ${order.length} zonas` : "Las zonas con halo esperan a que las explores";
+    document.getElementById("progress").innerHTML = order.map((key) => `<span class="${results[key] ? "on" : ""}"></span>`).join("");
+    document.getElementById("to-summary").disabled = count === 0;
+  }
 
-            // Verificar si hay alguna zona calmada para mostrar botón final
-            updateGeneralProgress();
+  // --- Zona ---
+  function openZone(key) {
+    current = key;
+    const zone = zones[key];
+    const done = Boolean(results[key]);
+    document.getElementById("zone-title").textContent = zone.name;
+    const badge = document.getElementById("zone-badge");
+    badge.textContent = done ? "✓ Más tranquila" : zone.badge;
+    badge.classList.toggle("calm", done);
+    const artBox = document.getElementById("zone-art");
+    artBox.innerHTML = art[key](done);
+    artBox.classList.toggle("calm", done);
+    document.getElementById("zone-feel").innerHTML = zone.feel;
+    document.getElementById("zone-why").innerHTML = zone.why;
+    document.getElementById("zone-fact").innerHTML = zone.fact;
+    const safety = document.getElementById("zone-safety");
+    safety.hidden = !zone.safety;
+    if (zone.safety) safety.querySelector("p").innerHTML = zone.safety;
+    renderTechnique(zone, done);
+    go("zone");
+  }
 
-            // Transición a la pantalla calmada de la zona
-            openZone(currentZoneKey);
-        }
+  function renderTechnique(zone, done) {
+    const box = document.getElementById("technique");
+    const technique = zone.technique;
+    box.innerHTML = `<h3>Practica: ${technique.name}</h3><p class="why">${technique.why}</p><div class="stage" id="stage"></div>`;
+    const stage = document.getElementById("stage");
+    if (done) return renderFeeling(stage, zone, true);
+    stage.innerHTML = `<button class="btn" type="button" id="begin">Empezar la práctica</button>`;
+    stage.querySelector("#begin").addEventListener("click", () => {
+      const finished = () => { renderFeeling(stage, zone); reveal(box); };
+      if (technique.kind === "breath") cleanup = runBreath(stage, technique, finished);
+      else if (technique.kind === "hold") cleanup = runHold(stage, technique, finished);
+      else runGrounding(stage, technique, finished);
+      reveal(box);
+    });
+  }
 
-        function updateGeneralProgress() {
-            const countCalmed = Object.values(calmedZones).filter(Boolean).length;
-            const hint = document.getElementById('status-hint');
-            const finishBtn = document.getElementById('btn-finish-exploration');
+  /** La práctica queda debajo de la explicación: al empezarla (y al terminarla) se desplaza hasta ella. */
+  function reveal(element) {
+    element.scrollIntoView({ block: "start", behavior: reducedMotion ? "auto" : "smooth" });
+  }
 
-            if (countCalmed > 0) {
-                hint.innerHTML = `<img class="tag-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%E2%9C%A8%3C/text%3E%3C/svg%3E" alt=""> Has calmado ${countCalmed} de 4 zonas de tu cuerpo`;
-                finishBtn.style.display = 'block';
-            }
+  /** Respiración guiada: el círculo crece al inhalar y se encoge al exhalar. */
+  function runBreath(stage, technique, onDone) {
+    stage.innerHTML = `<p class="instruction" aria-live="polite" id="breath-text"></p><div class="breath" id="breath"><span id="breath-count"></span></div><p class="counter" id="breath-cycle"></p><button class="link" type="button" id="breath-stop">Terminar aquí</button>`;
+    const circle = stage.querySelector("#breath");
+    const text = stage.querySelector("#breath-text");
+    const count = stage.querySelector("#breath-count");
+    const cycleText = stage.querySelector("#breath-cycle");
+    let cycle = 0;
+    let phase = 0;
+    let timer = null;
+    let tick = null;
+    const step = () => {
+      if (phase === technique.phases.length) { phase = 0; cycle += 1; }
+      if (cycle === technique.cycles) return finish();
+      const current = technique.phases[phase];
+      text.textContent = current.text;
+      cycleText.textContent = `Respiración ${cycle + 1} de ${technique.cycles}`;
+      circle.style.transitionDuration = reducedMotion ? "0s" : `${current.seconds}s`;
+      circle.style.transform = `scale(${current.scale})`;
+      let remaining = Math.ceil(current.seconds);
+      count.textContent = remaining;
+      clearInterval(tick);
+      tick = setInterval(() => { remaining -= 1; if (remaining > 0) count.textContent = remaining; }, 1000);
+      timer = setTimeout(() => { phase += 1; step(); }, current.seconds * 1000);
+    };
+    const stop = () => { clearTimeout(timer); clearInterval(tick); };
+    const finish = () => { stop(); onDone(); };
+    stage.querySelector("#breath-stop").addEventListener("click", finish);
+    step();
+    return stop;
+  }
 
-            // Actualizar tinte en el muñeco final
-            if (calmedZones.chest || calmedZones.heart) {
-                document.getElementById('final-chest-tint').setAttribute('opacity', '0.6');
-            }
-            if (calmedZones.stomach) {
-                document.getElementById('final-stomach-tint').setAttribute('opacity', '0.6');
-            }
-            if (calmedZones.hands) {
-                document.getElementById('final-arm-left').setAttribute('fill', '#A3D9D2');
-            }
-        }
+  /** Mantener presionado (con el dedo, el mouse o Espacio/Enter) hasta llenar el círculo; luego soltar. */
+  function runHold(stage, technique, onDone) {
+    const size = 100;
+    const radius = 46;
+    const length = 2 * Math.PI * radius;
+    stage.innerHTML = `<p class="instruction" aria-live="polite" id="hold-text">${technique.idle}</p>
+      <button class="hold" type="button" id="hold" aria-describedby="hold-text">
+        <svg class="ring" viewBox="0 0 ${size} ${size}" aria-hidden="true"><circle cx="50" cy="50" r="${radius}" stroke="rgba(0,0,0,0.06)"/><circle id="hold-ring" cx="50" cy="50" r="${radius}" stroke="#df8770" stroke-dasharray="${length}" stroke-dashoffset="${length}"/></svg>
+        <span class="hold-text" id="hold-label">Mantén presionado</span>
+      </button>
+      <p class="counter" id="hold-round"></p><button class="link" type="button" id="hold-stop">Terminar aquí</button>`;
+    const button = stage.querySelector("#hold");
+    const ring = stage.querySelector("#hold-ring");
+    const text = stage.querySelector("#hold-text");
+    const label = stage.querySelector("#hold-label");
+    const roundText = stage.querySelector("#hold-round");
+    let round = 0;
+    let holdingSince = 0;
+    let frame = 0;
+    let holdTimer = null;
+    let relaxTimer = null;
+    let relaxing = false;
+    const showRound = () => { roundText.textContent = technique.rounds > 1 ? `Vuelta ${round + 1} de ${technique.rounds}` : ""; };
+    showRound();
+    const setProgress = (fraction) => ring.setAttribute("stroke-dashoffset", String(length * (1 - Math.min(1, fraction))));
+    // El círculo se dibuja cuadro a cuadro, pero el final lo marca un temporizador: así termina a
+    // tiempo aunque el navegador dibuje lento.
+    const animate = () => {
+      setProgress((performance.now() - holdingSince) / (technique.holdSeconds * 1000));
+      frame = requestAnimationFrame(animate);
+    };
+    const start = (event) => {
+      if (relaxing || holdingSince) return;
+      event?.preventDefault?.();
+      holdingSince = performance.now();
+      button.classList.add("holding");
+      text.textContent = technique.holding;
+      label.textContent = "Sostén…";
+      frame = requestAnimationFrame(animate);
+      holdTimer = setTimeout(complete, technique.holdSeconds * 1000);
+    };
+    const end = () => {
+      if (!holdingSince) return;
+      cancelAnimationFrame(frame);
+      clearTimeout(holdTimer);
+      holdingSince = 0;
+      button.classList.remove("holding");
+      setProgress(0);
+      text.textContent = technique.early;
+      label.textContent = "Mantén presionado";
+    };
+    const complete = () => {
+      cancelAnimationFrame(frame);
+      setProgress(1);
+      holdingSince = 0;
+      relaxing = true;
+      button.classList.remove("holding");
+      button.classList.add("relaxed");
+      ring.setAttribute("stroke", "#7fa98d");
+      text.textContent = technique.release;
+      label.textContent = "Suelta…";
+      relaxTimer = setTimeout(() => {
+        round += 1;
+        if (round >= technique.rounds) return onDone();
+        relaxing = false;
+        button.classList.remove("relaxed");
+        ring.setAttribute("stroke", "#df8770");
+        setProgress(0);
+        text.textContent = technique.idle;
+        label.textContent = "Mantén presionado";
+        showRound();
+      }, Math.max(1500, technique.relaxSeconds * 1000));
+    };
+    button.addEventListener("pointerdown", (event) => { button.setPointerCapture?.(event.pointerId); start(event); });
+    button.addEventListener("pointerup", end);
+    button.addEventListener("pointercancel", end);
+    button.addEventListener("keydown", (event) => { if ((event.key === " " || event.key === "Enter") && !event.repeat) start(event); });
+    button.addEventListener("keyup", (event) => { if (event.key === " " || event.key === "Enter") end(); });
+    button.addEventListener("contextmenu", (event) => event.preventDefault());
+    const stop = () => { cancelAnimationFrame(frame); clearTimeout(holdTimer); clearTimeout(relaxTimer); };
+    stage.querySelector("#hold-stop").addEventListener("click", () => { stop(); onDone(); });
+    return stop;
+  }
 
-        // Reiniciar el juego
-        function resetGame() {
-            Object.keys(calmedZones).forEach(key => {
-                calmedZones[key] = false;
-                const spotEl = document.getElementById(`spot-${key}`);
-                if (spotEl) spotEl.classList.remove('calmed-spot');
+  /** 5-4-3-2-1: un paso a la vez; la persona avanza cuando termina cada uno. */
+  function runGrounding(stage, technique, onDone) {
+    let index = 0;
+    const render = () => {
+      stage.innerHTML = `<div class="steps">${technique.steps.map((step, position) => `<div class="step ${position < index ? "done" : position === index ? "current" : ""}"><b>${position < index ? "✓" : 5 - position}</b><span>${step}</span></div>`).join("")}</div>
+        <button class="btn" type="button" id="next-step">${index === technique.steps.length - 1 ? "Listo, terminé" : "Listo, siguiente"}</button>`;
+      stage.querySelector("#next-step").addEventListener("click", () => {
+        index += 1;
+        if (index >= technique.steps.length) onDone(); else render();
+      });
+      stage.querySelector(".step.current")?.setAttribute("aria-current", "step");
+    };
+    render();
+  }
 
-                const shadowEl = document.getElementById(`${key}-shadow`);
-                if (shadowEl) shadowEl.setAttribute('fill', '#F7A399');
-            });
+  /** Al terminar la práctica: ¿cómo se siente ahora esa zona? */
+  function renderFeeling(stage, zone, already = false) {
+    const key = current;
+    const chosen = results[key];
+    stage.innerHTML = `${already ? "" : `<p class="instruction">${zone.calmText}</p>`}
+      <p class="center" style="font-weight:800">¿Cómo se siente ahora ${zone.name.toLowerCase()}?</p>
+      <div class="feeling" role="group" aria-label="Cómo se siente ahora">
+        <button type="button" data-feel="better" aria-pressed="${chosen === "better"}"><span aria-hidden="true">😌</span>Mejor</button>
+        <button type="button" data-feel="same" aria-pressed="${chosen === "same"}"><span aria-hidden="true">😐</span>Igual</button>
+        <button type="button" data-feel="worse" aria-pressed="${chosen === "worse"}"><span aria-hidden="true">😣</span>Peor</button>
+      </div>
+      <div id="feedback"></div>`;
+    const showFeedback = (feel) => {
+      const message = {
+        better: "¡Qué bien! Recuerda esta técnica: puedes usarla cuando vuelvas a sentirlo.",
+        same: "Está bien: a veces el cuerpo tarda en bajar la alerta. Puedes repetirla o probar la de otra zona.",
+        worse: "Gracias por notarlo. No todas las técnicas le sirven a todos; descansa, respira normal y prueba otra cuando quieras. Si te sientes muy mal, pide ayuda.",
+      }[feel];
+      stage.querySelector("#feedback").innerHTML = `<p class="feedback" role="status">${message}</p><div style="display:grid; gap:8px; margin-top:10px"><button class="btn calm" type="button" data-go="map">Explorar otra zona →</button><button class="link" type="button" id="repeat">Repetir la práctica</button></div>`;
+      stage.querySelector("#repeat").addEventListener("click", () => renderTechnique(zone, false));
+    };
+    stage.querySelectorAll("[data-feel]").forEach((button) => button.addEventListener("click", () => {
+      results[key] = button.dataset.feel;
+      stage.querySelectorAll("[data-feel]").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+      const badge = document.getElementById("zone-badge");
+      badge.textContent = "✓ Más tranquila";
+      badge.classList.add("calm");
+      const artBox = document.getElementById("zone-art");
+      artBox.innerHTML = art[key](true);
+      artBox.classList.add("calm");
+      showFeedback(button.dataset.feel);
+    }));
+    if (chosen) showFeedback(chosen);
+  }
 
-            document.getElementById('btn-finish-exploration').style.display = 'none';
-            document.getElementById('status-hint').innerHTML = '<img class="tag-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-size%3D%2280%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3E%F0%9F%8C%B8%3C/text%3E%3C/svg%3E" alt=""> Los halos indican zonas que puedes explorar';
-            document.getElementById('final-chest-tint').setAttribute('opacity', '0');
-            document.getElementById('final-stomach-tint').setAttribute('opacity', '0');
-            document.getElementById('final-arm-left').setAttribute('fill', '#E6C594');
-
-            goToScreen('screen-1');
-        }
-    </script>
+  // --- Resumen ---
+  function renderSummary() {
+    const label = { better: "Me ayudó", same: "Igual", worse: "No me ayudó" };
+    const explored = order.filter((key) => results[key]);
+    document.getElementById("summary-list").innerHTML = explored.map((key) => `
+      <div class="summary-item"><span class="spot" aria-hidden="true">${zones[key].emoji}</span><div><strong>${zones[key].name}</strong><small>${zones[key].technique.name}</small></div><span class="rating ${results[key] === "better" ? "better" : ""}">${label[results[key]]}</span></div>`).join("");
+    const helped = explored.filter((key) => results[key] === "better");
+    const favorite = document.getElementById("favorite");
+    favorite.hidden = helped.length === 0;
+    if (helped.length) {
+      favorite.innerHTML = `<strong>Tus técnicas para llevar:</strong> ${helped.map((key) => zones[key].technique.name).join(", ")}. La próxima vez que tu cuerpo entre en alerta, puedes usarlas sin abrir el juego.`;
+    }
+  }
+</script>
 </body>
 </html>
