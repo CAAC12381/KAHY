@@ -21,14 +21,14 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import Mascot, { Flower } from "../components/Mascot";
+import { Companion } from "../components/Mascot";
 import SupportBanner from "../components/SupportBanner";
 import { Button, DemoBadge, Modal } from "../components/ui";
 import { useChatMemory } from "../hooks/useChatMemory";
 import type { ChatHistoryApi, ChatHistorySession } from "../hooks/useChatHistory";
 import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
 import type { DailyHabitsApi } from "../hooks/useDailyHabits";
-import { stageForGrowth, type PetGardenApi } from "../hooks/usePetGarden";
+import type { PetGardenApi } from "../hooks/usePetGarden";
 import type { ScreeningsState } from "../hooks/useScreenings";
 import { makeStep, type TaskPlansApi } from "../hooks/useTaskPlans";
 import { createReply, detectSafetySignal, getTopic, type ChatTopic, type ConversationReply } from "../mock/conversation";
@@ -484,15 +484,10 @@ function AssistantReply({ reply, fallback, onRetry, onChoice, onHelp, navigate, 
 }
 
 function ChatCompanionChip({ profile, garden, gaining }: { profile: DemoProfile; garden: PetGardenApi; gaining: boolean }) {
-  const isMascot = profile.companionType === "mascota";
-  const animal = mascots.find((item) => item.id === profile.mascot) ?? mascots[0];
-  const flower = flowers.find((item) => item.id === profile.flower) ?? flowers[0];
-  const stageCount = isMascot ? animal.stages.length : flower.stages.length;
-  const stage = stageForGrowth(garden.growth, stageCount);
   return (
     <div className={`chat-companion-chip ${gaining ? "chat-companion-chip--gain" : ""}`} title={`Crecimiento de tu compañero: ${garden.growth}%`}>
       <span className="pet-idle pet-idle--breathe">
-        {isMascot ? <Mascot id={profile.mascot} size="tiny" mood={garden.mood} stage={stage} /> : <Flower id={profile.flower} stage={stage} neglected={garden.isNeglected} size="tiny" />}
+        <Companion type={profile.companionType} mascot={profile.mascot} flower={profile.flower} growth={garden.growth} mood={garden.mood} neglected={garden.isNeglected} />
       </span>
       <div className="chat-companion-progress"><span style={{ width: `${garden.growth}%` }} /></div>
     </div>

@@ -23,6 +23,7 @@ import { uploadStoredChatMemory } from "./hooks/useChatMemory";
 import { ResetPasswordForm } from "./components/PasswordRecovery";
 import PrivacyNotice from "./components/PrivacyNotice";
 import BrandMark from "./components/BrandMark";
+import { Companion } from "./components/Mascot";
 import { PRIVACY_HASH } from "./data/privacy";
 import { getDeviceId, resetDeviceId, setDeviceId } from "./lib/deviceId";
 import { warmOfflineImages } from "./lib/offlineApp";
@@ -461,7 +462,7 @@ export default function App() {
   return (
     <div className={preferenceClasses(preferences)}>
       <a className="skip-link" href="#main-content">Saltar al contenido</a>
-      <AppShell currentView={view} onNavigate={navigate} onHelp={() => setShowHelp(true)} onExit={exitToAccess} mascot={profile.mascot} preferences={preferences}>
+      <AppShell currentView={view} onNavigate={navigate} onHelp={() => setShowHelp(true)} onExit={exitToAccess} companion={<Companion type={profile.companionType} mascot={profile.mascot} flower={profile.flower} growth={garden.growth} mood={garden.mood} neglected={garden.isNeglected} />} preferences={preferences}>
         {view === "home" && <HomePage profile={profile} deviceId={deviceId} preferences={preferences} navigate={navigate} notify={notify} screenings={screenings} onHelp={() => setShowHelp(true)} garden={garden} emotionCalendar={emotionCalendar} taskPlans={taskPlans} habits={habits} onOpenTask={openTaskBreakdown} />}
         {view === "chat" && <ChatPage key={chatDraft?.key ?? "chat"} initialDraft={chatDraft?.text} onHelp={() => setShowHelp(true)} navigate={navigate} preferences={preferences} screenings={screenings} garden={garden} profile={profile} deviceId={deviceId} chatHistory={chatHistory} emotionCalendar={emotionCalendar} taskPlans={taskPlans} habits={habits} onOpenTask={openTaskBreakdown} />}
         {view === "activities" && <ActivitiesPage key={activityIntent?.key ?? "activities"} preferences={preferences} notify={notify} taskPlans={taskPlans} emotionCalendar={emotionCalendar} onHelp={() => setShowHelp(true)} onTalkToKahy={talkToKahy} initialActivity={activityIntent?.activity} initialPlanId={activityIntent?.planId} />}

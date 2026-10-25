@@ -1,5 +1,6 @@
-import type { FlowerId, MascotId, PetMood } from "../types";
+import type { CompanionType, FlowerId, MascotId, PetMood } from "../types";
 import { flowers, mascots } from "../mock/data";
+import { stageForGrowth } from "../hooks/usePetGarden";
 
 export default function Mascot({
   id = "vaca",
@@ -56,4 +57,25 @@ export function Flower({
       <img src={src} alt="" loading="lazy" />
     </span>
   );
+}
+
+/**
+ * El compañero que eligió la persona (mascota o planta), en su etapa de crecimiento actual y triste o
+ * marchito si lleva tiempo sin cuidados. Para las miniaturas fuera de Inicio (barra lateral, chat).
+ */
+export function Companion({ type, mascot, flower, growth, mood, neglected, size = "tiny" }: {
+  type: CompanionType;
+  mascot: MascotId;
+  flower: FlowerId;
+  growth: number;
+  mood: PetMood;
+  neglected: boolean;
+  size?: "tiny" | "small" | "medium" | "large";
+}) {
+  if (type === "planta") {
+    const plant = flowers.find((item) => item.id === flower) ?? flowers[0];
+    return <Flower id={flower} stage={stageForGrowth(growth, plant.stages.length)} neglected={neglected} size={size} />;
+  }
+  const animal = mascots.find((item) => item.id === mascot) ?? mascots[0];
+  return <Mascot id={mascot} size={size} mood={mood} stage={stageForGrowth(growth, animal.stages.length)} />;
 }

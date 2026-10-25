@@ -18,8 +18,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BackNavigationContext, type BackEntry, type BackRegistry } from "../lib/backNavigation";
 import { useEscapeKey } from "../lib/dismiss";
 import { navItems } from "../mock/data";
-import type { MainView, MascotId, Preferences } from "../types";
-import Mascot from "../components/Mascot";
+import type { MainView, Preferences } from "../types";
 import BrandMark from "../components/BrandMark";
 import ConnectionBanner from "../components/ConnectionBanner";
 
@@ -48,7 +47,7 @@ export default function AppShell({
   onNavigate,
   onHelp,
   onExit,
-  mascot,
+  companion,
   preferences,
 }: {
   children: ReactNode;
@@ -57,7 +56,8 @@ export default function AppShell({
   onHelp: () => void;
   /** "Salir": regresa a la pantalla de acceso. */
   onExit: () => void;
-  mascot: MascotId;
+  /** Miniatura del compañero elegido (mascota o planta) para la tarjeta de la barra lateral. */
+  companion: ReactNode;
   preferences: Preferences;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -136,7 +136,7 @@ export default function AppShell({
 
         {!collapsed && (
           <div className="sidebar-note">
-            {preferences.showMascot && <Mascot id={mascot} size="tiny" />}
+            {preferences.showMascot && companion}
             <div><strong>Orientación privada</strong><small>Chat activo · sin expediente clínico.</small></div>
           </div>
         )}
