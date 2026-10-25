@@ -147,7 +147,7 @@ function kahyOfflineBuild(): Plugin {
         item.viteMetadata?.importedCss?.forEach((css) => lazyOnly.add(css))
       }
       const built = Object.keys(bundle).filter((file) => file !== 'index.html' && !file.endsWith('.map') && !lazyOnly.has(file)).sort()
-      const extras = ['manifest.webmanifest', 'assets/kahy-logo-272.jpg', 'icons/icon-192.png']
+      const extras = ['manifest.webmanifest', 'assets/kahy-logo-v2-272.jpg', 'icons/icon-v2-192.png']
       const precache = [...built, ...extras].map((file) => `${base}${file}`)
       const version = createHash('sha256').update(built.join('|')).digest('hex').slice(0, 12)
       const swPath = path.join(outDir, 'sw.js')
