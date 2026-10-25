@@ -1343,3 +1343,17 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .bottom-nav button { min-height: 54px; }
   .bottom-nav button span { display: block; font-size: .57rem; }
 }
+
+/* "Lo que le dirías a alguien que quieres" fuera de la vista 3D: sugerencia en el chat y marcas del calendario. */
+.mirror-suggestion { width: min(820px, 100%); display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin: 10px auto 0; padding: 12px 14px; border: 1px solid #ddd0e1; border-radius: 16px; background: var(--purple-soft); }
+.mirror-suggestion > svg { flex: 0 0 auto; color: var(--purple-deep); }
+.mirror-suggestion > div { flex: 1 1 260px; min-width: 0; }
+.mirror-suggestion strong { color: var(--purple-deep); font-size: .86rem; }
+.mirror-suggestion p { margin: 2px 0 0; color: var(--ink); font-size: .8rem; line-height: 1.45; }
+.mirror-suggestion button { min-height: 40px; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 0; border-radius: 999px; background: var(--purple-deep); color: white; font-size: .8rem; font-weight: 760; cursor: pointer; }
+.mirror-suggestion button:hover { background: var(--purple); }
+.mirror-mark { position: absolute; top: 5px; left: 5px; color: var(--purple-deep); }
+.emotion-day-moka { display: flex; align-items: center; gap: 5px; color: var(--purple-deep) !important; font-weight: 720; }
+.emotion-day-practice { min-height: 36px; display: inline-flex; align-items: center; gap: 6px; margin: 6px 0 4px; padding: 6px 12px; border: 1px solid #cdbed2; border-radius: 999px; background: white; color: var(--purple-deep); font-size: .76rem; font-weight: 760; cursor: pointer; }
+.emotion-day-practice:hover { border-color: var(--purple); }
+.emotion-legend .tone-moka { display: inline-flex; align-items: center; gap: 4px; background: var(--purple-soft); color: var(--purple-deep); }

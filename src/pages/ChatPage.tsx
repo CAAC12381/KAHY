@@ -7,6 +7,7 @@ import {
   ClipboardList,
   CloudOff,
   Database,
+  HeartHandshake,
   History,
   Leaf,
   ListChecks,
@@ -20,7 +21,7 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Companion } from "../components/Mascot";
 import SupportBanner from "../components/SupportBanner";
 import { Button, DemoBadge, Modal } from "../components/ui";
@@ -28,6 +29,8 @@ import { useChatMemory } from "../hooks/useChatMemory";
 import type { ChatHistoryApi, ChatHistorySession } from "../hooks/useChatHistory";
 import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
 import type { DailyHabitsApi } from "../hooks/useDailyHabits";
+import type { MirrorJournalApi } from "../hooks/useMirrorJournal";
+import { detectMirrorTheme, mirrorThemes, type MirrorTheme } from "../data/mokaMirror";
 import type { PetGardenApi } from "../hooks/usePetGarden";
 import type { ScreeningsState } from "../hooks/useScreenings";
 import { makeStep, type TaskPlansApi } from "../hooks/useTaskPlans";
@@ -84,7 +87,7 @@ const safetyStrip: Record<AiConnection, [string, string]> = {
 
 type ChatMessage =
   | { id: number; role: "user"; text: string }
-  | { id: number; role: "assistant"; reply: ConversationReply; fallback?: LocalFallback };
+  | { id: number; role: "assistant"; reply: ConversationReply; fallback?: LocalFallback; /** Sugerir practicarlo con Moka (tema de lo que se contó). */ mirror?: MirrorTheme };
 
 const initialReply: ConversationReply = {
   mode: "standard",
@@ -129,7 +132,7 @@ function formatSessionDate(timestamp: number): string {
   return date.toLocaleDateString("es-MX", { day: "numeric", month: "short" });
 }
 
-export default function ChatPage({ onHelp, navigate, preferences, screenings, garden, profile, deviceId, chatHistory, emotionCalendar, taskPlans, habits, onOpenTask, initialDraft }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences; screenings: ScreeningsState; garden: PetGardenApi; profile: DemoProfile; deviceId: string; chatHistory: ChatHistoryApi; emotionCalendar: EmotionCalendarApi; taskPlans: TaskPlansApi; habits: DailyHabitsApi; onOpenTask: (planId?: string) => void; initialDraft?: string }) {
+export default function ChatPage({ onHelp, navigate, preferences, screenings, garden, profile, deviceId, chatHistory, emotionCalendar, taskPlans, habits, onOpenTask, initialDraft, mirrorJournal, onPracticeWithMoka }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences; screenings: ScreeningsState; garden: PetGardenApi; profile: DemoProfile; deviceId: string; chatHistory: ChatHistoryApi; emotionCalendar: EmotionCalendarApi; taskPlans: TaskPlansApi; habits: DailyHabitsApi; onOpenTask: (planId?: string) => void; initialDraft?: string; mirrorJournal: MirrorJournalApi; onPracticeWithMoka: (theme: MirrorTheme) => void }) {
   const memory = useChatMemory(preferences.rememberConversations, deviceId);
   const companionName = profile.companionType === "mascota" ? mascots.find((item) => item.id === profile.mascot)?.name : flowers.find((item) => item.id === profile.flower)?.name;
   const adaptive = buildAdaptiveContext({
@@ -273,7 +276,12 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
     if (remaining) await new Promise((resolve) => window.setTimeout(resolve, remaining));
     const reply = finalizeReply(fetched.reply, clean);
     const emotion = reply.emotion ?? inferLocalEmotion(clean);
-    setMessages((current) => [...current, { id: Date.now() + 1, role: "assistant", reply, fallback: fetched.fallback }]);
+    // Si contó algo que salió mal o se está criticando, Moka puede vivir algo parecido (una sugerencia por
+    // conversación). Con señales de riesgo no: ahí lo que toca es la ayuda que da el chat.
+    const mirrorTheme = reply.mode !== "safety" && !detectSafetySignal(clean) ? detectMirrorTheme(clean) : null;
+    const alreadySuggested = messages.some((message) => message.role === "assistant" && message.mirror);
+    setMessages((current) => [...current, { id: Date.now() + 1, role: "assistant", reply, fallback: fetched.fallback, mirror: mirrorTheme && !alreadySuggested ? mirrorTheme : undefined }]);
+    if (mirrorTheme) mirrorJournal.noteMoment(mirrorTheme);
     setCurrentTopic(reply.topic);
     if (reply.steps.length) {
       setPlan(reply.steps.map((step) => ({ text: `${step.horizon}: ${step.text}`, done: false })));
@@ -310,7 +318,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
     const fetched = await fetchReply(messages.slice(0, index), userMessage.text);
     if (!fetched.fallback) {
       const reply = finalizeReply(fetched.reply, userMessage.text);
-      setMessages((current) => current.map((message) => message.id === messageId ? { id: message.id, role: "assistant", reply } : message));
+      setMessages((current) => current.map((message) => message.id === messageId && message.role === "assistant" ? { ...message, reply, fallback: undefined } : message));
       setCurrentTopic(reply.topic);
       if (reply.steps.length) setPlan(reply.steps.map((step) => ({ text: `${step.horizon}: ${step.text}`, done: false })));
       if (reply.openHelp) window.setTimeout(onHelp, 350);
@@ -415,7 +423,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
             <div className="conversation-day"><Sparkles size={13} /> {preferences.saveChatHistory ? "Conversación nueva · se guarda en este navegador" : preferences.rememberConversations ? "Conversación nueva · recuerda solo temas" : "Conversación nueva · no se guarda"}</div>
             {memory.entries.length > 0 && <div className="memory-banner"><MessageCircle size={14} /><span>La última vez hablamos de: {memory.entries.slice(-3).map((entry) => topicNames[entry.topic]).join(", ")}.</span></div>}
             {messages.length === 1 && preferences.adaptivePersonalization && adaptive.connectedSignals > 0 && <div className="memory-banner adaptive"><Sparkles size={14} /><span>KAHY conectará tus avances en hábitos, tareas, emociones y tamizajes para personalizar esta charla.</span></div>}
-            {messages.map((message) => message.role === "user" ? <div className="studio-message user" data-chat-message key={message.id}><div className="user-message">{message.text}</div></div> : <AssistantReply key={message.id} reply={message.reply} fallback={message.fallback} onRetry={canRetryWithAi && message === lastMessage ? () => retryWithAi(message.id) : undefined} onChoice={send} onHelp={onHelp} navigate={navigate} disabled={typing} onOpenPlan={() => setPlanOpen(true)} />)}
+            {messages.map((message) => message.role === "user" ? <div className="studio-message user" data-chat-message key={message.id}><div className="user-message">{message.text}</div></div> : <Fragment key={message.id}><AssistantReply reply={message.reply} fallback={message.fallback} onRetry={canRetryWithAi && message === lastMessage ? () => retryWithAi(message.id) : undefined} onChoice={send} onHelp={onHelp} navigate={navigate} disabled={typing} onOpenPlan={() => setPlanOpen(true)} />{message.mirror && <MirrorSuggestion theme={message.mirror} onPractice={() => onPracticeWithMoka(message.mirror!)} />}</Fragment>)}
             {typing && <div className="studio-message assistant" data-chat-message><div className="thinking-card" role="status"><div className="thinking-dots"><i /><i /><i /></div><span>Organizando una respuesta segura y útil…</span></div></div>}
             {showPlanHint && <div className="plan-first-hint" role="status"><ListChecks size={19} /><div><strong>Tu respuesta incluye un plan</strong><span>Puedes revisarlo y marcar avances en <b>Plan de ahora</b>.</span></div><button onClick={() => { setShowPlanHint(false); setPlanOpen(true); }}>Ver plan <ArrowRight size={15} /></button><button className="plan-hint-close" onClick={() => setShowPlanHint(false)} aria-label="Cerrar aviso"><X size={15} /></button></div>}
             {messages.length === 1 && screeningSuggestions.length > 0 && <div className="screening-suggestion-row" aria-label="Sugerencias según tu tamizaje reciente">
@@ -481,6 +489,20 @@ function AssistantReply({ reply, fallback, onRetry, onChoice, onHelp, navigate, 
       {fallback && <div className="local-reply-note">{fallback === "offline" ? <WifiOff size={14} /> : <CloudOff size={14} />}<span>{fallbackCopy[fallback]}</span>{onRetry && <button onClick={onRetry} disabled={disabled}><RotateCcw size={14} /> Pedir respuesta a la IA</button>}</div>}
     </div>
   </article>;
+}
+
+/** "¿Lo practicamos con Moka?": Moka vive algo parecido a lo que se contó (ver src/data/mokaMirror.ts). */
+function MirrorSuggestion({ theme, onPractice }: { theme: MirrorTheme; onPractice: () => void }) {
+  return (
+    <div className="mirror-suggestion">
+      <HeartHandshake size={20} />
+      <div>
+        <strong>¿Lo practicamos con Moka?</strong>
+        <p>A Moka {mirrorThemes[theme].teaser}. Puedes decirle lo que le dirías a alguien que quieres, y luego escucharlo para ti.</p>
+      </div>
+      <button type="button" onClick={onPractice}>Practicar con Moka <ArrowRight size={15} /></button>
+    </div>
+  );
 }
 
 function ChatCompanionChip({ profile, garden, gaining }: { profile: DemoProfile; garden: PetGardenApi; gaining: boolean }) {

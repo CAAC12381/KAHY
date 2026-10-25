@@ -116,6 +116,10 @@ const NOSTRILS: Vec[] = [[0.09, -0.108, 0.443], [-0.09, -0.108, 0.443]];
 // Ojitos negros brillantes, más separados y más chicos que antes (como en la ilustración).
 const EYES: Array<[number, number]> = [[0.205, 0.075], [-0.205, 0.075]];
 const MOUTH: [number, number] = [0.02, -0.285];
+// Cejitas de plastilina: arriba de cada ojo y un poco hacia el centro. Café más oscuro que las manchas
+// para que también se vean sobre la mancha del ojo. (No cambian la escultura, solo se pegan encima.)
+const BROW_RISE = 0.105;
+const BROW_COLOR = "#5e3d2d";
 
 const craniumSdf: Sdf = (x, y, z) => {
   let d = ellipsoid(x, y, z, 0, 0.03, -0.03, 0.44, 0.38, 0.37);
@@ -221,6 +225,7 @@ const headSpots = () => spotSet(headSdf, [0, 0, 0], [
 // Dónde quedan los ojos y la boca sobre la piel (los ojos se asoman en la dirección de la piel).
 const eyeSpots = EYES.map(([x, y]) => surfaceAlong(headSdf, [x, y, 0], [0, 0, 1], 0.7));
 const mouthSpot = surfaceAlong(headSdf, [MOUTH[0], MOUTH[1], 0], [0, 0, 1], 0.7);
+const browSpots = EYES.map(([x, y]) => surfaceAlong(headSdf, [x * 0.94, y + BROW_RISE, 0], [0, 0, 1], 0.7));
 
 /** Cuánto pelo lleva cada punto de la cabeza: nada en ojos, boca y cuernos; corto en la trompita. */
 const headFur = (x: number, y: number, z: number) => {
@@ -510,6 +515,27 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
     socket.add(sleepy);
     sleepyEyes.push(sleepy);
   }
+
+  // Cejas: un arquito ("⌒") sobre cada ojo, encima del pelo. Se suben, se bajan, se inclinan y se
+  // arquean según lo que siente (ver "Cejas" en update). `side`: +1 la del lado +x, −1 la otra.
+  const browArc = 1.2;
+  const browRadius = 0.05;
+  const browThickness = 0.019;
+  const browGeometry = new THREE.TorusGeometry(browRadius, browThickness, 12, 18, browArc);
+  browGeometry.rotateZ(Math.PI / 2 - browArc / 2); // El centro del arco queda arriba…
+  browGeometry.translate(0, -browRadius, 0); // …y en el origen, para inclinarla desde su centro.
+  const browTip = new THREE.SphereGeometry(browThickness, 12, 8); // Puntas redondas (el arco viene abierto).
+  const browMaterial = material(BROW_COLOR, { roughness: 0.62 });
+  const brows = browSpots.map((spot, index) => {
+    const brow = meshOf(browGeometry, browMaterial);
+    for (const end of [-1, 1]) {
+      const angle = Math.PI / 2 + (end * browArc) / 2;
+      brow.add(meshOf(browTip, browMaterial).translateX(browRadius * Math.cos(angle)).translateY(browRadius * Math.sin(angle) - browRadius));
+    }
+    brow.userData.browSide = EYES[index][0] > 0 ? 1 : -1;
+    onSkin(spot, 0.022).add(brow);
+    return brow;
+  });
 
   // Orejas grandes a los lados, abiertas hacia el frente (se ve el hueco rosa) y con la punta un poco arriba.
   const ears = [1, -1].map((side) => {
@@ -898,6 +924,30 @@ export async function buildMoka(detail = 1, onProgress: (fraction: number) => vo
     });
     happyEyes.forEach((item) => { item.visible = happy && !asleep; });
     sleepyEyes.forEach((item) => { item.visible = asleep; });
+
+    // Cejas: cuánto suben, cuánto se levanta la punta de adentro (preocupada) y qué tan arqueadas van.
+    let browRaise = 0;
+    let browWorry = 0.08;
+    let browArch = 1;
+    if (asleep) [browRaise, browWorry, browArch] = [-0.01, -0.08, 0.75]; // Relajadas.
+    else if (mouthOpen > 0.5 && !sprig.visible) [browRaise, browWorry, browArch] = [0.03, 0, 1.3]; // Sorprendida: "¡Muuu!".
+    else if (happy) [browRaise, browWorry, browArch] = [0.016, -0.06, 1.25]; // Contenta.
+    else if (sprig.visible) [browRaise, browWorry, browArch] = [-0.005, -0.14, 0.85]; // Concentrada masticando.
+    if (down > 0.01 && !happy) {
+      // Apenada: la punta de adentro sube y se aplanan (cejitas de preocupación).
+      browRaise = THREE.MathUtils.lerp(browRaise, 0.004, down);
+      browWorry = THREE.MathUtils.lerp(browWorry, 0.5, down);
+      browArch = THREE.MathUtils.lerp(browArch, 0.6, down);
+    }
+    // Curiosa (ladea la cabeza o mira la mariposa): sube una sola ceja.
+    const curious = idle && (idle.kind === "tilt" || idle.kind === "look") ? idle.side * idleEnvelope : 0;
+    for (const brow of brows) {
+      const side = brow.userData.browSide as number;
+      const raise = browRaise + (curious * side > 0 ? 0.024 * Math.abs(curious) : 0) - 0.006 * (1 - openness);
+      brow.position.y += (raise - brow.position.y) * ease(12);
+      brow.rotation.z += (-side * browWorry - brow.rotation.z) * ease(12);
+      brow.scale.y += (browArch - brow.scale.y) * ease(12);
+    }
 
     if (asleep && time > nextZ) {
       spawn(zTexture, new THREE.Vector3(0.28, 1.15 + LEG_EXTRA * (1 - lie), 0.55), 0.13, 0.4, 2.4);

@@ -1,4 +1,4 @@
-import { ArrowRight, Check, HeartHandshake, LifeBuoy, MessageCircleHeart, PenLine, RefreshCw, Undo2 } from "lucide-react";
+import { ArrowRight, BookmarkCheck, BookmarkPlus, Check, HeartHandshake, LifeBuoy, MessageCircleHeart, PenLine, RefreshCw, Undo2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { detectSafetySignal } from "../../api/_lib/chatGuards";
 import { MIRROR_TEXT_LIMIT, mirrorPhrase, type MirrorSituation } from "../data/mokaMirror";
@@ -7,19 +7,24 @@ import { Button } from "./ui";
 /**
  * "Lo que le dirías a alguien que quieres" (ver src/data/mokaMirror.ts):
  * Moka cuenta algo que le salió mal, la persona la consuela y esa frase se le
- * devuelve. Lo que se escribe aquí vive solo en este componente: no se guarda
- * ni se envía, y se borra al salir. La página mueve a Moka con `onMoka`.
+ * devuelve. Lo que se escribe aquí no se envía a ningún lado; solo se guarda
+ * (en este dispositivo) si la persona elige "Guardar en mis frases". La
+ * página mueve a Moka con `onMoka`.
  */
 
 type Step = "story" | "thanks" | "mirror" | "kept" | "notYet" | "later" | "safety";
 const OWN_WORDS = -1;
 
-export default function MokaMirror({ situation, onMoka, onPracticed, onAnother, onClose, onHelp }: {
+export default function MokaMirror({ situation, fromChat = false, onMoka, onPracticed, onSave, onAnother, onClose, onHelp }: {
   situation: MirrorSituation;
+  /** La situación se eligió por algo parecido que la persona contó en el chat. */
+  fromChat?: boolean;
   /** down: apenada; cheer: consolada (con su respuesta); calm: vuelve a la normalidad sin festejo. */
   onMoka: (state: "down" | "cheer" | "calm", line?: string) => void;
   /** La persona consoló a Moka (el compañero crece una vez al día por esto). */
   onPracticed: () => void;
+  /** Guarda la frase en "Frases que me he dicho" (solo en este dispositivo). */
+  onSave: (phrase: string) => void;
   onAnother: () => void;
   onClose: () => void;
   onHelp: () => void;
@@ -27,6 +32,7 @@ export default function MokaMirror({ situation, onMoka, onPracticed, onAnother, 
   const [step, setStep] = useState<Step>("story");
   const [choice, setChoice] = useState<number | null>(null);
   const [ownWords, setOwnWords] = useState("");
+  const [saved, setSaved] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const firstStep = useRef(true);
 
@@ -72,6 +78,7 @@ export default function MokaMirror({ situation, onMoka, onPracticed, onAnother, 
 
       {step === "story" && (
         <>
+          {fromChat && <p className="mirror-hint">A Moka le pasó algo parecido a lo que contaste en el chat, en versión granja.</p>}
           <blockquote className="mirror-quote">
             <p>{situation.story}</p>
             <p>Y pensé: “{situation.thought}”.</p>
@@ -96,7 +103,7 @@ export default function MokaMirror({ situation, onMoka, onPracticed, onAnother, 
             <div className="mirror-write">
               <label htmlFor="mirror-own-words">Lo que le dirías a Moka</label>
               <textarea id="mirror-own-words" rows={3} maxLength={MIRROR_TEXT_LIMIT} value={ownWords} onChange={(event) => setOwnWords(event.target.value)} autoFocus />
-              <p className="mirror-note"><span>Lo que escribas no se guarda ni se envía: se borra al salir de aquí.</span><span>{ownWords.length}/{MIRROR_TEXT_LIMIT}</span></p>
+              <p className="mirror-note"><span>Lo que escribas no se envía a ningún lado. Solo se guarda, en este dispositivo, si al final eliges guardar la frase.</span><span>{ownWords.length}/{MIRROR_TEXT_LIMIT}</span></p>
             </div>
           )}
           <div className="mirror-actions">
@@ -144,6 +151,11 @@ export default function MokaMirror({ situation, onMoka, onPracticed, onAnother, 
           </p>
           <p className="mirror-note">Acompañar a Moka hace crecer a tu compañero, una vez al día.</p>
           <div className="mirror-actions">
+            {step === "kept" && (
+              <Button onClick={() => { onSave(mirrorPhrase(said)); setSaved(true); }} disabled={saved}>
+                {saved ? <><BookmarkCheck size={18} /> Guardada en tus frases</> : <><BookmarkPlus size={18} /> Guardar en mis frases</>}
+              </Button>
+            )}
             <Button variant="secondary" onClick={onAnother}><RefreshCw size={18} /> Otra situación</Button>
             {backToPlay}
           </div>

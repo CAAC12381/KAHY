@@ -8,6 +8,8 @@ import { Button, Card, DemoBadge } from "../components/ui";
 import { dailyHabits, type DailyHabitsApi } from "../hooks/useDailyHabits";
 import { stageForGrowth, type PetGardenApi } from "../hooks/usePetGarden";
 import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
+import type { MirrorJournalApi } from "../hooks/useMirrorJournal";
+import type { MirrorTheme } from "../data/mokaMirror";
 import type { TaskPlansApi } from "../hooks/useTaskPlans";
 import type { ScreeningsState } from "../hooks/useScreenings";
 import { advanceCompanionBox, hasRevealedCompanion, rememberCompanionReveal, type CompanionBoxState } from "../lib/companionReveal";
@@ -31,6 +33,8 @@ export default function HomePage({
   taskPlans,
   habits,
   onOpenTask,
+  mirrorJournal,
+  onPracticeWithMoka,
 }: {
   profile: DemoProfile;
   deviceId: string;
@@ -44,6 +48,8 @@ export default function HomePage({
   taskPlans: TaskPlansApi;
   habits: DailyHabitsApi;
   onOpenTask: (planId?: string) => void;
+  mirrorJournal: MirrorJournalApi;
+  onPracticeWithMoka: (theme: MirrorTheme) => void;
 }) {
   const [revealedAtLoad] = useState(() => hasRevealedCompanion(deviceId, profile.mascot));
   const [boxState, setBoxState] = useState<CompanionBoxState>(revealedAtLoad ? "open" : "closed");
@@ -143,7 +149,7 @@ export default function HomePage({
       </section>
 
       <div className="section-heading"><div><span className="eyebrow">Calendario emocional</span><h2>Lo que ha aparecido en tus conversaciones</h2></div><small>Se guardan etiquetas y fechas, no el texto</small></div>
-      <Card className="emotion-calendar-card"><EmotionCalendar entries={emotionCalendar.entries} /></Card>
+      <Card className="emotion-calendar-card"><EmotionCalendar entries={emotionCalendar.entries} practicedDays={mirrorJournal.practicedDays} moments={mirrorJournal.moments} onPracticeWithMoka={onPracticeWithMoka} /></Card>
 
       <div className="section-heading"><div><span className="eyebrow">Hábitos de hoy</span><h2>Pequeñas acciones que también cuentan</h2></div><small>{habits.streak > 1 ? `Racha de ${habits.streak} días` : "Tu avance se guarda y personaliza KAHY"}</small></div>
       <Card className="habits-card">

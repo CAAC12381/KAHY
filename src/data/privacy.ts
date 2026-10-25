@@ -12,8 +12,10 @@
  * aviso lo marca como pendiente en lugar de inventar un dato.
  */
 
-export const PRIVACY_VERSION = "2026-10-24";
-export const PRIVACY_VERSION_LABEL = "24 de octubre de 2026";
+// 2026-10-25: se agregó lo que guarda, solo en el dispositivo, el ejercicio con Moka. No cambia lo que
+// llega al servidor ni los datos sensibles, así que no hace falta volver a pedir el consentimiento.
+export const PRIVACY_VERSION = "2026-10-25";
+export const PRIVACY_VERSION_LABEL = "25 de octubre de 2026";
 
 export const PRIVACY_CONTACT = {
   /** Persona, equipo o institución responsable del tratamiento. */

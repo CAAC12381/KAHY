@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import AppShell from "./layouts/AppShell";
 import ConnectionBanner from "./components/ConnectionBanner";
 import LazyCompanion3D from "./components/LazyCompanion3D";
-import { practiceDay } from "./data/mokaMirror";
+import { practiceDay, type MirrorTheme } from "./data/mokaMirror";
 import { AccessFlow, Onboarding, SplashScreen } from "./pages/AccessFlow";
 import ActivitiesPage, { type Activity } from "./pages/ActivitiesPage";
 import ChatPage from "./pages/ChatPage";
@@ -20,6 +20,7 @@ import { useChatHistory } from "./hooks/useChatHistory";
 import { useEmotionCalendar } from "./hooks/useEmotionCalendar";
 import { useTaskPlans } from "./hooks/useTaskPlans";
 import { useDailyHabits } from "./hooks/useDailyHabits";
+import { useMirrorJournal } from "./hooks/useMirrorJournal";
 import { uploadStoredChatMemory } from "./hooks/useChatMemory";
 import { ResetPasswordForm } from "./components/PasswordRecovery";
 import PrivacyNotice from "./components/PrivacyNotice";
@@ -196,6 +197,10 @@ export default function App() {
   // Navegación con intención: abrir una actividad concreta o llegar al chat con un mensaje ya escrito.
   const [activityIntent, setActivityIntent] = useState<{ key: number; activity: Activity; planId?: string } | null>(null);
   const [chatDraft, setChatDraft] = useState<{ key: number; text: string } | null>(null);
+  // "Lo que le dirías a alguien que quieres": lo que se recuerda (solo en este dispositivo) y, al llegar
+  // desde el chat o el calendario, el tema con el que Moka empieza.
+  const mirrorJournal = useMirrorJournal();
+  const [mirrorIntent, setMirrorIntent] = useState<{ key: number; theme: MirrorTheme } | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setStage(restoredRegistration ? "app" : "access"), 950);
@@ -261,7 +266,21 @@ export default function App() {
   function navigate(nextView: MainView) {
     setActivityIntent(null);
     setChatDraft(null);
+    setMirrorIntent(null);
     setView(nextView);
+  }
+
+  /** "Practicar con Moka" (chat o calendario): Moka vive algo parecido a lo que se contó. */
+  function practiceWithMoka(theme: MirrorTheme) {
+    setActivityIntent(null);
+    setChatDraft(null);
+    setMirrorIntent({ key: Date.now(), theme });
+    setView("companion3d");
+  }
+
+  function mirrorPracticed() {
+    mirrorJournal.markPracticed();
+    garden.rewardMilestone(`mirror:${practiceDay()}`, 3, "Acompañaste a Moka. Practicar la amabilidad también nos hace crecer.");
   }
 
   function openTaskBreakdown(planId?: string) {
@@ -464,14 +483,14 @@ export default function App() {
     <div className={preferenceClasses(preferences)}>
       <a className="skip-link" href="#main-content">Saltar al contenido</a>
       <AppShell currentView={view} onNavigate={navigate} onHelp={() => setShowHelp(true)} onExit={exitToAccess} companion={<Companion type={profile.companionType} mascot={profile.mascot} flower={profile.flower} growth={garden.growth} mood={garden.mood} neglected={garden.isNeglected} />} preferences={preferences}>
-        {view === "home" && <HomePage profile={profile} deviceId={deviceId} preferences={preferences} navigate={navigate} notify={notify} screenings={screenings} onHelp={() => setShowHelp(true)} garden={garden} emotionCalendar={emotionCalendar} taskPlans={taskPlans} habits={habits} onOpenTask={openTaskBreakdown} />}
-        {view === "chat" && <ChatPage key={chatDraft?.key ?? "chat"} initialDraft={chatDraft?.text} onHelp={() => setShowHelp(true)} navigate={navigate} preferences={preferences} screenings={screenings} garden={garden} profile={profile} deviceId={deviceId} chatHistory={chatHistory} emotionCalendar={emotionCalendar} taskPlans={taskPlans} habits={habits} onOpenTask={openTaskBreakdown} />}
+        {view === "home" && <HomePage profile={profile} deviceId={deviceId} preferences={preferences} navigate={navigate} notify={notify} screenings={screenings} onHelp={() => setShowHelp(true)} garden={garden} emotionCalendar={emotionCalendar} taskPlans={taskPlans} habits={habits} onOpenTask={openTaskBreakdown} mirrorJournal={mirrorJournal} onPracticeWithMoka={practiceWithMoka} />}
+        {view === "chat" && <ChatPage key={chatDraft?.key ?? "chat"} initialDraft={chatDraft?.text} onHelp={() => setShowHelp(true)} navigate={navigate} preferences={preferences} screenings={screenings} garden={garden} profile={profile} deviceId={deviceId} chatHistory={chatHistory} emotionCalendar={emotionCalendar} taskPlans={taskPlans} habits={habits} onOpenTask={openTaskBreakdown} mirrorJournal={mirrorJournal} onPracticeWithMoka={practiceWithMoka} />}
         {view === "activities" && <ActivitiesPage key={activityIntent?.key ?? "activities"} preferences={preferences} notify={notify} taskPlans={taskPlans} emotionCalendar={emotionCalendar} onHelp={() => setShowHelp(true)} onTalkToKahy={talkToKahy} initialActivity={activityIntent?.activity} initialPlanId={activityIntent?.planId} />}
         {view === "screening" && <ScreeningPage screenings={screenings} onHelp={() => setShowHelp(true)} navigate={navigate} />}
         {view === "specialists" && <SpecialistsPage city={profile.city} onHelp={() => setShowHelp(true)} />}
         {view === "resources" && <ResourcesPage />}
-        {view === "companion3d" && <LazyCompanion3D preferences={preferences} onHelp={() => setShowHelp(true)} onPracticed={() => garden.rewardMilestone(`mirror:${practiceDay()}`, 3, "Acompañaste a Moka. Practicar la amabilidad también nos hace crecer.")} />}
-        {view === "profile" && <ProfilePage profile={profile} preferences={preferences} setProfile={updateProfile} setPreferences={updatePreferences} navigate={navigate} notify={notify} isRegistered={isRegistered} onResetRegistration={resetRegistration} account={account} onLogout={logout} onLoggedIn={completeLogin} onAccountCreated={accountCreated} screenings={screenings} deviceId={deviceId} chatHistory={chatHistory} emotionCalendar={emotionCalendar} />}
+        {view === "companion3d" && <LazyCompanion3D key={mirrorIntent?.key ?? "companion3d"} preferences={preferences} onHelp={() => setShowHelp(true)} onPracticed={mirrorPracticed} journal={mirrorJournal} initialTheme={mirrorIntent?.theme} />}
+        {view === "profile" && <ProfilePage profile={profile} preferences={preferences} setProfile={updateProfile} setPreferences={updatePreferences} navigate={navigate} notify={notify} isRegistered={isRegistered} onResetRegistration={resetRegistration} account={account} onLogout={logout} onLoggedIn={completeLogin} onAccountCreated={accountCreated} screenings={screenings} deviceId={deviceId} chatHistory={chatHistory} emotionCalendar={emotionCalendar} mirrorJournal={mirrorJournal} />}
       </AppShell>
 
       {showHelp && <Modal title="Ayuda inmediata" onClose={() => setShowHelp(false)}><div className="help-modal"><DemoBadge>Información oficial · sin llamada automática</DemoBadge><div className="urgent-note"><ShieldAlert size={28} /><div><h3>Si hay peligro inmediato</h3><p>Contacta al 911 o acude al servicio de urgencias más cercano. Este prototipo no puede detectar, atender ni monitorear una emergencia.</p></div></div><div className="help-option"><Phone size={22} /><div><strong>Línea de la Vida</strong><p>800 911 2000 · orientación nacional 24 horas, todos los días.</p></div></div><a className="button button--secondary full-width" href="https://www.gob.mx/conasama/es/articulos/linea-de-la-vida-800-911-2000?idiom=es" target="_blank" rel="noreferrer">Ver fuente oficial <ExternalLink size={17} /></a><p className="fine-print">No se realiza ninguna llamada desde KAHY. En una implementación real, este flujo requeriría revisión profesional, pruebas y protocolos operativos.</p><Button className="full-width" onClick={() => setShowHelp(false)}>Entendido</Button></div></Modal>}

@@ -1,9 +1,10 @@
-import { Apple, Camera, Download, Flower, Hand, Heart, HeartHandshake, Moon, Pause, Play, RotateCcw, Share2, Sparkles, Sun, Volume2, VolumeX } from "lucide-react";
+import { Apple, Camera, Download, Flower, Hand, Heart, HeartHandshake, Moon, Pause, Play, Quote, RotateCcw, Share2, Sparkles, Sun, Trash2, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Mascot from "../components/Mascot";
 import MokaMirror from "../components/MokaMirror";
 import { Button, Card, DemoBadge, Modal } from "../components/ui";
-import { mirrorSituations, type MirrorSituation } from "../data/mokaMirror";
+import { mirrorSituations, situationsFor, type MirrorSituation, type MirrorTheme } from "../data/mokaMirror";
+import type { MirrorJournalApi } from "../hooks/useMirrorJournal";
 import { companionVoices, nextLine } from "../lib/companionVoices";
 import { mascots } from "../mock/data";
 import { playSound, setSoundEnabled, soundEnabled, type MokaSound } from "../three/mokaSounds";
@@ -43,12 +44,16 @@ async function photoFile(url: string) {
   return new File([blob], "moka-kahy.png", { type: "image/png" });
 }
 
-export default function Companion3DPage({ preferences, onHelp, onPracticed }: {
+export default function Companion3DPage({ preferences, onHelp, onPracticed, journal, initialTheme }: {
   preferences: Preferences;
   /** Abre "Ayuda inmediata" (si en el ejercicio se escribe algo que suena a riesgo). */
   onHelp: () => void;
   /** Se consoló a Moka en "Lo que le dirías a alguien que quieres". */
   onPracticed: () => void;
+  /** Frases guardadas (solo en este dispositivo). */
+  journal: MirrorJournalApi;
+  /** Al llegar desde el chat o el calendario: Moka empieza con una situación de este tema. */
+  initialTheme?: MirrorTheme;
 }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<MokaViewer | null>(null);
@@ -63,9 +68,10 @@ export default function Companion3DPage({ preferences, onHelp, onPracticed }: {
   const [sound, setSound] = useState(soundEnabled);
   const [photo, setPhoto] = useState<{ url: string; canShare: boolean } | null>(null);
   // "Lo que le dirías a alguien que quieres": la situación en curso (round reinicia el ejercicio).
-  const [mirror, setMirror] = useState<{ situation: MirrorSituation; round: number } | null>(null);
+  const [mirror, setMirror] = useState<{ situation: MirrorSituation; round: number; fromChat: boolean } | null>(null);
   const mirrorRef = useRef(false);
   const rotateBeforeMirror = useRef(false);
+  const startedFromTheme = useRef(false);
 
   function showLine(text: string, duration = 4200) {
     setLine(text);
@@ -131,24 +137,35 @@ export default function Companion3DPage({ preferences, onHelp, onPracticed }: {
     playSound(actionSound[action]);
   }
 
-  function startMirror(previous?: MirrorSituation) {
+  // Desde el chat o el calendario ("Practicar con Moka"): en cuanto Moka está lista, empieza el ejercicio.
+  useEffect(() => {
+    if (status === "loading" || !initialTheme || startedFromTheme.current) return;
+    startedFromTheme.current = true;
+    startMirror(undefined, initialTheme);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, initialTheme]);
+
+  /** `theme`: viene del chat o del calendario, y Moka vive algo parecido a lo que la persona contó. */
+  function startMirror(previous?: MirrorSituation, theme?: MirrorTheme) {
     // Dormida no puede contarte nada: se despierta sin su frase de "buenos días".
     if (sleepingRef.current) {
       sleepingRef.current = false;
       setSleeping(false);
       viewerRef.current?.setSleeping(false);
     }
-    const ids = mirrorSituations.map((item) => item.id);
-    let id = nextLine("3d:moka:mirror", ids);
-    if (id === previous?.id) id = nextLine("3d:moka:mirror", ids);
-    const situation = mirrorSituations.find((item) => item.id === id) ?? mirrorSituations[0];
+    const pool = theme ? situationsFor(theme) : mirrorSituations;
+    const listId = theme ? `3d:moka:mirror:${theme}` : "3d:moka:mirror";
+    const ids = pool.map((item) => item.id);
+    let id = nextLine(listId, ids);
+    if (id === previous?.id) id = nextLine(listId, ids);
+    const situation = pool.find((item) => item.id === id) ?? pool[0];
     // Mientras te cuenta lo que le pasó, Moka queda de frente: la vista se centra y deja de girar.
     if (!mirrorRef.current) rotateBeforeMirror.current = autoRotate;
     setAutoRotate(false);
     viewerRef.current?.setAutoRotate(false);
     viewerRef.current?.resetView();
     mirrorRef.current = true;
-    setMirror((current) => ({ situation, round: (current?.round ?? 0) + 1 }));
+    setMirror((current) => ({ situation, round: (current?.round ?? 0) + 1, fromChat: Boolean(theme) }));
     setLine(null);
     viewerRef.current?.setDowncast(true);
     playSound("yawn"); // Un suspiro.
@@ -272,8 +289,10 @@ export default function Companion3DPage({ preferences, onHelp, onPracticed }: {
             <MokaMirror
               key={mirror.round}
               situation={mirror.situation}
+              fromChat={mirror.fromChat}
               onMoka={moveMoka}
               onPracticed={onPracticed}
+              onSave={(phrase) => journal.savePhrase(phrase, mirror.situation.id)}
               onAnother={() => startMirror(mirror.situation)}
               onClose={endMirror}
               onHelp={onHelp}
@@ -286,7 +305,8 @@ export default function Companion3DPage({ preferences, onHelp, onPracticed }: {
                   <strong>Lo que le dirías a alguien que quieres</strong>
                   <p>A Moka le salió algo mal y se está tratando con dureza. Escúchala y dile lo que le dirías a alguien que quieres.</p>
                 </div>
-                <Button onClick={() => startMirror()} disabled={!ready}>Acompañar a Moka</Button>
+                {/* Sin 3D (WebGL) también se puede: Moka acompaña con su dibujo. */}
+                <Button onClick={() => startMirror()} disabled={status === "loading"}>Acompañar a Moka</Button>
               </div>
           <div className="companion-3d-actions">
             <Button variant="secondary" onClick={() => play("greet")} disabled={!awake}><Hand size={18} /> Saludar</Button>
@@ -302,6 +322,27 @@ export default function Companion3DPage({ preferences, onHelp, onPracticed }: {
           <p className="companion-3d-keys">Con teclado: <kbd>Tab</kbd> hasta Moka, <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> para girar, <kbd>+</kbd> <kbd>−</kbd> para acercar y <kbd>Enter</kbd> para saludarla.</p>
           <p className="companion-3d-note"><DemoBadge>Prototipo</DemoBadge> Moka se esculpe en 3D aquí mismo al abrir esta sección (tarda un momento solo la primera vez), con el mismo estilo de plastilina que su ilustración.</p>
         </Card>
+
+        {journal.phrases.length > 0 && (
+          <Card className="mirror-phrases">
+            <div className="settings-title">
+              <Quote size={21} />
+              <div>
+                <h2>Frases que me he dicho</h2>
+                <p>Las que le dijiste a Moka y te sirvieron. Vuelve a ellas cuando tu mente se ponga dura contigo. Se guardan solo en este dispositivo.</p>
+              </div>
+            </div>
+            <ul>
+              {[...journal.phrases].reverse().map((phrase) => (
+                <li key={phrase.id}>
+                  <blockquote>{phrase.text}</blockquote>
+                  <time dateTime={new Date(phrase.at).toISOString()}>{new Date(phrase.at).toLocaleDateString("es-MX", { day: "numeric", month: "long" })}</time>
+                  <button type="button" onClick={() => journal.removePhrase(phrase.id)} aria-label={`Borrar la frase: ${phrase.text}`} title="Borrar"><Trash2 size={16} /></button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
       </div>
 
       {/* Fuera de .page: esa capa se anima con transform y desacomodaría la ventana. */}

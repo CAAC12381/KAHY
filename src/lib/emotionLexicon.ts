@@ -8,11 +8,13 @@ const signals: Array<{ emotion: EmotionName; words: string[] }> = [
   { emotion: "calma", words: ["calma", "tranquil", "en paz", "relajad", "seren", "ya bajó", "ya bajo"] },
   { emotion: "alivio", words: ["alivio", "me quité un peso", "me quite un peso", "por fin respir", "menos mal", "ya pasó", "ya paso"] },
   { emotion: "esperanza", words: ["esperanza", "tengo fe", "creo que puedo", "va a mejorar", "sí se puede", "si se puede", "ilusion"] },
-  { emotion: "tristeza", words: ["triste", "agüitad", "aguitad", "aguitao", "bajón", "bajon", "depre", "desanim", "moral por los suelos", "se me cayó el mundo", "se me cayo el mundo", "quiero llorar", "no dejo de llorar", "llorando", "vacío", "vacio", "nada me importa", "todo me da igual", "me da igual todo", "sin ganas de nada"] },
+  { emotion: "tristeza", words: ["triste", "agüitad", "aguitad", "aguitao", "bajón", "bajon", "depre", "desanim", "moral por los suelos", "se me cayó el mundo", "se me cayo el mundo", "quiero llorar", "no dejo de llorar", "llorando", "vacío", "vacio", "nada me importa", "todo me da igual", "me da igual todo", "sin ganas de nada", "no sirvo para nada", "no valgo"] },
   { emotion: "ansiedad", words: ["ansiedad", "ansios", "nervios", "inquiet", "no puedo dejar de pensar", "mente a mil", "me acelero", "traigo los nervios de punta"] },
   { emotion: "miedo", words: ["miedo", "temor", "asust", "pánico", "panico", "me da cosa", "me aterra", "tengo miedo"] },
   { emotion: "enojo", words: ["enoj", "coraje", "furios", "encabron", "hasta la madre", "me hierve", "me prende", "chingado"] },
-  { emotion: "frustración", words: ["frustr", "impotencia", "no doy una", "ya valí", "ya vali", "no me sale", "haga lo que haga", "decepcion"] },
+  // También cuando algo salió mal y la persona se critica ("soy un fracaso", "reprobé"): así esos días
+  // aparecen en el calendario y se pueden practicar con Moka (src/data/mokaMirror.ts).
+  { emotion: "frustración", words: ["frustr", "impotencia", "no doy una", "ya valí", "ya vali", "no me sale", "haga lo que haga", "decepcion", "fracas", "reprob", "me fue mal", "me fue muy mal", "me salió mal", "me salio mal", "la regué", "la regue"] },
   { emotion: "culpa", words: ["culpa", "me arrepiento", "arrepent", "fue mi culpa", "me da vergüenza", "me da verguenza", "qué pena", "que pena"] },
   { emotion: "soledad", words: ["me siento solo", "me siento sola", "estoy solo", "estoy sola", "ando solo", "ando sola", "soledad", "nadie me pela", "nadie me entiende", "abandon", "rechaz", "me siento invisible"] },
   { emotion: "cansancio", words: ["cansad", "agotad", "hecho polvo", "hecha polvo", "sin energía", "sin energia", "fundid", "no me da la vida"] },

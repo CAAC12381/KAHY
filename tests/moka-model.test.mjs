@@ -124,3 +124,29 @@ test("Moka se pone apenada (cabeza y orejas abajo) y al consolarla se alegra", a
   run(3.5);
   assert.ok(Math.abs(head.rotation.x - calmPitch) < 0.1, "consolada, vuelve a levantar la cabeza");
 });
+
+test("Moka tiene dos cejas que, apenada, suben por dentro (cejitas de preocupación)", async () => {
+  const THREE = await import("three");
+  const moka = await buildMoka(0.8, () => {}, 4);
+  const camera = new THREE.PerspectiveCamera();
+  camera.position.set(1.95, 1.74, 2.9);
+  const brows = [];
+  moka.root.traverse((object) => { if (object.userData.browSide) brows.push(object); });
+  assert.equal(brows.length, 2, "una ceja sobre cada ojo");
+  let time = 0;
+  const run = (seconds) => {
+    for (let frame = 0; frame < seconds * 30; frame++) {
+      time += 1 / 30;
+      moka.update(time, 1 / 30, { reducedMotion: true, viewer: camera, pointer: null, interest: null });
+    }
+  };
+  run(1);
+  moka.setDowncast(true);
+  run(3);
+  // La punta de adentro (hacia el centro de la cara) sube: cada ceja gira hacia el lado contrario al suyo.
+  for (const brow of brows) assert.ok(-brow.userData.browSide * brow.rotation.z > 0.3, "apenada, la ceja no se inclinó hacia arriba por dentro");
+  moka.setDowncast(false);
+  moka.setSleeping(true);
+  run(4);
+  for (const brow of brows) assert.ok(brow.position.y < 0, "dormida, las cejas bajan");
+});
