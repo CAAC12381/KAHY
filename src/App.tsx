@@ -217,7 +217,7 @@ export default function App() {
     if (stage !== "app" || !isRegistered) return;
     if (profile.companionType === "mascota") {
       const animal = mascots.find((item) => item.id === profile.mascot);
-      if (animal) warmOfflineImages([closedBoxImage, ...animal.stages, animal.sadImage, animal.blinkImage]);
+      if (animal) warmOfflineImages([closedBoxImage, ...animal.stages, ...(animal.sadImage ? [animal.sadImage] : []), animal.blinkImage]);
     } else {
       const flower = flowers.find((item) => item.id === profile.flower);
       if (flower) warmOfflineImages([...flower.stages, flower.wiltedImage]);

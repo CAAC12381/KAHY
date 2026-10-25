@@ -20,7 +20,7 @@ export default function Mascot({
 }) {
   const mascot = mascots.find((item) => item.id === id) ?? mascots[0];
   const stageIndex = Math.min(mascot.stages.length - 1, Math.max(0, stage - 1));
-  const src = mood === "triste" ? mascot.sadImage : mascot.stages[stageIndex];
+  const src = (mood === "triste" && mascot.sadImage) || mascot.stages[stageIndex];
   const canBlink = blink && mood !== "triste" && stageIndex === 0;
   return (
     <span

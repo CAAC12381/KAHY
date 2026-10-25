@@ -19,10 +19,10 @@ export const mascots: Array<{
   name: string;
   animal: string;
   description: string;
-  /** Growth stages in order, from newly-arrived baby to grown-up. */
+  /** Growth stages in order, from newly-arrived baby (in its box) to grown-up. Only the 3D illustrations. */
   stages: string[];
-  /** Shown instead of the current stage when the companion has been neglected. */
-  sadImage: string;
+  /** Shown instead of the current stage when the companion has been neglected. Without one, the current stage is shown. */
+  sadImage?: string;
   /** Same art as the first stage with the eyes closed, used for the welcome blink. */
   blinkImage: string;
 }> = [
@@ -31,7 +31,7 @@ export const mascots: Array<{
     name: "Moka",
     animal: "vaquita",
     description: "Tierna y juguetona",
-    stages: [petAsset("animales/vaca/vaca-caja.jpg"), petAsset("animales/vaca/vaca-2.jpg"), petAsset("animales/vaca/vaca-grande.jpg")],
+    stages: [petAsset("animales/vaca/vaca-caja.jpg"), petAsset("animales/vaca/vaca-grande.jpg")],
     sadImage: petAsset("animales/tristes/vaca-triste.jpg"),
     blinkImage: petAsset("animales/vaca/vaca-caja-ojos-cerrados.jpg"),
   },
@@ -40,8 +40,7 @@ export const mascots: Array<{
     name: "Pío",
     animal: "pollito",
     description: "Curioso y alegre",
-    stages: [petAsset("animales/pollito/pollito-caja.jpg"), petAsset("animales/pollito/pollito-2.jpg"), petAsset("animales/pollito/pollito-3.jpg"), petAsset("animales/pollito/pollito-gallina.jpg")],
-    sadImage: petAsset("animales/tristes/pollito-triste.png"),
+    stages: [petAsset("animales/pollito/pollito-caja.jpg"), petAsset("animales/pollito/pollito-gallina.jpg")],
     blinkImage: petAsset("animales/pollito/pollito-caja-ojos-cerrados.jpg"),
   },
   {
@@ -49,8 +48,7 @@ export const mascots: Array<{
     name: "Lima",
     animal: "camaleón",
     description: "Sereno y creativo",
-    stages: [petAsset("animales/camaleon/camaleon-caja.jpg"), petAsset("animales/camaleon/camaleon-1.jpg"), petAsset("animales/camaleon/camaleon-2.jpg"), petAsset("animales/camaleon/camaleon-3.jpg"), petAsset("animales/camaleon/camaleon-grande.jpg")],
-    sadImage: petAsset("animales/tristes/camaleon-triste.png"),
+    stages: [petAsset("animales/camaleon/camaleon-caja.jpg"), petAsset("animales/camaleon/camaleon-grande.jpg")],
     blinkImage: petAsset("animales/camaleon/camaleon-caja-ojos-cerrados.jpg"),
   },
   {
@@ -58,8 +56,7 @@ export const mascots: Array<{
     name: "Tita",
     animal: "tortuguita",
     description: "Tranquila y dulce",
-    stages: [petAsset("animales/tortuga/tortuga-caja.jpg"), petAsset("animales/tortuga/tortuga-1.jpg"), petAsset("animales/tortuga/tortuga-2.jpg"), petAsset("animales/tortuga/tortuga-grande.jpg")],
-    sadImage: petAsset("animales/tristes/tortuga-triste.png"),
+    stages: [petAsset("animales/tortuga/tortuga-caja.jpg"), petAsset("animales/tortuga/tortuga-grande.jpg")],
     blinkImage: petAsset("animales/tortuga/tortuga-caja-ojos-cerrados.jpg"),
   },
 ];
