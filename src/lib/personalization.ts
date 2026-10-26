@@ -39,11 +39,19 @@ type Input = {
 };
 
 const screeningNames: Record<ScreeningResult["id"], string> = {
+  phq4: "PHQ-4",
+  k10: "K10",
   phq9: "PHQ-9",
   gad7: "GAD-7",
+  auditc: "AUDIT-C",
+  audit: "AUDIT",
+  paykel: "Paykel",
   asrs: "ASRS",
   pcl5: "PCL-5",
 };
+
+/** Paykel no viaja al chat: el protocolo de crisis se maneja en Tamizaje y en las salvaguardas del propio chat. */
+const privateScreenings = new Set<ScreeningResult["id"]>(["paykel"]);
 
 /** Builds a compact, inspectable summary. It never includes archived chat transcripts. */
 export function buildAdaptiveContext(input: Input): AdaptiveContext {
@@ -62,7 +70,7 @@ export function buildAdaptiveContext(input: Input): AdaptiveContext {
   const dominant = [...emotionCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] as EmotionEntry["primary"] | undefined;
   const latestEmotion = recentEmotions.at(-1)?.primary;
   const latestScreenings = new Map<ScreeningResult["id"], ScreeningResult>();
-  input.screenings.forEach((result) => latestScreenings.set(result.id, result));
+  input.screenings.filter((result) => !privateScreenings.has(result.id)).forEach((result) => latestScreenings.set(result.id, result));
 
   const highlights: AdaptiveHighlights = {
     preferredName: input.profile.name !== "Invitado" ? input.profile.name : undefined,

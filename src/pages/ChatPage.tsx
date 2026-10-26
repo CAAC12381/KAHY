@@ -53,7 +53,7 @@ function buildScreeningSuggestions(screenings: ScreeningsState): ScreeningSugges
   const pcl5 = screenings.latestOf("pcl5");
   if (pcl5 && pcl5.score >= 33) suggestions.push({ label: "Hablar de estrés postraumático (según tu PCL-5 reciente)", prompt: "Un tamizaje reciente de estrés postraumático me dio un resultado por encima del punto de corte. Quiero hablar de esto con cuidado." });
   const asrs = screenings.latestOf("asrs");
-  if (asrs && asrs.band.startsWith("Compatible")) suggestions.push({ label: "Herramientas de atención y organización (según tu ASRS reciente)", prompt: "Un tamizaje reciente de atención salió compatible con síntomas de TDAH. ¿Me ayudas con herramientas para organizarme?" });
+  if (asrs && asrs.score >= 4) suggestions.push({ label: "Herramientas de atención y organización (según tu ASRS reciente)", prompt: "Un tamizaje reciente de atención salió compatible con síntomas de TDAH. ¿Me ayudas con herramientas para organizarme?" });
   return suggestions.slice(0, 2);
 }
 

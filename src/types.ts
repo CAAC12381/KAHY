@@ -106,7 +106,7 @@ export interface ToastMessage {
   text: string;
 }
 
-export type ScreeningId = "phq9" | "gad7" | "asrs" | "pcl5";
+export type ScreeningId = "phq4" | "k10" | "phq9" | "gad7" | "auditc" | "audit" | "paykel" | "asrs" | "pcl5";
 
 export interface ScreeningResult {
   id: ScreeningId;
