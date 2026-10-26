@@ -362,6 +362,47 @@
     100% { transform: scale(1.7); opacity: 0; filter: blur(3px); }
   }
 
+  /* Al tronar: un anillo que se abre y gotitas que salen hacia afuera. */
+  .bpg-burst {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  .bpg-burst-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.75);
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
+    animation: bpg-burst-ring 650ms cubic-bezier(.22,.61,.36,1) forwards;
+  }
+
+  @keyframes bpg-burst-ring {
+    0%   { transform: scale(.7); opacity: .9; }
+    45%  { opacity: .7; }
+    100% { transform: scale(1.6); opacity: 0; }
+  }
+
+  .bpg-burst-drop {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    margin: -5px 0 0 -5px;
+    border-radius: 50%;
+    background: var(--drop, #ffffff);
+    box-shadow: 0 0 6px var(--drop, #ffffff);
+    animation: bpg-burst-drop 700ms cubic-bezier(.22,.61,.36,1) forwards;
+  }
+
+  @keyframes bpg-burst-drop {
+    0%   { transform: rotate(var(--a)) translateY(calc(var(--d) * -0.35)) scale(1); opacity: 1; }
+    55%  { opacity: .9; }
+    100% { transform: rotate(var(--a)) translateY(calc(var(--d) * -1.15)) scale(.45); opacity: 0; }
+  }
+
   .bpg-floating-text {
     position: absolute;
     transform: translate(-50%, -50%);
@@ -426,6 +467,7 @@
     .bpg-bubble-track { animation-name: bpg-rise-reduced; }
     .bpg-hold-button.is-holding { animation: none; }
     .bpg-closing.is-active { animation: none; }
+    .bpg-burst { display: none; }
     @keyframes bpg-rise-reduced {
       0% { bottom: -18%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { bottom: 60%; opacity: 0; }
     }
@@ -535,33 +577,78 @@
     if (!audioCtx) audioCtx = new AC();
     if (audioCtx.state === "suspended") audioCtx.resume().catch(function () {});
   }
+  // Pop tipo gotita de agua: un "bloop" corto que sube de tono, un soplo
+  // de aire muy leve y una campanita suave. Cada burbuja toma una nota
+  // distinta de una escala pentatónica, así varias seguidas suenan como
+  // una melodía tranquila y no como el mismo pitido repetido.
+  var POP_NOTES = [392, 440, 523.25, 587.33, 659.25]; // Sol, La, Do, Re, Mi
+  var lastNote = -1;
+  var noiseBuffer = null;
+
+  function getNoiseBuffer() {
+    if (noiseBuffer) return noiseBuffer;
+    var length = Math.floor(audioCtx.sampleRate * 0.08);
+    noiseBuffer = audioCtx.createBuffer(1, length, audioCtx.sampleRate);
+    var data = noiseBuffer.getChannelData(0);
+    for (var i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+    return noiseBuffer;
+  }
+
   function playPop() {
     if (!soundEnabled || !audioCtx) return;
     var now = audioCtx.currentTime;
-    var fundamental = 196;
+    var noteIndex;
+    do { noteIndex = randInt(0, POP_NOTES.length - 1); } while (noteIndex === lastNote && POP_NOTES.length > 1);
+    lastNote = noteIndex;
+    var note = POP_NOTES[noteIndex];
+
     var master = audioCtx.createGain();
-    master.gain.setValueAtTime(0, now);
+    master.gain.value = 0.5;
+    var soften = audioCtx.createBiquadFilter();
+    soften.type = "lowpass";
+    soften.frequency.value = 2600;
+    soften.Q.value = 0.3;
+    soften.connect(master);
     master.connect(audioCtx.destination);
-    var lowpass = audioCtx.createBiquadFilter();
-    lowpass.type = "lowpass";
-    lowpass.frequency.setValueAtTime(900, now);
-    lowpass.Q.value = 0.4;
-    lowpass.connect(master);
-    [1, 1.503].forEach(function (ratio, i) {
-      var osc = audioCtx.createOscillator();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(fundamental * ratio, now);
-      var gain = audioCtx.createGain();
-      var peak = i === 0 ? 0.22 : 0.09;
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(peak, now + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0008, now + 1.1);
-      osc.connect(gain).connect(lowpass);
-      osc.start(now);
-      osc.stop(now + 1.2);
-    });
-    master.gain.linearRampToValueAtTime(0.6, now + 0.02);
-    master.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+
+    // 1) La gotita: seno que sube rápido de tono y se apaga en un cuarto de segundo.
+    var drop = audioCtx.createOscillator();
+    drop.type = "sine";
+    drop.frequency.setValueAtTime(note * 0.75, now);
+    drop.frequency.exponentialRampToValueAtTime(note * 1.5, now + 0.07);
+    var dropGain = audioCtx.createGain();
+    dropGain.gain.setValueAtTime(0.0001, now);
+    dropGain.gain.exponentialRampToValueAtTime(0.32, now + 0.008);
+    dropGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
+    drop.connect(dropGain).connect(soften);
+    drop.start(now);
+    drop.stop(now + 0.3);
+
+    // 2) El soplo de la burbuja al romperse: ruido muy corto y filtrado.
+    var air = audioCtx.createBufferSource();
+    air.buffer = getNoiseBuffer();
+    var airFilter = audioCtx.createBiquadFilter();
+    airFilter.type = "bandpass";
+    airFilter.frequency.value = 1700;
+    airFilter.Q.value = 0.9;
+    var airGain = audioCtx.createGain();
+    airGain.gain.setValueAtTime(0.06, now);
+    airGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+    air.connect(airFilter).connect(airGain).connect(soften);
+    air.start(now);
+    air.stop(now + 0.08);
+
+    // 3) Campanita: la misma nota una octava arriba, muy bajita, con una cola suave.
+    var chime = audioCtx.createOscillator();
+    chime.type = "triangle";
+    chime.frequency.setValueAtTime(note * 2, now + 0.03);
+    var chimeGain = audioCtx.createGain();
+    chimeGain.gain.setValueAtTime(0.0001, now + 0.03);
+    chimeGain.gain.exponentialRampToValueAtTime(0.05, now + 0.05);
+    chimeGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.75);
+    chime.connect(chimeGain).connect(soften);
+    chime.start(now + 0.03);
+    chime.stop(now + 0.8);
   }
 
   soundToggle.addEventListener("click", function () {
@@ -684,6 +771,7 @@
     entry.track.classList.add("is-paused"); // congela el vuelo justo donde iba
     entry.btn.classList.add("is-popping");
     playPop();
+    spawnBurst(entry.btn);
 
     var pair = entry.pair, x = entry.x;
     setTimeout(function () {
@@ -692,6 +780,39 @@
     }, CONFIG.popAnimationMs);
 
     registerPop();
+  }
+
+  var DROP_COLORS = ["#ffffff", "#ffc2e4", "#bfe2ff", "#d6c6ff", "#bdf3e6", "#ffe3b3"];
+
+  // Anillo y gotitas en el lugar exacto donde estaba la burbuja.
+  function spawnBurst(btn) {
+    var area = playArea.getBoundingClientRect();
+    var r = btn.getBoundingClientRect();
+    var size = r.width;
+    var burst = document.createElement("div");
+    burst.className = "bpg-burst";
+    burst.style.left = (r.left - area.left + r.width / 2) + "px";
+    burst.style.top = (r.top - area.top + r.height / 2) + "px";
+    burst.style.width = size + "px";
+    burst.style.height = size + "px";
+
+    var ring = document.createElement("span");
+    ring.className = "bpg-burst-ring";
+    burst.appendChild(ring);
+
+    var drops = 8;
+    var offset = rand(0, 360);
+    for (var i = 0; i < drops; i++) {
+      var drop = document.createElement("span");
+      drop.className = "bpg-burst-drop";
+      drop.style.setProperty("--a", (offset + i * (360 / drops) + rand(-12, 12)) + "deg");
+      drop.style.setProperty("--d", (size * rand(0.75, 1)) + "px");
+      drop.style.setProperty("--drop", DROP_COLORS[i % DROP_COLORS.length]);
+      burst.appendChild(drop);
+    }
+
+    playArea.appendChild(burst);
+    setTimeout(function () { burst.remove(); }, 800);
   }
 
   function spawnFloatingText(pair, x) {
@@ -752,7 +873,7 @@
     if (sessionTimeout) clearTimeout(sessionTimeout);
     if (windDownInterval) clearInterval(windDownInterval);
     Object.keys(bubbleEls).forEach(function (id) { removeBubble(id); });
-    Array.prototype.forEach.call(playArea.querySelectorAll(".bpg-floating-text"), function (n) { n.remove(); });
+    Array.prototype.forEach.call(playArea.querySelectorAll(".bpg-floating-text, .bpg-burst"), function (n) { n.remove(); });
     popCount = 0;
     spawnRateMultiplier = 1;
     difficultyMultiplier = 1;
