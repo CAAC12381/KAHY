@@ -8,21 +8,25 @@
   @import url("https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Quicksand:wght@400;500;600&display=swap");
 
   :root {
-    --page-bg: #201d24;
-    --bg: #2b2a30;
+    /* Cielo de atardecer: azul profundo que pasa a lila. Oscuro lo suficiente
+       para que el texto blanco de las burbujas se lea siempre. */
+    --page-bg: #1f2050;
+    --bg: #3a3fa6;
+    --bg-gradient: linear-gradient(165deg, #343a9c 0%, #3f47b4 42%, #5a4fbf 72%, #7559c4 100%);
     --bg-glow-a: #35303f;
     --bg-glow-b: #2a3436;
     --frame: #efe6d1;
-    --frame-dim: rgba(239, 230, 209, 0.28);
-    --ink: #f5efe2;
-    --ink-soft: #b6ac9a;
-    --ink-faint: #857c72;
-    --bubble-ink: #43394d;
-    --surface: rgba(245, 239, 226, 0.08);
-    --surface-border: rgba(245, 239, 226, 0.22);
-    --accent: #7fb0de;
-    --accent-ink: #1c2b38;
-    --positive: #8fd9c0;
+    --frame-dim: rgba(239, 230, 209, 0.32);
+    --ink: #f7f4ff;
+    --ink-soft: #d9d4f2;
+    --ink-faint: #aaa4d6;
+    --bubble-ink: #ffffff;
+    --bubble-ink-shadow: 0 1px 2px rgba(22, 18, 72, 0.8), 0 0 10px rgba(22, 18, 72, 0.55);
+    --surface: rgba(255, 255, 255, 0.1);
+    --surface-border: rgba(255, 255, 255, 0.26);
+    --accent: #ffd38a;
+    --accent-ink: #3a2a10;
+    --positive: #b8f5df;
 
     --c0: #eec3d2; --c0-edge: #cf87a5;
     --c1: #bfe0ee; --c1-edge: #7cb3cf;
@@ -94,8 +98,8 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background: var(--bg);
-    box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.28);
+    background: var(--bg-gradient);
+    box-shadow: inset 0 0 60px rgba(14, 12, 60, 0.35);
   }
 
   /* Fondo tipo acuarela: manchas de color translúcidas con blur (como
@@ -115,7 +119,8 @@
       radial-gradient(20% 18% at 48% 40%, color-mix(in srgb, var(--c1) 40%, transparent), transparent 78%);
     filter: blur(18px) saturate(1.15);
     mix-blend-mode: screen;
-    opacity: 0.5;
+    /* Tenue sobre el azul: si aclara mucho el fondo, el texto blanco pierde contraste. */
+    opacity: 0.22;
   }
 
   .bpg-root::after {
@@ -233,6 +238,7 @@
   .bpg-hold-label {
     position: relative;
     z-index: 1;
+    color: var(--ink);
     font-family: "Baloo 2", sans-serif;
     font-weight: 600;
     font-size: 12.5px;
@@ -276,7 +282,17 @@
     100% { bottom: 128%; transform: translateX(0) scale(.95); opacity: 0; }
   }
 
+  /*
+    Burbuja de jabón: centro casi transparente, borde con reflejos de
+    arcoíris (::before) y brillos blancos (::after). Las dos capas van
+    DETRÁS del texto (z-index -1 dentro de un contexto aislado), así la
+    palabra siempre queda encima, en blanco con sombra oscura, y se lee
+    sobre el centro transparente sin importar el color de la burbuja.
+  */
   .bpg-bubble {
+    --tint: var(--c1);
+    position: relative;
+    isolation: isolate;
     width: 100%;
     height: 100%;
     border-radius: 50%;
@@ -288,16 +304,52 @@
     padding: 8px;
     text-align: center;
     font-family: "Baloo 2", sans-serif;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: 0.01em;
     color: var(--bubble-ink);
+    text-shadow: var(--bubble-ink-shadow);
     touch-action: none;
+    background:
+      radial-gradient(circle at 50% 55%,
+        color-mix(in srgb, var(--tint) 8%, transparent) 0 50%,
+        color-mix(in srgb, var(--tint) 30%, transparent) 76%,
+        rgba(255, 255, 255, 0.5) 100%);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.55),
+      inset 0 -8px 16px -6px rgba(255, 255, 255, 0.25),
+      0 10px 24px -12px rgba(12, 10, 60, 0.55);
   }
 
-  .bpg-bubble[data-c="0"] { background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--c0) 92%, white 8%), var(--c0) 55%, var(--c0-edge) 100%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c0-edge) 55%, transparent), 0 10px 20px -10px rgba(0,0,0,.45); }
-  .bpg-bubble[data-c="1"] { background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--c1) 92%, white 8%), var(--c1) 55%, var(--c1-edge) 100%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c1-edge) 55%, transparent), 0 10px 20px -10px rgba(0,0,0,.45); }
-  .bpg-bubble[data-c="2"] { background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--c2) 92%, white 8%), var(--c2) 55%, var(--c2-edge) 100%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c2-edge) 55%, transparent), 0 10px 20px -10px rgba(0,0,0,.45); }
-  .bpg-bubble[data-c="3"] { background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--c3) 92%, white 8%), var(--c3) 55%, var(--c3-edge) 100%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c3-edge) 55%, transparent), 0 10px 20px -10px rgba(0,0,0,.45); }
-  .bpg-bubble[data-c="4"] { background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--c4) 92%, white 8%), var(--c4) 55%, var(--c4-edge) 100%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c4-edge) 55%, transparent), 0 10px 20px -10px rgba(0,0,0,.45); }
+  .bpg-bubble::before,
+  .bpg-bubble::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  /* Reflejo de arcoíris solo en el borde: el centro queda limpio para la palabra. */
+  .bpg-bubble::before {
+    background: conic-gradient(from 200deg, #ff8fcf, #8fcbff, #b48fff, #7fead4, #ffd48f, #ff8fcf);
+    -webkit-mask: radial-gradient(circle, transparent 56%, rgba(0, 0, 0, 0.55) 68%, #000 80%);
+    mask: radial-gradient(circle, transparent 56%, rgba(0, 0, 0, 0.55) 68%, #000 80%);
+    opacity: 0.95;
+  }
+
+  /* Brillos: uno grande arriba a la izquierda y uno pequeño abajo a la derecha, lejos del centro. */
+  .bpg-bubble::after {
+    background:
+      radial-gradient(ellipse 15% 10% at 30% 22%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 100%),
+      radial-gradient(circle at 76% 76%, rgba(255, 255, 255, 0.65) 0 3%, rgba(255, 255, 255, 0) 7%);
+  }
+
+  .bpg-bubble[data-c="0"] { --tint: var(--c0); }
+  .bpg-bubble[data-c="1"] { --tint: var(--c1); }
+  .bpg-bubble[data-c="2"] { --tint: var(--c2); }
+  .bpg-bubble[data-c="3"] { --tint: var(--c3); }
+  .bpg-bubble[data-c="4"] { --tint: var(--c4); }
 
   .bpg-bubble.is-popping {
     animation: bpg-pop 700ms cubic-bezier(.22,.61,.36,1) forwards !important;
@@ -317,7 +369,7 @@
     font-weight: 600;
     font-size: 16px;
     color: var(--positive);
-    text-shadow: 0 2px 14px color-mix(in srgb, var(--positive) 45%, transparent);
+    text-shadow: 0 1px 3px rgba(22, 18, 72, 0.7), 0 2px 14px color-mix(in srgb, var(--positive) 45%, transparent);
     pointer-events: none;
     animation: bpg-float-up 1900ms ease-out forwards;
     white-space: nowrap;
@@ -358,7 +410,7 @@
   .caption b { color: var(--ink-soft); font-weight: 600; }
 
   @media (max-width: 650px) {
-    body { width: 100%; height: 100dvh; gap: 0; padding: 0; background: var(--bg); }
+    body { width: 100%; height: 100dvh; gap: 0; padding: 0; background: var(--page-bg); }
     .page-heading, .caption { display: none; }
     .phone { width: 100%; max-width: none; height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }
     .bpg-panel { width: 100%; max-width: 320px; padding: 18px; }
