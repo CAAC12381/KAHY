@@ -65,6 +65,8 @@ const safetyPatterns = [
   /sobredosis/i,
   /tome demasiadas pastillas/i,
   /me tome todas las pastillas/i,
+  /(voy a|quiero|pienso|me quiero) tomar(me)? (todas|toda la caja de) (mis |las )?(pastillas|medicinas|medicamentos)/i,
+  /tomarme todas (mis |las )?(pastillas|medicinas)/i,
   /no esta respirando/i,
   /no puedo respirar/i,
   /esta inconsciente/i,
@@ -87,11 +89,29 @@ export function detectSafetySignal(input: string): boolean {
   return safetyPatterns.some((pattern) => pattern.test(contextual))
 }
 
+// Lo que se dice de otra persona en riesgo. (28 oct 2026: "mi amiga me dijo que ya no quiere vivir" no
+// se detectaba: solo estaban "se quiere morir", "suicid", "matarse" y "hacerse daño".)
+const THIRD_PARTY_RISK = '(se quiere morir|quiere morir|ya no quiere vivir|no quiere vivir|no quiere seguir viviendo|ya no quiere estar aqui|se quiere matar|quiere matarse|matarse|suicid|quitarse la vida|acabar con su vida|hacerse dano|se quiere hacer dano|se esta lastimando|se lastima|se corta|se esta cortando|se tomo (todas )?las pastillas)'
+const THIRD_PARTY_SUBJECT = '(amigo|amiga|hermano|hermana|pareja|novio|novia|esposo|esposa|hijo|hija|mama|madre|papa|padre|primo|prima|tio|tia|abuelo|abuela|sobrino|sobrina|vecino|vecina|alumno|alumna|compa|cuate|cuata|roomie|familiar|companero|companera)'
+
 /** Señal de riesgo referida a otra persona ("mi amiga se quiere morir"). */
 export function detectThirdPartySafetySignal(input: string): boolean {
   const text = normalizeText(input)
-  return /\b(mi|un|una) (amigo|amiga|hermano|hermana|pareja|novio|novia|hijo|hija|mama|madre|papa|padre|compa|familiar|companero|companera).{0,100}(se quiere morir|quiere morir|suicid|matarse|hacerse dano|se esta lastimando)/i.test(text)
-    || /\b(alguien|una persona).{0,80}(se quiere morir|quiere morir|suicid|matarse|hacerse dano)/i.test(text)
+  return new RegExp(`\\b(mi|mis|un|una) ${THIRD_PARTY_SUBJECT}.{0,100}${THIRD_PARTY_RISK}`, 'i').test(text)
+    || new RegExp(`\\b(alguien|una persona|un conocido|una conocida).{0,80}${THIRD_PARTY_RISK}`, 'i').test(text)
+}
+
+/**
+ * Menciona un medicamento psiquiátrico (genéricos y marcas comunes en México)
+ * o pregunta por dejar, cambiar o suspender un tratamiento. Una pregunta así
+ * no es una crisis: la IA a veces la marcaba como "seguridad" y abría la
+ * ventana de ayuda inmediata (28 oct 2026, "¿puedo dejar la sertralina de
+ * golpe?").
+ */
+export const MEDICATION_MENTION = /\b(sertralina|altruline|fluoxetina|prozac|escitalopram|lexapro|citalopram|paroxetina|paxil|venlafaxina|efexor|desvenlafaxina|duloxetina|cymbalta|mirtazapina|bupropion|wellbutrin|amitriptilina|imipramina|clonazepam|rivotril|alprazolam|tafil|lorazepam|ativan|diazepam|valium|bromazepam|lexotan|quetiapina|seroquel|risperidona|olanzapina|aripiprazol|haloperidol|litio|valproato|acido valproico|depakene|lamotrigina|carbamazepina|metilfenidato|ritalin|concerta|atomoxetina|strattera|lisdexanfetamina|vyvanse|zolpidem|melatonina|antidepresivo\w*|ansiolitico\w*|antipsicotico\w*|mi medicamento|mis medicamentos|mis pastillas|mi tratamiento|la dosis|dejar de tomar|suspender el medicamento)\b/
+
+export function mentionsMedication(input: string): boolean {
+  return MEDICATION_MENTION.test(normalizeText(input))
 }
 
 // --- Límite de alcance -------------------------------------------------

@@ -1,7 +1,8 @@
 import type { EmotionInsight } from "../types";
 import { acknowledgeFeeling, acknowledgeLoss, APATHY, createAdaptiveOfflineReply, detectIntent, type LocalConversationContext } from "../lib/offlineConversation";
+import { situationReply } from "../lib/localSituations";
 // Las frases de crisis viven en un solo archivo, compartido con el servidor (ver su encabezado).
-import { detectSafetySignal, detectThirdPartySafetySignal } from "../../api/_lib/chatGuards";
+import { detectSafetySignal, detectThirdPartySafetySignal, MEDICATION_MENTION } from "../../api/_lib/chatGuards";
 
 export { detectSafetySignal, detectThirdPartySafetySignal };
 
@@ -105,8 +106,8 @@ export function getTopic(input: string): ChatTopic {
     "mi amigo", "mi amiga", "mi hermano", "mi hermana", "una persona cercana", "como ayudo a alguien", "quiero ayudar a alguien", "alguien que conozco", "un familiar esta", "un compañero esta",
     "mi cuate", "mi cuata", "un cuate mio", "una amiga mia", "un compa mio", "mi cuñado", "mi cuñada", "mi primo esta mal", "mi prima esta mal",
   ])) return "apoyo";
-  if (includesAny(text, [
-    "que medicamento", "mi medicamento", "mis pastillas", "dejar de tomar", "suspender el medicamento", "se me olvido tomar", "efectos secundarios", "cambiar la dosis", "el psiquiatra me receto", "dosis de",
+  if (MEDICATION_MENTION.test(text) || includesAny(text, [
+    "que medicamento", "mi medicamento", "mis pastillas", "dejar de tomar", "suspender el medicamento", "dejar el medicamento", "dejar las pastillas", "de golpe el medicamento", "se me olvido tomar", "efectos secundarios", "cambiar la dosis", "el psiquiatra me receto", "dosis de",
     "las pastillas que me receto", "mi tratamiento", "ya no quiero tomar mis pastillas", "se me acabaron las pastillas",
   ])) return "medicación";
   if (includesAny(text, ["tengo cita con el psicologo", "tengo cita con el psiquiatra", "me van a evaluar", "quiero un diagnostico", "cual es mi diagnostico", "preparar mi cita", "me van a hacer un cuestionario", "primera consulta"])) return "diagnóstico";
@@ -153,19 +154,17 @@ function faqReply(key: FaqKey, topic: ChatTopic): ConversationReply {
   };
   switch (key) {
     case "saludo":
+      // Un saludo se contesta como saludo: sin pasos ni explicación de lo que hace KAHY.
       return {
         ...base,
+        presentation: "conversation",
         label: "Bienvenida",
-        title: "Hola, qué bueno que escribes",
-        introduction: "Soy el motor de orientación de KAHY. Puedo ayudarte a ordenar lo que sientes, sugerir un siguiente paso concreto y, si hace falta, conectarte con apoyo humano.",
-        insight: "No diagnostico ni sustituyo a un profesional; ofrezco una ruta local segura mientras conversamos.",
-        steps: [
-          { horizon: "Para empezar", text: "Cuéntame en una frase qué está pasando o qué tipo de apoyo buscas." },
-          { horizon: "Si prefieres", text: "Puedes usar uno de los atajos de abajo: estrés, sobrecarga, consumo o atención remota." },
-        ],
-        question: "¿Por dónde quieres comenzar?",
-        choices: ["Estrés o ansiedad", "Ánimo bajo", "Sobrecarga neurodivergente", "Buscar atención"],
-        sourceIds: ["who-ai-health"],
+        title: "",
+        introduction: "¡Hola! Qué gusto que pases por aquí. ¿Cómo vas hoy?",
+        insight: "",
+        question: "",
+        choices: ["Quiero desahogarme", "Necesito organizarme", "Solo quería platicar", "No sé cómo me siento"],
+        sourceIds: [],
       };
     case "gracias":
       return {
@@ -500,11 +499,6 @@ const followUpSeeds: Partial<Record<ChatTopic, FollowUpSeed>> = {
   },
 };
 
-function truncateQuote(input: string) {
-  const clean = input.trim().replace(/\s+/g, " ");
-  return clean.length > 100 ? `${clean.slice(0, 97)}…` : clean;
-}
-
 function followUpReply(topic: ChatTopic, input: string): ConversationReply | null {
   const seed = followUpSeeds[topic];
   if (!seed) return null;
@@ -513,7 +507,7 @@ function followUpReply(topic: ChatTopic, input: string): ConversationReply | nul
     topic,
     label: seed.label,
     title: seed.title,
-    introduction: `Leo lo que acabas de compartir: “${truncateQuote(input)}”. ${seed.continuation}`,
+    introduction: `${acknowledgeFeeling(input) ?? "Te sigo."} ${seed.continuation}`,
     insight: seed.insight,
     steps: seed.steps,
     question: seed.question,
@@ -671,10 +665,18 @@ export function createReply(input: string, previousTopic: ChatTopic = "inicio", 
 }
 
 function composeReply(input: string, previousTopic: ChatTopic, context: LocalConversationContext): ConversationReply {
+  const topic = getTopic(input);
+
+  // Situaciones concretas (una ruptura, un grito enfrente de todos, un "no sé"…): se responde a lo que
+  // pasó en vez de a la tarjeta del tema. Nunca antes de la ayuda de crisis ni en los temas que tienen su
+  // propio cuidado (duelo, trauma, consumo, pánico y medicamentos).
+  if (!["seguridad", "duelo", "trauma", "adicciones", "pánico", "medicación"].includes(topic)) {
+    const situation = situationReply(input, previousTopic, context);
+    if (situation) return situation;
+  }
+
   const faqKey = detectFaq(input);
   if (faqKey && !detectSafetySignal(input)) return faqReply(faqKey, previousTopic);
-
-  const topic = getTopic(input);
 
   if (topic === "seguridad" && detectThirdPartySafetySignal(input)) return {
     mode: "safety", presentation: "guided", topic,
@@ -755,6 +757,14 @@ function composeReply(input: string, previousTopic: ChatTopic, context: LocalCon
     question: "¿Esto es un recuerdo del pasado o hay una situación de violencia o peligro ocurriendo ahora?",
     choices: ["Es un recuerdo", "Hay peligro ahora", "Prefiero no decirlo"], sourceIds: ["nice-ptsd", "who-pfa", "pcl5-mx"],
   };
+
+  if (topic === "medicación" && /\b(me siento|estoy|ando|ya) (mucho |muy )?mejor\b/.test(normalize(input))) {
+    const card = initialTopicReplies["medicación"]!();
+    return {
+      ...card,
+      introduction: `Qué bueno que te sientas mejor; a veces es justo el medicamento haciendo su trabajo. Por eso conviene no dejarlo por tu cuenta: ${card.introduction.charAt(0).toLowerCase()}${card.introduction.slice(1)}`,
+    };
+  }
 
   if (topic === "duelo" || topic === "soledad" || topic === "relaciones" || topic === "sueño" || topic === "pánico" || topic === "medicación" || topic === "diagnóstico" || topic === "apoyo" || topic === "autocuidado") {
     const build = initialTopicReplies[topic];

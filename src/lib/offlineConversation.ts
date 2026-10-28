@@ -41,12 +41,6 @@ function shortReference(input: string) {
   return clean.length > 92 ? `${clean.slice(0, 89)}…` : clean;
 }
 
-function continuity(context: LocalConversationContext) {
-  const previous = context.recentUserMessages?.filter(Boolean).at(-1);
-  if (!previous) return "";
-  return ` También tengo presente que antes mencionaste “${shortReference(previous)}”; podemos conectarlo sin empezar de cero.`;
-}
-
 function adaptiveNote(intent: LocalIntent, context: LocalConversationContext) {
   const saved = context.personalization;
   if (!saved) return "";
@@ -66,20 +60,20 @@ function adaptiveNote(intent: LocalIntent, context: LocalConversationContext) {
 }
 
 function emotionalOpening(input: string, turnCount: number) {
+  const felt = acknowledgeFeeling(input, turnCount);
+  if (felt) return felt;
   const emotion = inferLocalEmotion(input);
-  if (emotion.primary === "no_clara") {
+  if (emotion.primary === "no_clara" || emotion.primary === "neutral") {
     return stableChoice(input, turnCount, [
-      "Gracias por explicarlo con tus palabras. No necesito que lo cuentes de una forma perfecta para poder acompañarte.",
-      "Te sigo. Hay suficiente en lo que cuentas para ordenar un siguiente paso sin apresurarnos a ponerle una etiqueta.",
-      "Lo que planteas merece una respuesta concreta, pero también espacio para entender qué necesitas tú de esta conversación.",
+      "Te leo. Puedes contarlo como te salga, sin ordenarlo antes.",
+      "Aquí estoy. No hace falta que lo expliques perfecto para que te entienda.",
+      "Te sigo. Cuéntame un poco más, a tu ritmo.",
     ]);
   }
-
   const label = emotionLabels[emotion.primary].toLowerCase();
   return stableChoice(input, turnCount, [
-    `En lo que escribes aparece ${label}. No voy a reducir todo a esa emoción, pero sí tomarla en cuenta para responderte con más cuidado.`,
-    `Parece haber ${label} detrás de esto. Tiene sentido detenernos a ordenar la situación antes de exigirte una solución completa.`,
-    `Gracias por nombrarlo. La señal de ${label} importa, y podemos trabajar con ella sin convertirla en un diagnóstico ni en una conclusión sobre ti.`,
+    `Se nota ${label} en lo que cuentas, y tiene sentido que pese.`,
+    `Hay ${label} en lo que escribes. No hace falta resolverlo todo ahorita para hablarlo.`,
   ]);
 }
 
@@ -171,7 +165,7 @@ function baseReply(input: string, previousTopic: ChatTopic, context: LocalConver
     presentation: "conversation" as const,
     topic,
     label: "Orientación local",
-    introduction: `${emotionalOpening(input, turnCount)}${continuity(context)}${adaptiveNote(intent, context)}`,
+    introduction: `${emotionalOpening(input, turnCount)}${adaptiveNote(intent, context)}`,
     sourceIds: [] as string[],
     openHelp: false,
     emotion,
@@ -295,14 +289,10 @@ export function createAdaptiveOfflineReply(input: string, previousTopic: ChatTop
 
   return {
     ...base,
-    title: "Vamos a ordenar esto sin apresurarnos",
-    insight: "Puedo acompañarte de tres maneras: darte espacio para contarlo, ayudarte a entender qué está pasando o convertirlo en un siguiente paso concreto.",
-    steps: [
-      { horizon: "Situación", text: "Ubica qué parte está ocurriendo ahora y qué parte pertenece a algo que temes que ocurra." },
-      { horizon: "Prioridad", text: "Elige qué necesita atención primero: tu bienestar, una decisión, una conversación o una tarea concreta." },
-      { horizon: "Siguiente paso", text: "Haz una acción suficientemente pequeña para poder revisarla después, en lugar de intentar resolver todo de una vez." },
-    ],
-    question: "¿Qué te ayudaría más ahora: que te escuche, entenderlo mejor o salir con un plan?",
+    title: "",
+    insight: "",
+    steps: [],
+    question: "¿Qué te ayudaría más ahorita: contarlo con calma, entenderlo mejor o pensar en un siguiente paso?",
     choices: ["Solo quiero contarlo", "Ayúdame a entender", "Armemos un plan"],
   };
 }

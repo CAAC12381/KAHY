@@ -7,7 +7,7 @@
 // cambias chatGuards.ts, agrega aquí el caso que motivó el cambio.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { detectSafetySignal, detectThirdPartySafetySignal, isOutOfScopeInformationRequest } from "../api/_lib/chatGuards.ts";
+import { detectSafetySignal, detectThirdPartySafetySignal, isOutOfScopeInformationRequest, mentionsMedication } from "../api/_lib/chatGuards.ts";
 
 const crisis = [
   "me quiero morir", "Ya quiero morir", "no quiero vivir", "No quiero seguir así", "no quiero seguir aquí", "ya no quiero estar aquí",
@@ -21,6 +21,8 @@ const crisis = [
   "no puedo respirar", "está inconsciente", "hay violencia en mi casa ahora", "me están golpeando", "estoy en peligro",
   "quiero hacerle daño a alguien", "ME QUIERO MORIR!!!", "la neta ya no quiero vivir, estoy harta",
   "ya nada tiene sentido", "mi vida no tiene sentido", "la vida ya no tiene ningún sentido", "no tiene sentido vivir así",
+  // 28 oct 2026: tomar todas las pastillas dicho en futuro no se detectaba.
+  "me voy a tomar todas mis pastillas", "quiero tomarme todas las pastillas", "pienso tomarme toda la caja de pastillas",
 ];
 
 const everyday = [
@@ -34,7 +36,19 @@ const everyday = [
 const thirdParty = [
   "mi amiga se quiere morir", "mi hermano dijo que quiere morir", "un amigo habla de suicidarse", "mi novia quiere matarse",
   "alguien de mi salón dice que se quiere morir", "mi hija se está lastimando", "una persona cercana piensa en el suicidio",
+  // 28 oct 2026: "ya no quiere vivir" y otros parientes no se detectaban.
+  "mi amiga me dijo que ya no quiere vivir y no sé qué hacer", "mi primo se quiere matar", "mi mamá dice que no quiere vivir",
+  "mi roomie se está cortando", "mi hermana se tomó todas las pastillas", "mi tía habla de quitarse la vida",
 ];
+
+test("se reconocen los medicamentos por nombre, pero no cualquier palabra", () => {
+  for (const text of ["¿puedo dejar la sertralina de golpe?", "me recetaron Clonazepam", "olvidé mis pastillas", "quiero dejar de tomar el antidepresivo"]) {
+    assert.equal(mentionsMedication(text), true, text);
+  }
+  for (const text of ["me siento triste", "tengo examen de litografía", "vi un video de pastelitos"]) {
+    assert.equal(mentionsMedication(text), false, text);
+  }
+});
 
 const wellbeing = [
   "¿Por qué ya nada me importa?", "¿Por qué lloro tanto últimamente?", "¿Cómo le digo a mi mamá que reprobé el semestre?",

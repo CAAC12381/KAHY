@@ -425,7 +425,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
             <div className="conversation-day"><Sparkles size={13} /> {preferences.saveChatHistory ? "Conversación nueva · se guarda en este navegador" : preferences.rememberConversations ? "Conversación nueva · recuerda solo temas" : "Conversación nueva · no se guarda"}</div>
             {memory.entries.length > 0 && <div className="memory-banner"><MessageCircle size={14} /><span>La última vez hablamos de: {memory.entries.slice(-3).map((entry) => topicNames[entry.topic]).join(", ")}.</span></div>}
             {messages.length === 1 && preferences.adaptivePersonalization && adaptive.connectedSignals > 0 && <div className="memory-banner adaptive"><Sparkles size={14} /><span>KAHY conectará tus avances en hábitos, tareas, emociones y tamizajes para personalizar esta charla.</span></div>}
-            {messages.map((message) => message.role === "user" ? <div className="studio-message user" data-chat-message key={message.id}><div className="user-message">{message.text}</div></div> : <Fragment key={message.id}><AssistantReply reply={message.reply} fallback={message.fallback} onRetry={canRetryWithAi && message === lastMessage ? () => retryWithAi(message.id) : undefined} onChoice={send} onHelp={onHelp} navigate={navigate} disabled={typing} onOpenPlan={() => setPlanOpen(true)} />{message.mirror && <MirrorSuggestion theme={message.mirror} onPractice={() => onPracticeWithCompanion(message.mirror!)} />}</Fragment>)}
+            {messages.map((message, index) => message.role === "user" ? <div className="studio-message user" data-chat-message key={message.id}><div className="user-message">{message.text}</div></div> : <Fragment key={message.id}><AssistantReply reply={message.reply} showEmotion={emotionChanged(messages, index)} fallback={message.fallback} onRetry={canRetryWithAi && message === lastMessage ? () => retryWithAi(message.id) : undefined} onChoice={send} onHelp={onHelp} navigate={navigate} disabled={typing} onOpenPlan={() => setPlanOpen(true)} />{message.mirror && <MirrorSuggestion theme={message.mirror} onPractice={() => onPracticeWithCompanion(message.mirror!)} />}</Fragment>)}
             {typing && <div className="studio-message assistant" data-chat-message><div className="thinking-card" role="status"><div className="thinking-dots"><i /><i /><i /></div><span>Organizando una respuesta segura y útil…</span></div></div>}
             {showPlanHint && <div className="plan-first-hint" role="status"><ListChecks size={19} /><div><strong>Tu respuesta incluye un plan</strong><span>Puedes revisarlo y marcar avances en <b>Plan de ahora</b>.</span></div><button onClick={() => { setShowPlanHint(false); setPlanOpen(true); }}>Ver plan <ArrowRight size={15} /></button><button className="plan-hint-close" onClick={() => setShowPlanHint(false)} aria-label="Cerrar aviso"><X size={15} /></button></div>}
             {messages.length === 1 && screeningSuggestions.length > 0 && <div className="screening-suggestion-row" aria-label="Sugerencias según tu tamizaje reciente">
@@ -471,7 +471,19 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
   );
 }
 
-function AssistantReply({ reply, fallback, onRetry, onChoice, onHelp, navigate, disabled, onOpenPlan }: { reply: ConversationReply; fallback?: LocalFallback; onRetry?: () => void; onChoice: (text: string) => void; onHelp: () => void; navigate: (view: MainView) => void; disabled: boolean; onOpenPlan: () => void }) {
+/**
+ * La "Señal tentativa" de emoción se muestra solo cuando cambia respecto a la
+ * respuesta anterior: repetida en cada mensaje ("Frustración · expresó",
+ * "Frustración · expresó"…) hacía sentir la charla como un expediente.
+ */
+function emotionChanged(messages: ChatMessage[], index: number) {
+  const current = messages[index];
+  if (current.role !== "assistant" || !current.reply.emotion) return false;
+  const previous = messages.slice(0, index).reverse().find((message): message is Extract<ChatMessage, { role: "assistant" }> => message.role === "assistant" && Boolean(message.reply.emotion) && message.reply.emotion!.primary !== "no_clara" && message.reply.emotion!.confidence !== "baja");
+  return previous?.reply.emotion?.primary !== current.reply.emotion.primary;
+}
+
+function AssistantReply({ reply, showEmotion = true, fallback, onRetry, onChoice, onHelp, navigate, disabled, onOpenPlan }: { reply: ConversationReply; showEmotion?: boolean; fallback?: LocalFallback; onRetry?: () => void; onChoice: (text: string) => void; onHelp: () => void; navigate: (view: MainView) => void; disabled: boolean; onOpenPlan: () => void }) {
   const sources = reply.sourceIds.map((id) => trustedSources.find((item) => item.id === id)).filter(Boolean);
   const conversational = reply.presentation === "conversation" && reply.mode !== "safety";
   const hasGuidance = Boolean(reply.insight || reply.steps.length || reply.question || reply.choices.length);
@@ -479,10 +491,10 @@ function AssistantReply({ reply, fallback, onRetry, onChoice, onHelp, navigate, 
     <div className="assistant-response">
       <div className={`assistant-card ${conversational ? "conversational" : "guided"}`}>
         {!conversational && <div className="assistant-label"><span>{reply.mode === "safety" ? <AlertTriangle size={15} /> : <Sparkles size={15} />}{reply.label}</span>{reply.mode === "safety" && <DemoBadge>Activación preventiva</DemoBadge>}</div>}
-        {reply.title && <h2 className={conversational ? "conversation-title" : undefined}>{reply.title}</h2>}
+        {/* En una conversación el título sobra (sonaba a ficha: "Saludo inicial"); en un plan sí ordena. */}{reply.title && !conversational && <h2>{reply.title}</h2>}
         <p className="assistant-intro">{reply.introduction}</p>
         {conversational && reply.insight && <p className="assistant-insight">{reply.insight}</p>}
-        {reply.emotion && reply.emotion.primary !== "no_clara" && reply.emotion.confidence !== "baja" && <div className="emotion-signal"><Sparkles size={14} /><span>Señal tentativa: <strong>{emotionLabels[reply.emotion.primary]}</strong> · {reply.emotion.progress.replace("_", " ")}</span><small>No es diagnóstico</small></div>}
+        {showEmotion && reply.emotion && reply.emotion.primary !== "no_clara" && reply.emotion.confidence !== "baja" && <div className="emotion-signal"><Sparkles size={14} /><span>Señal tentativa: <strong>{emotionLabels[reply.emotion.primary]}</strong> · {reply.emotion.progress.replace("_", " ")}</span><small>No es diagnóstico</small></div>}
         {reply.mode === "safety" && <div className="expanded-safety-guidance">{reply.insight && <div className="context-reading"><CircleHelp size={18} /><div><strong>Por qué se activó esta ayuda</strong><p>{reply.insight}</p></div></div>}<div className="response-steps">{reply.steps.map((step) => <div key={`${step.horizon}-${step.text}`}><span>{step.horizon}</span><p>{step.text}</p></div>)}</div></div>}
       </div>
       {conversational && reply.steps.length > 0 && <button className="inline-plan-summary" disabled={disabled} onClick={onOpenPlan}><ListChecks size={17} /><span><strong>{reply.steps.length} acciones preparadas</strong><small>{reply.steps[0].horizon}: {reply.steps[0].text}</small></span><ArrowRight size={17} /></button>}
