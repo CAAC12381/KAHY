@@ -9,7 +9,7 @@ import type { DailyHabitsApi } from "../hooks/useDailyHabits";
 import { stageForGrowth, type PetGardenApi } from "../hooks/usePetGarden";
 import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
 import type { MirrorJournalApi } from "../hooks/useMirrorJournal";
-import type { MirrorTheme } from "../data/mokaMirror";
+import type { MirrorTheme } from "../data/companionMirror";
 import type { TaskPlansApi } from "../hooks/useTaskPlans";
 import type { ScreeningsState } from "../hooks/useScreenings";
 import { advanceCompanionBox, hasRevealedCompanion, rememberCompanionReveal, type CompanionBoxState } from "../lib/companionReveal";
@@ -34,7 +34,7 @@ export default function HomePage({
   habits,
   onOpenTask,
   mirrorJournal,
-  onPracticeWithMoka,
+  onPracticeWithCompanion,
 }: {
   profile: DemoProfile;
   deviceId: string;
@@ -49,7 +49,7 @@ export default function HomePage({
   habits: DailyHabitsApi;
   onOpenTask: (planId?: string) => void;
   mirrorJournal: MirrorJournalApi;
-  onPracticeWithMoka: (theme: MirrorTheme) => void;
+  onPracticeWithCompanion: (theme: MirrorTheme) => void;
 }) {
   const [revealedAtLoad] = useState(() => hasRevealedCompanion(deviceId, profile.mascot));
   const [boxState, setBoxState] = useState<CompanionBoxState>(revealedAtLoad ? "open" : "closed");
@@ -153,9 +153,9 @@ export default function HomePage({
         entries={emotionCalendar.entries}
         habits={habits}
         companionName={preferences.showMascot ? companionName : null}
-        practicedDays={mirrorJournal.practicedDays}
+        sessions={mirrorJournal.sessions}
         moments={mirrorJournal.moments}
-        onPracticeWithMoka={onPracticeWithMoka}
+        onPracticeWithCompanion={onPracticeWithCompanion}
       />
 
       {preferences.showMascot && (

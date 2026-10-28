@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import type { MirrorTheme } from "../../data/mokaMirror";
+import { mirrorCompanions, type MirrorTheme } from "../../data/companionMirror";
 import type { DailyHabitsApi } from "../../hooks/useDailyHabits";
-import type { MirrorMoment } from "../../hooks/useMirrorJournal";
+import type { MirrorMoment, MirrorSession } from "../../hooks/useMirrorJournal";
 import { fromDayKey, startOfMonth, toDayKey } from "../../lib/dayKey";
 import type { EmotionEntry } from "../../types";
 import DailyHabitsPanel from "./DailyHabitsPanel";
@@ -11,19 +11,19 @@ type Props = {
   entries: EmotionEntry[];
   habits: DailyHabitsApi;
   companionName?: string | null;
-  /** Días ("AAAA-MM-DD") en que se acompañó a Moka. Vienen de useMirrorJournal. */
-  practicedDays?: string[];
+  /** Con qué compañero se practicó cada día ("AAAA-MM-DD"). Vienen de useMirrorJournal. */
+  sessions?: MirrorSession[];
   /** Tema de lo que se contó cada día ("escuela"…). Vienen de useMirrorJournal. */
   moments?: MirrorMoment[];
-  onPracticeWithMoka?: (theme: MirrorTheme) => void;
+  onPracticeWithCompanion?: (theme: MirrorTheme) => void;
 };
 
 /**
  * Calendario emocional + hábitos del día en un solo contenedor.
  * El día que eliges en el calendario controla el panel de hábitos.
- * También marca los días con Moka y permite practicar lo que se contó.
+ * También marca los días en que se practicó con los compañeros y permite practicar lo que se contó.
  */
-export default function WellbeingTracker({ entries, habits, companionName, practicedDays = [], moments = [], onPracticeWithMoka }: Props) {
+export default function WellbeingTracker({ entries, habits, companionName, sessions = [], moments = [], onPracticeWithCompanion }: Props) {
   const [selectedKey, setSelectedKey] = useState(habits.todayKey);
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
 
@@ -36,7 +36,16 @@ export default function WellbeingTracker({ entries, habits, companionName, pract
     return grouped;
   }, [entries]);
 
-  const practiced = useMemo(() => new Set(practicedDays), [practicedDays]);
+  const practicedWith = useMemo(() => {
+    const grouped = new Map<string, string[]>();
+    sessions.forEach((session) => {
+      const names = grouped.get(session.day) ?? [];
+      const name = mirrorCompanions[session.companion].name;
+      if (!names.includes(name)) grouped.set(session.day, [...names, name]);
+    });
+    return grouped;
+  }, [sessions]);
+  const practiced = useMemo(() => new Set(practicedWith.keys()), [practicedWith]);
 
   const themesByDay = useMemo(() => {
     const grouped = new Map<string, MirrorTheme[]>();
@@ -96,8 +105,8 @@ export default function WellbeingTracker({ entries, habits, companionName, pract
             customRemaining={habits.customRemaining}
             emotions={emotionsByDay.get(selectedKey) ?? []}
             themes={themesByDay.get(selectedKey) ?? []}
-            practicedWithMoka={practiced.has(selectedKey)}
-            onPracticeWithMoka={onPracticeWithMoka}
+            practicedWith={practicedWith.get(selectedKey) ?? []}
+            onPracticeWithCompanion={onPracticeWithCompanion}
             companionName={companionName}
           />
         </div>

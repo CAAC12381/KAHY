@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import AppShell from "./layouts/AppShell";
 import ConnectionBanner from "./components/ConnectionBanner";
 import LazyCompanion3D from "./components/LazyCompanion3D";
-import { practiceDay, type MirrorTheme } from "./data/mokaMirror";
+import { mirrorCompanions, practiceDay, type MirrorTheme } from "./data/companionMirror";
 import { AccessFlow, Onboarding, SplashScreen } from "./pages/AccessFlow";
 import ActivitiesPage, { type Activity } from "./pages/ActivitiesPage";
 import ChatPage from "./pages/ChatPage";
@@ -33,7 +33,7 @@ import { closedBoxImage, flowers, mascots } from "./mock/data";
 import { COMPANION_REVEALS_KEY, forgetCompanionReveal } from "./lib/companionReveal";
 import { clearSession, logoutAccount, readSession, saveSession, SESSION_EXPIRED_EVENT, type Session } from "./services/authApi";
 import { fetchRemoteProfile, saveRemoteProfile, deleteRemoteData, type RemoteProfile } from "./services/dataApi";
-import type { DemoProfile, MainView, Preferences, ToastMessage } from "./types";
+import type { DemoProfile, MainView, MascotId, Preferences, ToastMessage } from "./types";
 import "./styles/accounts-directory.css";
 
 type Stage = "splash" | "access" | "onboarding" | "app";
@@ -270,17 +270,17 @@ export default function App() {
     setView(nextView);
   }
 
-  /** "Practicar con Moka" (chat o calendario): Moka vive algo parecido a lo que se contó. */
-  function practiceWithMoka(theme: MirrorTheme) {
+  /** "Practicar con…" (chat o calendario): el compañero de ese tema vive algo parecido a lo que se contó. */
+  function practiceWithCompanion(theme: MirrorTheme) {
     setActivityIntent(null);
     setChatDraft(null);
     setMirrorIntent({ key: Date.now(), theme });
     setView("companion3d");
   }
 
-  function mirrorPracticed() {
-    mirrorJournal.markPracticed();
-    garden.rewardMilestone(`mirror:${practiceDay()}`, 3, "Acompañaste a Moka. Practicar la amabilidad también nos hace crecer.");
+  function mirrorPracticed(companion: MascotId) {
+    mirrorJournal.markPracticed(companion);
+    garden.rewardMilestone(`mirror:${practiceDay()}`, 3, `Acompañaste a ${mirrorCompanions[companion].name}. Practicar la amabilidad también nos hace crecer.`);
   }
 
   function openTaskBreakdown(planId?: string) {
@@ -483,8 +483,8 @@ export default function App() {
     <div className={preferenceClasses(preferences)}>
       <a className="skip-link" href="#main-content">Saltar al contenido</a>
       <AppShell currentView={view} onNavigate={navigate} onHelp={() => setShowHelp(true)} onExit={exitToAccess} companion={<Companion type={profile.companionType} mascot={profile.mascot} flower={profile.flower} growth={garden.growth} mood={garden.mood} neglected={garden.isNeglected} />} preferences={preferences}>
-        {view === "home" && <HomePage profile={profile} deviceId={deviceId} preferences={preferences} navigate={navigate} notify={notify} screenings={screenings} onHelp={() => setShowHelp(true)} garden={garden} emotionCalendar={emotionCalendar} taskPlans={taskPlans} habits={habits} onOpenTask={openTaskBreakdown} mirrorJournal={mirrorJournal} onPracticeWithMoka={practiceWithMoka} />}
-        {view === "chat" && <ChatPage key={chatDraft?.key ?? "chat"} initialDraft={chatDraft?.text} onHelp={() => setShowHelp(true)} navigate={navigate} preferences={preferences} screenings={screenings} garden={garden} profile={profile} deviceId={deviceId} chatHistory={chatHistory} emotionCalendar={emotionCalendar} taskPlans={taskPlans} habits={habits} onOpenTask={openTaskBreakdown} mirrorJournal={mirrorJournal} onPracticeWithMoka={practiceWithMoka} />}
+        {view === "home" && <HomePage profile={profile} deviceId={deviceId} preferences={preferences} navigate={navigate} notify={notify} screenings={screenings} onHelp={() => setShowHelp(true)} garden={garden} emotionCalendar={emotionCalendar} taskPlans={taskPlans} habits={habits} onOpenTask={openTaskBreakdown} mirrorJournal={mirrorJournal} onPracticeWithCompanion={practiceWithCompanion} />}
+        {view === "chat" && <ChatPage key={chatDraft?.key ?? "chat"} initialDraft={chatDraft?.text} onHelp={() => setShowHelp(true)} navigate={navigate} preferences={preferences} screenings={screenings} garden={garden} profile={profile} deviceId={deviceId} chatHistory={chatHistory} emotionCalendar={emotionCalendar} taskPlans={taskPlans} habits={habits} onOpenTask={openTaskBreakdown} mirrorJournal={mirrorJournal} onPracticeWithCompanion={practiceWithCompanion} />}
         {view === "activities" && <ActivitiesPage key={activityIntent?.key ?? "activities"} preferences={preferences} notify={notify} taskPlans={taskPlans} emotionCalendar={emotionCalendar} onHelp={() => setShowHelp(true)} onTalkToKahy={talkToKahy} initialActivity={activityIntent?.activity} initialPlanId={activityIntent?.planId} />}
         {view === "screening" && <ScreeningPage screenings={screenings} onHelp={() => setShowHelp(true)} navigate={navigate} />}
         {view === "specialists" && <SpecialistsPage city={profile.city} onHelp={() => setShowHelp(true)} />}

@@ -30,7 +30,7 @@ import type { ChatHistoryApi, ChatHistorySession } from "../hooks/useChatHistory
 import type { EmotionCalendarApi } from "../hooks/useEmotionCalendar";
 import type { DailyHabitsApi } from "../hooks/useDailyHabits";
 import type { MirrorJournalApi } from "../hooks/useMirrorJournal";
-import { detectMirrorTheme, mirrorThemes, type MirrorTheme } from "../data/mokaMirror";
+import { detectMirrorTheme, mirrorCompanions, mirrorThemes, type MirrorTheme } from "../data/companionMirror";
 import type { PetGardenApi } from "../hooks/usePetGarden";
 import type { ScreeningsState } from "../hooks/useScreenings";
 import { makeStep, type TaskPlansApi } from "../hooks/useTaskPlans";
@@ -87,7 +87,7 @@ const safetyStrip: Record<AiConnection, [string, string]> = {
 
 type ChatMessage =
   | { id: number; role: "user"; text: string }
-  | { id: number; role: "assistant"; reply: ConversationReply; fallback?: LocalFallback; /** Sugerir practicarlo con Moka (tema de lo que se contó). */ mirror?: MirrorTheme };
+  | { id: number; role: "assistant"; reply: ConversationReply; fallback?: LocalFallback; /** Sugerir practicarlo con un compañero (tema de lo que se contó). */ mirror?: MirrorTheme };
 
 const initialReply: ConversationReply = {
   mode: "standard",
@@ -132,7 +132,7 @@ function formatSessionDate(timestamp: number): string {
   return date.toLocaleDateString("es-MX", { day: "numeric", month: "short" });
 }
 
-export default function ChatPage({ onHelp, navigate, preferences, screenings, garden, profile, deviceId, chatHistory, emotionCalendar, taskPlans, habits, onOpenTask, initialDraft, mirrorJournal, onPracticeWithMoka }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences; screenings: ScreeningsState; garden: PetGardenApi; profile: DemoProfile; deviceId: string; chatHistory: ChatHistoryApi; emotionCalendar: EmotionCalendarApi; taskPlans: TaskPlansApi; habits: DailyHabitsApi; onOpenTask: (planId?: string) => void; initialDraft?: string; mirrorJournal: MirrorJournalApi; onPracticeWithMoka: (theme: MirrorTheme) => void }) {
+export default function ChatPage({ onHelp, navigate, preferences, screenings, garden, profile, deviceId, chatHistory, emotionCalendar, taskPlans, habits, onOpenTask, initialDraft, mirrorJournal, onPracticeWithCompanion }: { onHelp: () => void; navigate: (view: MainView) => void; preferences: Preferences; screenings: ScreeningsState; garden: PetGardenApi; profile: DemoProfile; deviceId: string; chatHistory: ChatHistoryApi; emotionCalendar: EmotionCalendarApi; taskPlans: TaskPlansApi; habits: DailyHabitsApi; onOpenTask: (planId?: string) => void; initialDraft?: string; mirrorJournal: MirrorJournalApi; onPracticeWithCompanion: (theme: MirrorTheme) => void }) {
   const memory = useChatMemory(preferences.rememberConversations, deviceId);
   const companionName = profile.companionType === "mascota" ? mascots.find((item) => item.id === profile.mascot)?.name : flowers.find((item) => item.id === profile.flower)?.name;
   const adaptive = buildAdaptiveContext({
@@ -277,8 +277,9 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
     if (remaining) await new Promise((resolve) => window.setTimeout(resolve, remaining));
     const reply = finalizeReply(fetched.reply, clean);
     const emotion = reply.emotion ?? inferLocalEmotion(clean);
-    // Si contó algo que salió mal o se está criticando, Moka puede vivir algo parecido (una sugerencia por
-    // conversación). Con señales de riesgo no: ahí lo que toca es la ayuda que da el chat.
+    // Si contó algo que este ejercicio acompaña (algo salió mal, pedir ayuda, agradar, ir más lento), un
+    // compañero puede vivir algo parecido (una sugerencia por conversación). Con señales de riesgo no:
+    // ahí lo que toca es la ayuda que da el chat.
     const mirrorTheme = reply.mode !== "safety" && !detectSafetySignal(clean) ? detectMirrorTheme(clean) : null;
     const alreadySuggested = messages.some((message) => message.role === "assistant" && message.mirror);
     setMessages((current) => [...current, { id: Date.now() + 1, role: "assistant", reply, fallback: fetched.fallback, mirror: mirrorTheme && !alreadySuggested ? mirrorTheme : undefined }]);
@@ -424,7 +425,7 @@ export default function ChatPage({ onHelp, navigate, preferences, screenings, ga
             <div className="conversation-day"><Sparkles size={13} /> {preferences.saveChatHistory ? "Conversación nueva · se guarda en este navegador" : preferences.rememberConversations ? "Conversación nueva · recuerda solo temas" : "Conversación nueva · no se guarda"}</div>
             {memory.entries.length > 0 && <div className="memory-banner"><MessageCircle size={14} /><span>La última vez hablamos de: {memory.entries.slice(-3).map((entry) => topicNames[entry.topic]).join(", ")}.</span></div>}
             {messages.length === 1 && preferences.adaptivePersonalization && adaptive.connectedSignals > 0 && <div className="memory-banner adaptive"><Sparkles size={14} /><span>KAHY conectará tus avances en hábitos, tareas, emociones y tamizajes para personalizar esta charla.</span></div>}
-            {messages.map((message) => message.role === "user" ? <div className="studio-message user" data-chat-message key={message.id}><div className="user-message">{message.text}</div></div> : <Fragment key={message.id}><AssistantReply reply={message.reply} fallback={message.fallback} onRetry={canRetryWithAi && message === lastMessage ? () => retryWithAi(message.id) : undefined} onChoice={send} onHelp={onHelp} navigate={navigate} disabled={typing} onOpenPlan={() => setPlanOpen(true)} />{message.mirror && <MirrorSuggestion theme={message.mirror} onPractice={() => onPracticeWithMoka(message.mirror!)} />}</Fragment>)}
+            {messages.map((message) => message.role === "user" ? <div className="studio-message user" data-chat-message key={message.id}><div className="user-message">{message.text}</div></div> : <Fragment key={message.id}><AssistantReply reply={message.reply} fallback={message.fallback} onRetry={canRetryWithAi && message === lastMessage ? () => retryWithAi(message.id) : undefined} onChoice={send} onHelp={onHelp} navigate={navigate} disabled={typing} onOpenPlan={() => setPlanOpen(true)} />{message.mirror && <MirrorSuggestion theme={message.mirror} onPractice={() => onPracticeWithCompanion(message.mirror!)} />}</Fragment>)}
             {typing && <div className="studio-message assistant" data-chat-message><div className="thinking-card" role="status"><div className="thinking-dots"><i /><i /><i /></div><span>Organizando una respuesta segura y útil…</span></div></div>}
             {showPlanHint && <div className="plan-first-hint" role="status"><ListChecks size={19} /><div><strong>Tu respuesta incluye un plan</strong><span>Puedes revisarlo y marcar avances en <b>Plan de ahora</b>.</span></div><button onClick={() => { setShowPlanHint(false); setPlanOpen(true); }}>Ver plan <ArrowRight size={15} /></button><button className="plan-hint-close" onClick={() => setShowPlanHint(false)} aria-label="Cerrar aviso"><X size={15} /></button></div>}
             {messages.length === 1 && screeningSuggestions.length > 0 && <div className="screening-suggestion-row" aria-label="Sugerencias según tu tamizaje reciente">
@@ -492,16 +493,17 @@ function AssistantReply({ reply, fallback, onRetry, onChoice, onHelp, navigate, 
   </article>;
 }
 
-/** "¿Lo practicamos con Moka?": Moka vive algo parecido a lo que se contó (ver src/data/mokaMirror.ts). */
+/** "¿Lo practicamos con Pío?": el compañero de ese tema vive algo parecido a lo que se contó (ver src/data/companionMirror.ts). */
 function MirrorSuggestion({ theme, onPractice }: { theme: MirrorTheme; onPractice: () => void }) {
+  const { name } = mirrorCompanions[mirrorThemes[theme].companion];
   return (
     <div className="mirror-suggestion">
       <HeartHandshake size={20} />
       <div>
-        <strong>¿Lo practicamos con Moka?</strong>
-        <p>A Moka {mirrorThemes[theme].teaser}. Puedes decirle lo que le dirías a alguien que quieres, y luego escucharlo para ti.</p>
+        <strong>¿Lo practicamos con {name}?</strong>
+        <p>A {name} {mirrorThemes[theme].teaser}. Puedes decirle lo que le dirías a alguien que quieres, y luego escucharlo para ti.</p>
       </div>
-      <button type="button" onClick={onPractice}>Practicar con Moka <ArrowRight size={15} /></button>
+      <button type="button" onClick={onPractice}>Practicar con {name} <ArrowRight size={15} /></button>
     </div>
   );
 }

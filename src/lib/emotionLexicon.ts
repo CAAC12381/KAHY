@@ -13,7 +13,7 @@ const signals: Array<{ emotion: EmotionName; words: string[] }> = [
   { emotion: "miedo", words: ["miedo", "temor", "asust", "pánico", "panico", "me da cosa", "me aterra", "tengo miedo"] },
   { emotion: "enojo", words: ["enoj", "coraje", "furios", "encabron", "hasta la madre", "me hierve", "me prende", "chingado"] },
   // También cuando algo salió mal y la persona se critica ("soy un fracaso", "reprobé"): así esos días
-  // aparecen en el calendario y se pueden practicar con Moka (src/data/mokaMirror.ts).
+  // aparecen en el calendario y se pueden practicar con Moka (src/data/companionMirror.ts).
   { emotion: "frustración", words: ["frustr", "impotencia", "no doy una", "ya valí", "ya vali", "no me sale", "haga lo que haga", "decepcion", "fracas", "reprob", "me fue mal", "me fue muy mal", "me salió mal", "me salio mal", "la regué", "la regue"] },
   { emotion: "culpa", words: ["culpa", "me arrepiento", "arrepent", "fue mi culpa", "me da vergüenza", "me da verguenza", "qué pena", "que pena"] },
   { emotion: "soledad", words: ["me siento solo", "me siento sola", "estoy solo", "estoy sola", "ando solo", "ando sola", "soledad", "nadie me pela", "nadie me entiende", "abandon", "rechaz", "me siento invisible"] },

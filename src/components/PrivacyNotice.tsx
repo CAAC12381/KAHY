@@ -48,7 +48,7 @@ export default function PrivacyNotice() {
         <li><strong>Datos sensibles, relacionados con tu salud emocional:</strong> los resultados de los cuestionarios de tamizaje (PHQ-4, K10, PHQ-9, GAD-7, AUDIT-C, AUDIT, Paykel, ASRS y PCL-5: respuestas, puntaje y banda) y las etiquetas del calendario emocional (emoción detectada, intensidad y fecha, nunca el texto que escribiste).</li>
       </ul>
       <p>Para la mayoría de edad solo confirmamos que tienes 18 años o más; no guardamos tu edad. No pedimos tu nombre completo, teléfono, domicilio, CURP ni documentos. El texto de tus conversaciones del chat no se guarda en nuestro servidor; el historial completo, si lo activas, vive solo en tu navegador.</p>
-      <p><strong>Solo en tu dispositivo</strong> (con o sin cuenta, nunca se envía a nuestro servidor) se guarda lo del ejercicio "Lo que le dirías a alguien que quieres", con Moka: los días en que practicaste, el tema general de lo que contaste en el chat para poder practicarlo con ella (por ejemplo, "escuela", nunca el texto) y las frases que tú decidas guardar. Lo que escribes en ese ejercicio no se envía a ningún lado. Lo único que sí llega a tu cuenta es el crecimiento de tu compañero por haber practicado, como parte de su avance.</p>
+      <p><strong>Solo en tu dispositivo</strong> (con o sin cuenta, nunca se envía a nuestro servidor) se guarda lo del ejercicio "Lo que le dirías a alguien que quieres", con los compañeros (Moka, Pío, Lima y Tita): con quién practicaste cada día, el tema general de lo que contaste en el chat para poder practicarlo (por ejemplo, "escuela", nunca el texto) y las frases que tú decidas guardar. Lo que escribes en ese ejercicio no se envía a ningún lado. Lo único que sí llega a tu cuenta es el crecimiento de tu compañero por haber practicado, como parte de su avance.</p>
 
       <h3>3. Para qué los usamos</h3>
       <p>Finalidades necesarias para el servicio:</p>
@@ -75,7 +75,7 @@ export default function PrivacyNotice() {
       <p>No transferimos tus datos a terceros para que los usen con sus propios fines. Solo los entregaríamos a una autoridad competente cuando la ley lo exija.</p>
 
       <h3>6. Cómo limitar el uso de tus datos</h3>
-      <p>En Perfil puedes desactivar "Recordar temas de mis conversaciones", "Personalización conectada" y "Guardar mis conversaciones", y borrar tu historial de tamizaje, tu calendario emocional, tus temas guardados y lo que guardó el ejercicio con Moka. También puedes usar KAHY sin cuenta.</p>
+      <p>En Perfil puedes desactivar "Recordar temas de mis conversaciones", "Personalización conectada" y "Guardar mis conversaciones", y borrar tu historial de tamizaje, tu calendario emocional, tus temas guardados y lo que guardó el ejercicio con los compañeros. También puedes usar KAHY sin cuenta.</p>
 
       <h3>7. Tus derechos ARCO y cómo ejercerlos</h3>
       <p>Tienes derecho a <strong>acceder</strong> a tus datos, <strong>rectificarlos</strong> si son inexactos, <strong>cancelarlos</strong> y <strong>oponerte</strong> a su uso.</p>
@@ -95,7 +95,7 @@ export default function PrivacyNotice() {
       <p>La conexión con KAHY va cifrada (HTTPS), las contraseñas y los códigos de sesión se guardan solo como huellas cifradas y tus datos solo se pueden leer con tu sesión. Ningún sistema es infalible: si ocurriera una vulneración que afecte de forma significativa tus derechos, te avisaríamos para que puedas protegerte.</p>
 
       <h3>11. Cookies y almacenamiento del navegador</h3>
-      <p>No usamos cookies de rastreo, publicidad ni analítica. Usamos el almacenamiento de tu navegador solo para que la app funcione: tu sesión, tus preferencias, tu avance, lo del ejercicio con Moka y, si lo activas, el historial del chat. Puedes borrarlo desde Perfil o desde la configuración de tu navegador.</p>
+      <p>No usamos cookies de rastreo, publicidad ni analítica. Usamos el almacenamiento de tu navegador solo para que la app funcione: tu sesión, tus preferencias, tu avance, lo del ejercicio con los compañeros y, si lo activas, el historial del chat. Puedes borrarlo desde Perfil o desde la configuración de tu navegador.</p>
 
       <h3>12. Personas menores de edad</h3>
       <p>KAHY está pensado para personas de 18 años o más. Si eres menor de edad, por favor no crees una cuenta.</p>

@@ -1,6 +1,6 @@
 import { HeartHandshake, Sparkles } from "lucide-react";
 import { useState } from "react";
-import { mirrorThemes, type MirrorTheme } from "../../data/mokaMirror";
+import { mirrorCompanions, mirrorThemes, type MirrorTheme } from "../../data/companionMirror";
 import type { AddHabitResult } from "../../hooks/useDailyHabits";
 import type { Habit, HabitIcon, HabitSuggestion } from "../../lib/habitCatalog";
 import { emotionLabels } from "../../lib/emotionLexicon";
@@ -26,8 +26,9 @@ type Props = {
   emotions: EmotionEntry[];
   /** Temas de lo que se contó ese día ("escuela"…). */
   themes: MirrorTheme[];
-  practicedWithMoka: boolean;
-  onPracticeWithMoka?: (theme: MirrorTheme) => void;
+  /** Con quién se practicó ese día "Lo que le dirías a alguien que quieres" (nombres). */
+  practicedWith: string[];
+  onPracticeWithCompanion?: (theme: MirrorTheme) => void;
   /** Nombre del compañero (mascota o flor). null si el usuario ocultó la mascota. */
   companionName?: string | null;
 };
@@ -46,8 +47,8 @@ export default function DailyHabitsPanel({
   customRemaining = 0,
   emotions,
   themes,
-  practicedWithMoka,
-  onPracticeWithMoka,
+  practicedWith,
+  onPracticeWithCompanion,
   companionName,
 }: Props) {
   const [newHabitId, setNewHabitId] = useState<string | null>(null);
@@ -55,6 +56,7 @@ export default function DailyHabitsPanel({
   const doneCount = habits.filter((habit) => completed.includes(habit.id)).length;
   const dateLabel = capitalizeFirst(date.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" }));
   const uniqueEmotions = [...new Set(emotions.map((entry) => entry.primary))];
+  const lastTheme = themes[themes.length - 1];
 
   return (
     <aside
@@ -79,7 +81,7 @@ export default function DailyHabitsPanel({
         <ProgressRing value={doneCount} total={habits.length} />
       </header>
 
-      {(uniqueEmotions.length > 0 || themes.length > 0 || practicedWithMoka) && (
+      {(uniqueEmotions.length > 0 || themes.length > 0 || practicedWith.length > 0) && (
         <div className="rounded-xl bg-white/70 px-3 py-2.5">
           <p className="text-xs font-bold text-[var(--ink)]">Lo que apareció ese día</p>
           {uniqueEmotions.length > 0 && (
@@ -105,18 +107,18 @@ export default function DailyHabitsPanel({
               Lo que contaste: {themes.map((theme) => mirrorThemes[theme].label.toLowerCase()).join(", ")}
             </p>
           )}
-          {practicedWithMoka && (
+          {practicedWith.length > 0 && (
             <p className="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-[var(--purple-deep)]">
-              <HeartHandshake size={14} aria-hidden="true" /> Practicaste con Moka
+              <HeartHandshake size={14} aria-hidden="true" /> Practicaste con {practicedWith.join(" y ")}
             </p>
           )}
-          {themes.length > 0 && onPracticeWithMoka && (
+          {lastTheme && onPracticeWithCompanion && (
             <button
               type="button"
-              onClick={() => onPracticeWithMoka(themes[themes.length - 1])}
+              onClick={() => onPracticeWithCompanion(lastTheme)}
               className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[#cdbed2] bg-white px-3 py-1.5 text-xs font-bold text-[var(--purple-deep)] transition-colors duration-200 hover:border-[var(--purple)]"
             >
-              <HeartHandshake size={16} aria-hidden="true" /> Practicarlo con Moka
+              <HeartHandshake size={16} aria-hidden="true" /> Practicarlo con {mirrorCompanions[mirrorThemes[lastTheme].companion].name}
             </button>
           )}
           {uniqueEmotions.length > 0 && (

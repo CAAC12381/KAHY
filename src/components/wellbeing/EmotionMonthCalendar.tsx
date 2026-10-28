@@ -15,7 +15,7 @@ type Props = {
   todayKey: string;
   onSelect: (dayKey: string) => void;
   emotionsByDay: Map<string, EmotionEntry[]>;
-  /** Días en que se acompañó a Moka. */
+  /** Días en que se acompañó a algún compañero en "Lo que le dirías a alguien que quieres". */
   practicedDays: Set<string>;
   /** Días con emoción, práctica con Moka o tema contado. */
   recordedDays: Set<string>;
@@ -102,7 +102,7 @@ export default function EmotionMonthCalendar({
           const label = [
             date.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" }),
             latest ? emotionLabels[latest.primary] : "sin registro emocional",
-            withMoka ? "practicaste con Moka" : "",
+            withMoka ? "practicaste con tus compañeros" : "",
             `${habitsDone} de ${habitTotal} hábitos`,
           ].filter(Boolean).join(", ");
 
@@ -151,7 +151,7 @@ export default function EmotionMonthCalendar({
         </span>
         <span className="inline-flex items-center gap-1 rounded-full bg-[var(--purple-soft)] px-2.5 py-1 text-[0.66rem] font-bold text-[var(--purple-deep)]">
           <HeartHandshake size={11} aria-hidden="true" />
-          Practicaste con Moka
+          Practicaste con tus compañeros
         </span>
       </div>
     </div>

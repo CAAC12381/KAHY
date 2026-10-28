@@ -1,27 +1,27 @@
 import { ArrowRight, BookmarkCheck, BookmarkPlus, Check, HeartHandshake, LifeBuoy, MessageCircleHeart, PenLine, RefreshCw, Undo2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { detectSafetySignal } from "../../api/_lib/chatGuards";
-import { MIRROR_TEXT_LIMIT, mirrorPhrase, type MirrorSituation } from "../data/mokaMirror";
+import { MIRROR_TEXT_LIMIT, companionOf, mirrorCompanions, mirrorPhrase, type MirrorSituation } from "../data/companionMirror";
 import { Button } from "./ui";
 
 /**
- * "Lo que le dirías a alguien que quieres" (ver src/data/mokaMirror.ts):
- * Moka cuenta algo que le salió mal, la persona la consuela y esa frase se le
- * devuelve. Lo que se escribe aquí no se envía a ningún lado; solo se guarda
- * (en este dispositivo) si la persona elige "Guardar en mis frases". La
- * página mueve a Moka con `onMoka`.
+ * "Lo que le dirías a alguien que quieres" (ver src/data/companionMirror.ts):
+ * un compañero cuenta algo que le pasó, la persona lo consuela y esa frase se
+ * le devuelve. Lo que se escribe aquí no se envía a ningún lado; solo se
+ * guarda (en este dispositivo) si la persona elige "Guardar en mis frases".
+ * La página mueve al compañero con `onCompanion`.
  */
 
 type Step = "story" | "thanks" | "mirror" | "kept" | "notYet" | "later" | "safety";
 const OWN_WORDS = -1;
 
-export default function MokaMirror({ situation, fromChat = false, onMoka, onPracticed, onSave, onAnother, onClose, onHelp }: {
+export default function CompanionMirror({ situation, fromChat = false, onCompanion, onPracticed, onSave, onAnother, onClose, onHelp }: {
   situation: MirrorSituation;
   /** La situación se eligió por algo parecido que la persona contó en el chat. */
   fromChat?: boolean;
-  /** down: apenada; cheer: consolada (con su respuesta); calm: vuelve a la normalidad sin festejo. */
-  onMoka: (state: "down" | "cheer" | "calm", line?: string) => void;
-  /** La persona consoló a Moka (el compañero crece una vez al día por esto). */
+  /** down: apenado; cheer: consolado (con su respuesta); calm: vuelve a la normalidad sin festejo. */
+  onCompanion: (state: "down" | "cheer" | "calm", line?: string) => void;
+  /** La persona consoló al compañero (el suyo crece una vez al día por esto). */
   onPracticed: () => void;
   /** Guarda la frase en "Frases que me he dicho" (solo en este dispositivo). */
   onSave: (phrase: string) => void;
@@ -35,6 +35,8 @@ export default function MokaMirror({ situation, fromChat = false, onMoka, onPrac
   const [saved, setSaved] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const firstStep = useRef(true);
+  const companion = companionOf(situation);
+  const { name } = mirrorCompanions[companion];
 
   // Al cambiar de paso, el foco va al título para que el lector de pantalla lo anuncie.
   useEffect(() => {
@@ -47,30 +49,31 @@ export default function MokaMirror({ situation, fromChat = false, onMoka, onPrac
 
   const said = choice === OWN_WORDS ? ownWords.trim() : choice === null ? "" : situation.options[choice];
 
-  function tellMoka() {
+  function tellCompanion() {
     if (!said) return;
     if (choice === OWN_WORDS && detectSafetySignal(said)) {
-      onMoka("calm");
+      onCompanion("calm");
       setStep("safety");
       return;
     }
-    onMoka("cheer", situation.thanks);
+    onCompanion("cheer", situation.thanks);
     onPracticed();
     setStep("thanks");
   }
 
   function notNow() {
-    onMoka("calm");
+    onCompanion("calm");
     setStep("later");
   }
 
   function backToStory() {
-    onMoka("down");
+    onCompanion("down");
     setStep("story");
   }
 
   const heading = (text: string) => <h2 ref={headingRef} tabIndex={-1}>{text}</h2>;
-  const backToPlay = <Button variant="ghost" onClick={onClose}><Undo2 size={18} /> Volver a jugar con Moka</Button>;
+  // Con Moka (en 3D) se vuelve a jugar; los demás, por ahora, solo acompañan este ejercicio.
+  const backToPlay = <Button variant="ghost" onClick={onClose}><Undo2 size={18} /> {companion === "vaca" ? "Volver a jugar con Moka" : "Terminar por hoy"}</Button>;
 
   return (
     <section className="mirror" aria-label="Lo que le dirías a alguien que quieres">
@@ -78,16 +81,16 @@ export default function MokaMirror({ situation, fromChat = false, onMoka, onPrac
 
       {step === "story" && (
         <>
-          {fromChat && <p className="mirror-hint">A Moka le pasó algo parecido a lo que contaste en el chat, en versión granja.</p>}
+          {fromChat && <p className="mirror-hint">A {name} le pasó algo parecido a lo que contaste en el chat, en versión de la granja.</p>}
           <blockquote className="mirror-quote">
             <p>{situation.story}</p>
             <p>Y pensé: “{situation.thought}”.</p>
-            <cite>Moka</cite>
+            <cite>{name}</cite>
           </blockquote>
-          {heading("¿Qué le dirías a Moka?")}
+          {heading(`¿Qué le dirías a ${name}?`)}
           <p className="mirror-hint">Elige una frase o escríbela con tus palabras, como se la dirías a alguien que quieres.</p>
           <fieldset className="mirror-options">
-            <legend className="sr-only">Lo que le dirías a Moka</legend>
+            <legend className="sr-only">Lo que le dirías a {name}</legend>
             {situation.options.map((option, index) => (
               <label className="mirror-option" key={option}>
                 <input type="radio" name="mirror-choice" checked={choice === index} onChange={() => setChoice(index)} />
@@ -101,13 +104,13 @@ export default function MokaMirror({ situation, fromChat = false, onMoka, onPrac
           </fieldset>
           {choice === OWN_WORDS && (
             <div className="mirror-write">
-              <label htmlFor="mirror-own-words">Lo que le dirías a Moka</label>
+              <label htmlFor="mirror-own-words">Lo que le dirías a {name}</label>
               <textarea id="mirror-own-words" rows={3} maxLength={MIRROR_TEXT_LIMIT} value={ownWords} onChange={(event) => setOwnWords(event.target.value)} autoFocus />
               <p className="mirror-note"><span>Lo que escribas no se envía a ningún lado. Solo se guarda, en este dispositivo, si al final eliges guardar la frase.</span><span>{ownWords.length}/{MIRROR_TEXT_LIMIT}</span></p>
             </div>
           )}
           <div className="mirror-actions">
-            <Button onClick={tellMoka} disabled={!said}><MessageCircleHeart size={18} /> Decírselo a Moka</Button>
+            <Button onClick={tellCompanion} disabled={!said}><MessageCircleHeart size={18} /> Decírselo a {name}</Button>
             <Button variant="ghost" onClick={notNow}>Ahora no</Button>
           </div>
         </>
@@ -115,10 +118,10 @@ export default function MokaMirror({ situation, fromChat = false, onMoka, onPrac
 
       {step === "thanks" && (
         <>
-          {heading("Moka te escuchó")}
+          {heading(`${name} te escuchó`)}
           <blockquote className="mirror-quote">
             <p>{situation.thanks}</p>
-            <cite>Moka</cite>
+            <cite>{name}</cite>
           </blockquote>
           <div className="mirror-actions">
             <Button onClick={() => setStep("mirror")}>Continuar <ArrowRight size={18} /></Button>
@@ -129,7 +132,7 @@ export default function MokaMirror({ situation, fromChat = false, onMoka, onPrac
       {step === "mirror" && (
         <>
           {heading("Ahora, para ti")}
-          <p>¿Alguna vez te has dicho algo como “{situation.thought}”? Lo que le dijiste a Moka también vale para ti:</p>
+          <p>¿Alguna vez te has dicho algo como “{situation.thought}”? Lo que le dijiste a {name} también vale para ti:</p>
           <blockquote className="mirror-quote mirror-quote--you">
             <p>{mirrorPhrase(said)}</p>
           </blockquote>
@@ -146,10 +149,10 @@ export default function MokaMirror({ situation, fromChat = false, onMoka, onPrac
           {heading(step === "kept" ? "Qué bueno" : "Está bien")}
           <p>
             {step === "kept"
-              ? "Puedes volver a decírtela cuando tu mente se ponga dura contigo. Ya sabes cómo suena: se la dijiste a Moka."
-              : "Es muy común: a muchas personas les sale más fácil ser amables con alguien más que consigo mismas. Que se lo hayas dicho a Moka ya es un paso."}
+              ? `Puedes volver a decírtela cuando tu mente se ponga dura contigo. Ya sabes cómo suena: se la dijiste a ${name}.`
+              : `Es muy común: a muchas personas les sale más fácil ser amables con alguien más que consigo mismas. Que se lo hayas dicho a ${name} ya es un paso.`}
           </p>
-          <p className="mirror-note">Acompañar a Moka hace crecer a tu compañero, una vez al día.</p>
+          <p className="mirror-note">Acompañar a los compañeros hace crecer al tuyo, una vez al día.</p>
           <div className="mirror-actions">
             {step === "kept" && (
               <Button onClick={() => { onSave(mirrorPhrase(said)); setSaved(true); }} disabled={saved}>
@@ -165,7 +168,7 @@ export default function MokaMirror({ situation, fromChat = false, onMoka, onPrac
       {step === "later" && (
         <>
           {heading("Está bien")}
-          <p>No tiene que salir hoy. Gracias por quedarte un ratito con Moka.</p>
+          <p>No tiene que salir hoy. Gracias por quedarte un ratito con {name}.</p>
           <div className="mirror-actions">{backToPlay}</div>
         </>
       )}

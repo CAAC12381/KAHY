@@ -63,7 +63,7 @@
 /* Arrastrar para girar o acariciar no debe seleccionar texto de la página. */
 .companion-3d-stage { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 
-/* "Lo que le dirías a alguien que quieres" (src/components/MokaMirror.tsx). */
+/* "Lo que le dirías a alguien que quieres" (src/components/CompanionMirror.tsx). */
 .companion-3d-mirror-cta { display: flex; align-items: center; gap: 14px; margin-top: 16px; padding: 14px 16px; border: 1px solid #ddd0e2; border-radius: 18px; background: var(--purple-soft); }
 .companion-3d-mirror-cta > div { flex: 1; min-width: 0; }
 .companion-3d-mirror-cta strong { color: var(--purple-deep); }
@@ -111,3 +111,25 @@
 .mirror-phrases time { grid-column: 1; color: var(--muted); font-size: .76rem; }
 .mirror-phrases li button { grid-column: 2; grid-row: 1 / span 2; width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
 .mirror-phrases li button:hover { border-color: var(--line); background: var(--paper); color: var(--danger); }
+
+/* Elegir compañero: los chips son botones. Pío, Lima y Tita (sin 3D todavía) se ven con su ilustración. */
+button.companion-3d-chip { font: inherit; text-align: left; cursor: pointer; }
+button.companion-3d-chip:hover:not(:disabled) { border-color: var(--purple); opacity: 1; }
+button.companion-3d-chip:focus-visible { outline: 3px solid rgba(147, 112, 158, .38); outline-offset: 2px; }
+button.companion-3d-chip:disabled { cursor: not-allowed; opacity: .4; }
+.companion-3d-stage.is-drawn .companion-3d-canvas-host { display: none; }
+.companion-3d-drawn { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; padding: 64px 16px 24px; }
+.companion-3d-drawn .mascot--large { width: min(320px, 72%, 46vh); height: min(320px, 72%, 46vh); border-radius: 28px; box-shadow: var(--shadow-sm); transition: transform .5s ease; }
+.companion-3d-drawn.is-down .mascot--large { transform: translateY(6px) scale(.97); }
+.companion-3d-drawn.is-cheer .mascot--large { animation: companion-cheer .9s ease both; }
+@keyframes companion-cheer {
+  0% { transform: translateY(6px) scale(.97); }
+  35% { transform: translateY(-16px) scale(1.03); }
+  65% { transform: translateY(0) scale(.99); }
+  100% { transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .companion-3d-drawn .mascot--large { transition: none; }
+  .companion-3d-drawn.is-cheer .mascot--large { animation: none; }
+}
+.reduce-motion .companion-3d-drawn .mascot--large { transition: none; animation: none !important; }
